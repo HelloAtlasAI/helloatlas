@@ -62,7 +62,7 @@ export const FloatingCards = ({ cards, onCardClose }: FloatingCardsProps) => {
         <div
           key={card.id}
           className={cn(
-            "absolute w-72 animate-scale-in",
+            "absolute w-72 animate-fade-in",
             getPositionClasses(card.position)
           )}
           style={{
@@ -74,7 +74,6 @@ export const FloatingCards = ({ cards, onCardClose }: FloatingCardsProps) => {
             title={card.title}
             icon={getIcon(card.type)}
             onClose={onCardClose ? () => onCardClose(card.id) : undefined}
-            floating
             glowing
           >
             {card.subtitle && (
