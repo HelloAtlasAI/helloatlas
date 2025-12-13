@@ -1,23 +1,28 @@
 import { useState, KeyboardEvent } from "react";
-import { Send, Mic, MicOff } from "lucide-react";
+import { Send, Mic, MicOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
-  onVoiceToggle?: () => void;
+  onVoiceStart?: () => void;
+  onVoiceStop?: () => Promise<string | null>;
   isListening?: boolean;
+  isRecording?: boolean;
   disabled?: boolean;
   placeholder?: string;
 }
 
 export const ChatInput = ({
   onSend,
-  onVoiceToggle,
+  onVoiceStart,
+  onVoiceStop,
   isListening = false,
+  isRecording = false,
   disabled = false,
   placeholder = "Ask ARIA anything...",
 }: ChatInputProps) => {
   const [message, setMessage] = useState("");
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
@@ -33,26 +38,50 @@ export const ChatInput = ({
     }
   };
 
+  const handleVoiceClick = async () => {
+    if (isRecording && onVoiceStop) {
+      setIsProcessingVoice(true);
+      const transcription = await onVoiceStop();
+      setIsProcessingVoice(false);
+      
+      if (transcription) {
+        onSend(transcription);
+      }
+    } else if (onVoiceStart) {
+      onVoiceStart();
+    }
+  };
+
   return (
     <div className="relative">
-      {/* Glow effect when focused */}
-      <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/30 via-accent/30 to-secondary/30 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition-opacity" />
+      {/* Glow effect when recording */}
+      {isRecording && (
+        <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 via-accent/50 to-secondary/50 rounded-2xl blur animate-pulse" />
+      )}
       
-      <div className="relative flex items-center gap-2 p-2 rounded-2xl bg-card/60 backdrop-blur-xl border border-border/50 focus-within:border-primary/50 transition-colors group">
+      <div className={cn(
+        "relative flex items-center gap-2 p-2 rounded-2xl bg-card/60 backdrop-blur-xl border transition-colors group",
+        isRecording 
+          ? "border-primary/50" 
+          : "border-border/50 focus-within:border-primary/50"
+      )}>
         {/* Voice button */}
-        {onVoiceToggle && (
+        {(onVoiceStart || onVoiceStop) && (
           <button
-            onClick={onVoiceToggle}
-            disabled={disabled}
+            onClick={handleVoiceClick}
+            disabled={disabled || isProcessingVoice}
             className={cn(
               "p-3 rounded-xl transition-all duration-200",
               "hover:bg-muted/50 active:scale-95",
-              isListening
+              "disabled:opacity-50 disabled:cursor-not-allowed",
+              isRecording
                 ? "bg-primary/20 text-primary"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            {isListening ? (
+            {isProcessingVoice ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : isRecording ? (
               <Mic className="w-5 h-5 animate-pulse" />
             ) : (
               <MicOff className="w-5 h-5" />
@@ -66,8 +95,8 @@ export const ChatInput = ({
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={disabled}
-          placeholder={placeholder}
+          disabled={disabled || isRecording}
+          placeholder={isRecording ? "Listening..." : placeholder}
           className={cn(
             "flex-1 bg-transparent text-foreground placeholder:text-muted-foreground",
             "text-sm outline-none",
@@ -78,7 +107,7 @@ export const ChatInput = ({
         {/* Send button */}
         <button
           onClick={handleSend}
-          disabled={disabled || !message.trim()}
+          disabled={disabled || !message.trim() || isRecording}
           className={cn(
             "p-3 rounded-xl transition-all duration-200",
             "bg-primary/10 text-primary",
