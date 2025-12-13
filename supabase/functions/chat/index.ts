@@ -31,7 +31,7 @@ serve(async (req) => {
         messages: [
           { 
             role: "system", 
-            content: `You are ARIA, an advanced AI Research Assistant. You are helpful, knowledgeable, and conversational.
+            content: `You are Atlas, an advanced AI Research Assistant. You are helpful, knowledgeable, and conversational.
             
 You can assist with:
 - Email management and organization

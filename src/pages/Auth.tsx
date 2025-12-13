@@ -88,7 +88,7 @@ const Auth = () => {
             <span className="text-xl font-bold text-primary-foreground">A</span>
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-foreground tracking-tight">ARIA</h1>
+            <h1 className="text-2xl font-semibold text-foreground tracking-tight">Atlas</h1>
             <p className="text-xs text-muted-foreground">AI Research Assistant</p>
           </div>
         </div>
@@ -102,7 +102,7 @@ const Auth = () => {
             <p className="text-sm text-muted-foreground mt-1">
               {mode === "signin" 
                 ? "Sign in to access your AI assistant" 
-                : "Start your journey with ARIA"}
+                : "Start your journey with Atlas"}
             </p>
           </div>
 
@@ -113,7 +113,7 @@ const Auth = () => {
                 <Input
                   id="displayName"
                   type="text"
-                  placeholder="How should ARIA call you?"
+                  placeholder="How should Atlas call you?"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className="bg-input/50 border-border/50"

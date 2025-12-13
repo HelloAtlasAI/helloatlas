@@ -18,6 +18,7 @@ const Index = () => {
   const [cards, setCards] = useState(demoCards);
   const [use3DAvatar, setUse3DAvatar] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const APP_NAME = "Atlas";
 
   const {
     isRecording,
@@ -83,7 +84,7 @@ const Index = () => {
             <span className="text-lg font-bold text-primary-foreground">A</span>
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-foreground tracking-tight">ARIA</h1>
+            <h1 className="text-lg font-semibold text-foreground tracking-tight">{APP_NAME}</h1>
             <p className="text-xs text-muted-foreground">AI Research Assistant</p>
           </div>
         </div>
@@ -143,7 +144,7 @@ const Index = () => {
         <div className="text-center mb-8 animate-fade-in">
           <h2 className="text-2xl md:text-3xl font-light text-foreground mb-2">
             Hello{user?.user_metadata?.display_name ? `, ${user.user_metadata.display_name}` : ""}.
-            I'm <span className="font-semibold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">ARIA</span>
+            I'm <span className="font-semibold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">{APP_NAME}</span>
           </h2>
           <p className="text-muted-foreground text-sm md:text-base">
             Your personal AI assistant. Ask me anything or tap the mic to talk.
