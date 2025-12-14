@@ -8,7 +8,7 @@ interface CyberGridSceneProps {
   audioLevel?: number;
 }
 
-// High-poly holographic core with smooth geometry
+// Ultra high-poly holographic core with smooth geometry
 const HolographicCore = ({ state, audioLevel = 0 }: { state: AIState; audioLevel: number }) => {
   const outerRef = useRef<THREE.Mesh>(null);
   const innerRef = useRef<THREE.Mesh>(null);
@@ -50,15 +50,15 @@ const HolographicCore = ({ state, audioLevel = 0 }: { state: AIState; audioLevel
 
   return (
     <group>
-      {/* Outer icosahedron - HIGH POLY */}
+      {/* Outer icosahedron - ULTRA HIGH POLY (4 subdivisions = 1280 faces) */}
       <mesh ref={outerRef} scale={0.45}>
-        <icosahedronGeometry args={[1, 3]} />
+        <icosahedronGeometry args={[1, 4]} />
         <meshBasicMaterial color="#00d4ff" wireframe transparent opacity={0.5} />
       </mesh>
 
       {/* Inner dodecahedron - HIGH POLY */}
       <mesh ref={innerRef}>
-        <dodecahedronGeometry args={[1, 2]} />
+        <dodecahedronGeometry args={[1, 3]} />
         <meshStandardMaterial
           color="#00ff88"
           emissive="#00ff88"
@@ -69,21 +69,21 @@ const HolographicCore = ({ state, audioLevel = 0 }: { state: AIState; audioLevel
         />
       </mesh>
 
-      {/* Inner rotating cube */}
+      {/* Inner rotating cube - subdivided */}
       <mesh ref={cubeRef}>
-        <boxGeometry args={[1, 1, 1]} />
+        <boxGeometry args={[1, 1, 1, 4, 4, 4]} />
         <meshBasicMaterial color="#ffffff" wireframe transparent opacity={0.85} />
       </mesh>
 
-      {/* Core bright center - HIGH POLY */}
+      {/* Core bright center - ULTRA HIGH POLY */}
       <mesh scale={0.08}>
-        <sphereGeometry args={[1, 48, 48]} />
+        <sphereGeometry args={[1, 64, 64]} />
         <meshBasicMaterial color="#ffffff" />
       </mesh>
 
       {/* Glow sphere - HIGH POLY */}
       <mesh ref={glowRef}>
-        <sphereGeometry args={[1, 48, 48]} />
+        <sphereGeometry args={[1, 64, 64]} />
         <meshBasicMaterial color="#00d4ff" transparent opacity={0.08} />
       </mesh>
     </group>
@@ -141,13 +141,13 @@ const CircuitNodes = ({ state, count = 300 }: { state: AIState; count?: number }
 
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
-      <octahedronGeometry args={[1, 1]} />
+      <octahedronGeometry args={[1, 2]} />
       <meshBasicMaterial color="#00d4ff" transparent opacity={0.75} />
     </instancedMesh>
   );
 };
 
-// Animated energy rings - HIGH POLY
+// Animated energy rings - ULTRA HIGH POLY
 const EnergyRings = ({ state }: { state: AIState }) => {
   const ringsRef = useRef<THREE.Group>(null);
 
@@ -170,7 +170,7 @@ const EnergyRings = ({ state }: { state: AIState }) => {
     <group ref={ringsRef}>
       {[0, 1, 2, 3].map((idx) => (
         <mesh key={idx} rotation={[Math.PI / 2, 0, idx * 0.4]}>
-          <ringGeometry args={[0.92, 1, 96]} />
+          <ringGeometry args={[0.92, 1, 256]} />
           <meshBasicMaterial color="#00d4ff" transparent opacity={0.35} side={THREE.DoubleSide} />
         </mesh>
       ))}
@@ -217,7 +217,7 @@ const DataPackets = ({ state }: { state: AIState }) => {
 
   return (
     <instancedMesh ref={packetsRef} args={[undefined, undefined, count]}>
-      <boxGeometry args={[1, 1, 1]} />
+      <boxGeometry args={[1, 1, 1, 2, 2, 2]} />
       <meshBasicMaterial color="#00ff88" transparent opacity={0.85} />
     </instancedMesh>
   );

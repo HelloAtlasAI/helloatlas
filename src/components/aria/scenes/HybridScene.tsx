@@ -9,7 +9,7 @@ interface HybridSceneProps {
   isSpeaking?: boolean;
 }
 
-// Miniature face emerging from digital core
+// Larger face emerging from digital core with high-poly geometry
 const EmergingFace = ({
   state,
   audioLevel = 0,
@@ -37,7 +37,7 @@ const EmergingFace = ({
     const t = clock.getElapsedTime();
 
     if (faceRef.current) {
-      const targetZ = -0.15 + emergenceLevel * 0.12;
+      const targetZ = -0.1 + emergenceLevel * 0.15;
       faceRef.current.position.z = THREE.MathUtils.lerp(faceRef.current.position.z, targetZ, 0.04);
       faceRef.current.rotation.y = Math.sin(t * 0.45) * 0.08;
       faceRef.current.rotation.x = Math.sin(t * 0.28) * 0.04;
@@ -46,7 +46,7 @@ const EmergingFace = ({
         if (child instanceof THREE.Mesh) {
           const mat = child.material as THREE.MeshBasicMaterial;
           if (mat.opacity !== undefined) {
-            mat.opacity = THREE.MathUtils.lerp(mat.opacity, emergenceLevel * 0.88, 0.04);
+            mat.opacity = THREE.MathUtils.lerp(mat.opacity, emergenceLevel * 0.9, 0.04);
           }
         }
       });
@@ -69,79 +69,79 @@ const EmergingFace = ({
   });
 
   return (
-    <group ref={faceRef} position={[0, 0, -0.15]} scale={0.45}>
-      {/* Head wireframe - HIGH POLY */}
+    <group ref={faceRef} position={[0, 0, -0.1]} scale={0.65}>
+      {/* Head wireframe - ULTRA HIGH POLY */}
       <mesh>
-        <sphereGeometry args={[0.42, 48, 48]} />
-        <meshBasicMaterial color="#00d4ff" wireframe transparent opacity={0.35} />
+        <sphereGeometry args={[0.55, 96, 96]} />
+        <meshBasicMaterial color="#00d4ff" wireframe transparent opacity={0.38} />
       </mesh>
 
-      {/* Inner head solid */}
+      {/* Inner head solid - HIGH POLY */}
       <mesh scale={0.95}>
-        <sphereGeometry args={[0.42, 48, 48]} />
-        <meshBasicMaterial color="#1a1a2e" transparent opacity={0.6} />
+        <sphereGeometry args={[0.55, 96, 96]} />
+        <meshBasicMaterial color="#1a1a2e" transparent opacity={0.65} />
       </mesh>
 
-      {/* Left eye */}
-      <group position={[-0.1, 0.05, 0.35]}>
+      {/* Left eye - larger */}
+      <group position={[-0.14, 0.07, 0.45]}>
         <mesh>
-          <sphereGeometry args={[0.045, 32, 32]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.9} />
+          <sphereGeometry args={[0.065, 64, 64]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.92} />
         </mesh>
         <group ref={leftEyeRef}>
-          <mesh position={[0, 0, 0.03]}>
-            <circleGeometry args={[0.028, 32]} />
+          <mesh position={[0, 0, 0.045]}>
+            <circleGeometry args={[0.04, 64]} />
             <meshBasicMaterial color="#00d4ff" />
           </mesh>
-          <mesh position={[0, 0, 0.035]}>
-            <circleGeometry args={[0.012, 24]} />
+          <mesh position={[0, 0, 0.05]}>
+            <circleGeometry args={[0.018, 48]} />
             <meshBasicMaterial color="#000000" />
           </mesh>
         </group>
-        <mesh position={[0, 0, 0.01]}>
-          <ringGeometry args={[0.042, 0.05, 32]} />
-          <meshBasicMaterial color="#00d4ff" transparent opacity={0.5} />
+        <mesh position={[0, 0, 0.015]}>
+          <ringGeometry args={[0.058, 0.068, 64]} />
+          <meshBasicMaterial color="#00d4ff" transparent opacity={0.55} />
         </mesh>
       </group>
 
-      {/* Right eye */}
-      <group position={[0.1, 0.05, 0.35]}>
+      {/* Right eye - larger */}
+      <group position={[0.14, 0.07, 0.45]}>
         <mesh>
-          <sphereGeometry args={[0.045, 32, 32]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.9} />
+          <sphereGeometry args={[0.065, 64, 64]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.92} />
         </mesh>
         <group ref={rightEyeRef}>
-          <mesh position={[0, 0, 0.03]}>
-            <circleGeometry args={[0.028, 32]} />
+          <mesh position={[0, 0, 0.045]}>
+            <circleGeometry args={[0.04, 64]} />
             <meshBasicMaterial color="#00d4ff" />
           </mesh>
-          <mesh position={[0, 0, 0.035]}>
-            <circleGeometry args={[0.012, 24]} />
+          <mesh position={[0, 0, 0.05]}>
+            <circleGeometry args={[0.018, 48]} />
             <meshBasicMaterial color="#000000" />
           </mesh>
         </group>
-        <mesh position={[0, 0, 0.01]}>
-          <ringGeometry args={[0.042, 0.05, 32]} />
-          <meshBasicMaterial color="#00d4ff" transparent opacity={0.5} />
+        <mesh position={[0, 0, 0.015]}>
+          <ringGeometry args={[0.058, 0.068, 64]} />
+          <meshBasicMaterial color="#00d4ff" transparent opacity={0.55} />
         </mesh>
       </group>
 
-      {/* Mouth */}
-      <mesh ref={mouthRef} position={[0, -0.1, 0.35]}>
-        <capsuleGeometry args={[0.018, 0.05, 8, 16]} />
-        <meshBasicMaterial color="#00ff88" transparent opacity={0.75} />
+      {/* Mouth - smoother */}
+      <mesh ref={mouthRef} position={[0, -0.14, 0.45]}>
+        <capsuleGeometry args={[0.025, 0.07, 16, 32]} />
+        <meshBasicMaterial color="#00ff88" transparent opacity={0.78} />
       </mesh>
 
-      {/* Glow aura */}
-      <mesh scale={0.55}>
-        <sphereGeometry args={[1, 32, 32]} />
-        <meshBasicMaterial color="#00d4ff" transparent opacity={0.08} />
+      {/* Glow aura - HIGH POLY */}
+      <mesh scale={0.7}>
+        <sphereGeometry args={[1, 64, 64]} />
+        <meshBasicMaterial color="#00d4ff" transparent opacity={0.1} />
       </mesh>
     </group>
   );
 };
 
-// Digital shell surrounding face - HIGH POLY
+// Digital shell surrounding face - ULTRA HIGH POLY
 const DigitalShell = ({ state, audioLevel = 0 }: { state: AIState; audioLevel: number }) => {
   const shellRef = useRef<THREE.Group>(null);
   const ring1Ref = useRef<THREE.Mesh>(null);
@@ -174,43 +174,43 @@ const DigitalShell = ({ state, audioLevel = 0 }: { state: AIState; audioLevel: n
 
   return (
     <group ref={shellRef}>
-      {/* Outer icosahedron - HIGH POLY */}
-      <mesh scale={0.55}>
-        <icosahedronGeometry args={[1, 2]} />
-        <meshBasicMaterial color="#00d4ff" wireframe transparent opacity={0.28} />
+      {/* Outer icosahedron - ULTRA HIGH POLY (4 subdivisions) */}
+      <mesh scale={0.7}>
+        <icosahedronGeometry args={[1, 4]} />
+        <meshBasicMaterial color="#00d4ff" wireframe transparent opacity={0.3} />
       </mesh>
 
-      {/* Orbiting rings - HIGH POLY */}
+      {/* Orbiting rings - ULTRA HIGH POLY */}
       <mesh ref={ring1Ref}>
-        <torusGeometry args={[0.48, 0.008, 24, 96]} />
-        <meshBasicMaterial color="#00d4ff" transparent opacity={0.45} />
+        <torusGeometry args={[0.6, 0.01, 48, 256]} />
+        <meshBasicMaterial color="#00d4ff" transparent opacity={0.48} />
       </mesh>
       <mesh ref={ring2Ref}>
-        <torusGeometry args={[0.52, 0.006, 24, 96]} />
-        <meshBasicMaterial color="#00ff88" transparent opacity={0.38} />
+        <torusGeometry args={[0.65, 0.008, 48, 256]} />
+        <meshBasicMaterial color="#00ff88" transparent opacity={0.4} />
       </mesh>
       <mesh ref={ring3Ref}>
-        <torusGeometry args={[0.56, 0.005, 24, 96]} />
-        <meshBasicMaterial color="#a855f7" transparent opacity={0.28} />
+        <torusGeometry args={[0.7, 0.006, 48, 256]} />
+        <meshBasicMaterial color="#a855f7" transparent opacity={0.3} />
       </mesh>
 
-      {/* Energy core - HIGH POLY */}
-      <mesh scale={0.14 + audioLevel * 0.04}>
-        <sphereGeometry args={[1, 48, 48]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
+      {/* Energy core - ULTRA HIGH POLY */}
+      <mesh scale={0.16 + audioLevel * 0.05}>
+        <sphereGeometry args={[1, 64, 64]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.78} />
       </mesh>
 
       {/* Ambient glow */}
-      <mesh scale={0.28}>
-        <sphereGeometry args={[1, 32, 32]} />
+      <mesh scale={0.35}>
+        <sphereGeometry args={[1, 48, 48]} />
         <meshBasicMaterial color="#00d4ff" transparent opacity={0.12 * intensity} />
       </mesh>
     </group>
   );
 };
 
-// Orbiting circuit nodes
-const CircuitNodes = ({ state, count = 60 }: { state: AIState; count?: number }) => {
+// Orbiting circuit nodes - higher poly
+const CircuitNodes = ({ state, count = 80 }: { state: AIState; count?: number }) => {
   const nodesRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
@@ -218,7 +218,7 @@ const CircuitNodes = ({ state, count = 60 }: { state: AIState; count?: number })
     return Array.from({ length: count }, () => ({
       theta: Math.random() * Math.PI * 2,
       phi: Math.acos(2 * Math.random() - 1),
-      radius: 0.65 + Math.random() * 0.4,
+      radius: 0.8 + Math.random() * 0.5,
       speed: 0.35 + Math.random() * 0.65,
       phase: Math.random() * Math.PI * 2,
     }));
@@ -240,7 +240,7 @@ const CircuitNodes = ({ state, count = 60 }: { state: AIState; count?: number })
       );
 
       const pulse = 1 + Math.sin(t * 3.5 + node.phase) * 0.25;
-      dummy.scale.setScalar(0.01 * pulse);
+      dummy.scale.setScalar(0.012 * pulse);
       dummy.updateMatrix();
       nodesRef.current.setMatrixAt(i, dummy.matrix);
     }
@@ -249,8 +249,8 @@ const CircuitNodes = ({ state, count = 60 }: { state: AIState; count?: number })
 
   return (
     <instancedMesh ref={nodesRef} args={[undefined, undefined, count]}>
-      <octahedronGeometry args={[1, 1]} />
-      <meshBasicMaterial color="#00ff88" transparent opacity={0.68} />
+      <octahedronGeometry args={[1, 2]} />
+      <meshBasicMaterial color="#00ff88" transparent opacity={0.7} />
     </instancedMesh>
   );
 };
@@ -258,7 +258,7 @@ const CircuitNodes = ({ state, count = 60 }: { state: AIState; count?: number })
 // Energy particles flowing around
 const EnergyParticles = ({ state }: { state: AIState }) => {
   const pointsRef = useRef<THREE.Points>(null);
-  const count = 220;
+  const count = 280;
 
   const { positions, phases } = useMemo(() => {
     const pos = new Float32Array(count * 3);
@@ -266,10 +266,10 @@ const EnergyParticles = ({ state }: { state: AIState }) => {
 
     for (let i = 0; i < count; i++) {
       const theta = Math.random() * Math.PI * 2;
-      const r = 0.22 + Math.random() * 0.45;
+      const r = 0.28 + Math.random() * 0.55;
 
       pos[i * 3] = Math.cos(theta) * r;
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 0.55;
+      pos[i * 3 + 1] = (Math.random() - 0.5) * 0.7;
       pos[i * 3 + 2] = Math.sin(theta) * r;
 
       phs[i] = Math.random() * Math.PI * 2;
@@ -290,13 +290,13 @@ const EnergyParticles = ({ state }: { state: AIState }) => {
 
       const currentR = Math.sqrt(posArray[idx] ** 2 + posArray[idx + 2] ** 2);
       const angle = Math.atan2(posArray[idx + 2], posArray[idx]) + 0.015 * speed;
-      const newR = 0.22 + ((currentR - 0.22 + 0.008 * speed) % 0.45);
+      const newR = 0.28 + ((currentR - 0.28 + 0.008 * speed) % 0.55);
 
       posArray[idx] = Math.cos(angle) * newR;
       posArray[idx + 2] = Math.sin(angle) * newR;
       posArray[idx + 1] += Math.sin(t + phase) * 0.0015;
 
-      if (Math.abs(posArray[idx + 1]) > 0.28) {
+      if (Math.abs(posArray[idx + 1]) > 0.35) {
         posArray[idx + 1] *= 0.98;
       }
     }
@@ -310,10 +310,10 @@ const EnergyParticles = ({ state }: { state: AIState }) => {
         <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
       </bufferGeometry>
       <pointsMaterial
-        size={0.014}
+        size={0.016}
         color="#00d4ff"
         transparent
-        opacity={0.55}
+        opacity={0.58}
         sizeAttenuation
         blending={THREE.AdditiveBlending}
       />
@@ -330,7 +330,7 @@ export const HybridScene = ({
     <group>
       <DigitalShell state={state} audioLevel={audioLevel} />
       <EmergingFace state={state} audioLevel={audioLevel} isSpeaking={isSpeaking} />
-      <CircuitNodes state={state} count={60} />
+      <CircuitNodes state={state} count={80} />
       <EnergyParticles state={state} />
     </group>
   );

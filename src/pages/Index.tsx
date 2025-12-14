@@ -143,16 +143,19 @@ const Index = () => {
         </nav>
       </header>
 
-      {/* Holographic data cards */}
-      <HolographicCards cards={cards} onCardClose={handleCardClose} />
+      {/* Holographic data cards - lower z-index than welcome text */}
+      <div className="relative z-5">
+        <HolographicCards cards={cards} onCardClose={handleCardClose} />
+      </div>
 
       {/* Main content */}
       <main className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-12rem)]">
-        <div className="text-center mb-4 animate-fade-in relative z-10">
-          <h2 className="text-3xl md:text-4xl font-extralight text-foreground mb-2 tracking-wide">
+        {/* Welcome text positioned at top with higher z-index */}
+        <div className="text-center mb-8 animate-fade-in relative z-30 mt-4">
+          <h2 className="text-3xl md:text-4xl font-extralight text-foreground mb-2 tracking-wide drop-shadow-lg">
             {user?.user_metadata?.display_name ? `Hello, ${user.user_metadata.display_name}` : "Welcome"}
           </h2>
-          <p className="text-muted-foreground text-sm md:text-base font-light">
+          <p className="text-muted-foreground text-sm md:text-base font-light drop-shadow-md">
             I'm <span className="font-medium bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">{APP_NAME}</span>, your neural AI interface
           </p>
         </div>

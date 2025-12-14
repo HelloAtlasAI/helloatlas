@@ -9,7 +9,7 @@ interface DigitalFaceSceneProps {
   isSpeaking?: boolean;
 }
 
-// High-poly realistic digital face with proper geometry
+// Ultra high-poly realistic digital face with PBR materials
 const RealisticFace = ({
   state,
   audioLevel = 0,
@@ -29,7 +29,6 @@ const RealisticFace = ({
   const jawRef = useRef<THREE.Mesh>(null);
   const leftBrowRef = useRef<THREE.Mesh>(null);
   const rightBrowRef = useRef<THREE.Mesh>(null);
-  
 
   const [blinkProgress, setBlinkProgress] = useState(0);
   const eyeTargetRef = useRef(new THREE.Vector3(0, 0, 1));
@@ -64,7 +63,7 @@ const RealisticFace = ({
     if (faceRef.current) {
       faceRef.current.rotation.y = Math.sin(t * 0.4) * 0.06;
       faceRef.current.rotation.x = Math.sin(t * 0.25) * 0.025;
-      faceRef.current.position.y = Math.sin(t * 0.6) * 0.008;
+      faceRef.current.position.y = Math.sin(t * 0.6) * 0.012;
     }
 
     // Eye tracking
@@ -94,9 +93,9 @@ const RealisticFace = ({
 
     // Eyelid blink
     if (leftEyelidRef.current && rightEyelidRef.current) {
-      const lidPos = blinkProgress * 0.055;
-      leftEyelidRef.current.position.y = 0.06 - lidPos;
-      rightEyelidRef.current.position.y = 0.06 - lidPos;
+      const lidPos = blinkProgress * 0.08;
+      leftEyelidRef.current.position.y = 0.09 - lidPos;
+      rightEyelidRef.current.position.y = 0.09 - lidPos;
       leftEyelidRef.current.scale.y = 1 + blinkProgress * 2;
       rightEyelidRef.current.scale.y = 1 + blinkProgress * 2;
     }
@@ -111,15 +110,15 @@ const RealisticFace = ({
 
       mouthRef.current.scale.y = 0.4 + mouthOpen * 2.5;
       mouthRef.current.scale.x = 1 - mouthOpen * 0.2;
-      jawRef.current.position.y = -0.28 - mouthOpen * 0.03;
+      jawRef.current.position.y = -0.42 - mouthOpen * 0.05;
       jawRef.current.rotation.x = mouthOpen * 0.15;
     }
 
     // Eyebrow expressions
     if (leftBrowRef.current && rightBrowRef.current) {
-      const browRaise = state === "listening" ? 0.018 : state === "thinking" ? -0.008 : 0;
-      leftBrowRef.current.position.y = 0.18 + browRaise + Math.sin(t * 0.7) * 0.003;
-      rightBrowRef.current.position.y = 0.18 + browRaise + Math.sin(t * 0.7 + 0.4) * 0.003;
+      const browRaise = state === "listening" ? 0.025 : state === "thinking" ? -0.012 : 0;
+      leftBrowRef.current.position.y = 0.27 + browRaise + Math.sin(t * 0.7) * 0.004;
+      rightBrowRef.current.position.y = 0.27 + browRaise + Math.sin(t * 0.7 + 0.4) * 0.004;
       leftBrowRef.current.rotation.z = state === "thinking" ? 0.12 : 0;
       rightBrowRef.current.rotation.z = state === "thinking" ? -0.12 : 0;
     }
@@ -130,190 +129,203 @@ const RealisticFace = ({
   const accentColor = "#00ff88";
 
   return (
-    <group ref={faceRef}>
-      {/* Main head - HIGH POLY smooth sphere */}
+    <group ref={faceRef} scale={2.2} position={[0, 0, 0.15]}>
+      {/* Main head - ULTRA HIGH POLY smooth sphere */}
       <mesh ref={headRef} position={[0, 0, -0.08]}>
-        <sphereGeometry args={[0.42, 64, 64]} />
+        <sphereGeometry args={[0.55, 128, 128]} />
         <meshStandardMaterial
           color={skinColor}
-          metalness={0.25}
-          roughness={0.65}
+          metalness={0.35}
+          roughness={0.55}
           transparent
           opacity={0.92}
+          envMapIntensity={0.8}
         />
       </mesh>
 
-      {/* Jaw/chin extension */}
-      <mesh ref={jawRef} position={[0, -0.28, 0.08]}>
-        <sphereGeometry args={[0.22, 48, 48]} />
+      {/* Head inner glow */}
+      <mesh position={[0, 0, -0.08]}>
+        <sphereGeometry args={[0.52, 64, 64]} />
+        <meshBasicMaterial color={digitalColor} transparent opacity={0.05} />
+      </mesh>
+
+      {/* Jaw/chin extension - HIGH POLY */}
+      <mesh ref={jawRef} position={[0, -0.42, 0.08]}>
+        <sphereGeometry args={[0.32, 96, 96]} />
         <meshStandardMaterial
           color={skinColor}
-          metalness={0.25}
-          roughness={0.65}
+          metalness={0.3}
+          roughness={0.6}
           transparent
           opacity={0.9}
         />
       </mesh>
 
-      {/* Digital wireframe overlay - HIGH POLY */}
-      <mesh position={[0, 0, -0.08]} scale={0.44}>
-        <sphereGeometry args={[1, 32, 32]} />
-        <meshBasicMaterial color={digitalColor} wireframe transparent opacity={0.15} />
+      {/* Digital wireframe overlay - HIGH POLY with better subdivision */}
+      <mesh position={[0, 0, -0.08]} scale={0.58}>
+        <icosahedronGeometry args={[1, 4]} />
+        <meshBasicMaterial color={digitalColor} wireframe transparent opacity={0.12} />
       </mesh>
 
       {/* Left eye assembly */}
-      <group position={[-0.11, 0.06, 0.32]}>
+      <group position={[-0.16, 0.09, 0.42]}>
         {/* Eye socket shadow */}
-        <mesh position={[0, 0, -0.01]}>
-          <sphereGeometry args={[0.065, 32, 32]} />
-          <meshBasicMaterial color="#0a0a15" transparent opacity={0.8} />
+        <mesh position={[0, 0, -0.015]}>
+          <sphereGeometry args={[0.1, 64, 64]} />
+          <meshBasicMaterial color="#0a0a15" transparent opacity={0.85} />
         </mesh>
-        {/* Eye white (sclera) */}
+        {/* Eye white (sclera) - HIGH POLY */}
         <mesh>
-          <sphereGeometry args={[0.055, 32, 32]} />
-          <meshStandardMaterial color="#e8e8f0" roughness={0.3} />
+          <sphereGeometry args={[0.085, 64, 64]} />
+          <meshStandardMaterial color="#e8e8f0" roughness={0.25} metalness={0.1} />
         </mesh>
         {/* Eye tracking group */}
         <group ref={leftEyeRef}>
-          {/* Iris - HIGH POLY ring */}
-          <mesh position={[0, 0, 0.035]}>
-            <circleGeometry args={[0.038, 48]} />
+          {/* Iris - ULTRA HIGH POLY ring */}
+          <mesh position={[0, 0, 0.055]}>
+            <circleGeometry args={[0.058, 96]} />
             <meshBasicMaterial color={digitalColor} />
           </mesh>
           {/* Pupil */}
-          <mesh position={[0, 0, 0.04]}>
-            <circleGeometry args={[0.018, 32]} />
+          <mesh position={[0, 0, 0.06]}>
+            <circleGeometry args={[0.028, 64]} />
             <meshBasicMaterial color="#000000" />
           </mesh>
           {/* Pupil highlight */}
-          <mesh position={[0.008, 0.008, 0.042]}>
-            <circleGeometry args={[0.005, 16]} />
-            <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+          <mesh position={[0.012, 0.012, 0.065]}>
+            <circleGeometry args={[0.008, 32]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.85} />
           </mesh>
         </group>
-        {/* Eyelid */}
-        <mesh ref={leftEyelidRef} position={[0, 0.06, 0.02]}>
-          <boxGeometry args={[0.12, 0.025, 0.04]} />
-          <meshStandardMaterial color={skinColor} />
+        {/* Eyelid - smoother */}
+        <mesh ref={leftEyelidRef} position={[0, 0.09, 0.03]}>
+          <boxGeometry args={[0.18, 0.04, 0.06]} />
+          <meshStandardMaterial color={skinColor} metalness={0.2} roughness={0.6} />
         </mesh>
-        {/* Eye glow ring */}
-        <mesh position={[0, 0, 0.01]}>
-          <ringGeometry args={[0.052, 0.062, 48]} />
-          <meshBasicMaterial color={digitalColor} transparent opacity={0.45} />
+        {/* Eye glow ring - HIGH POLY */}
+        <mesh position={[0, 0, 0.015]}>
+          <ringGeometry args={[0.08, 0.095, 96]} />
+          <meshBasicMaterial color={digitalColor} transparent opacity={0.5} />
         </mesh>
       </group>
 
       {/* Right eye assembly */}
-      <group position={[0.11, 0.06, 0.32]}>
-        <mesh position={[0, 0, -0.01]}>
-          <sphereGeometry args={[0.065, 32, 32]} />
-          <meshBasicMaterial color="#0a0a15" transparent opacity={0.8} />
+      <group position={[0.16, 0.09, 0.42]}>
+        <mesh position={[0, 0, -0.015]}>
+          <sphereGeometry args={[0.1, 64, 64]} />
+          <meshBasicMaterial color="#0a0a15" transparent opacity={0.85} />
         </mesh>
         <mesh>
-          <sphereGeometry args={[0.055, 32, 32]} />
-          <meshStandardMaterial color="#e8e8f0" roughness={0.3} />
+          <sphereGeometry args={[0.085, 64, 64]} />
+          <meshStandardMaterial color="#e8e8f0" roughness={0.25} metalness={0.1} />
         </mesh>
         <group ref={rightEyeRef}>
-          <mesh position={[0, 0, 0.035]}>
-            <circleGeometry args={[0.038, 48]} />
+          <mesh position={[0, 0, 0.055]}>
+            <circleGeometry args={[0.058, 96]} />
             <meshBasicMaterial color={digitalColor} />
           </mesh>
-          <mesh position={[0, 0, 0.04]}>
-            <circleGeometry args={[0.018, 32]} />
+          <mesh position={[0, 0, 0.06]}>
+            <circleGeometry args={[0.028, 64]} />
             <meshBasicMaterial color="#000000" />
           </mesh>
-          <mesh position={[0.008, 0.008, 0.042]}>
-            <circleGeometry args={[0.005, 16]} />
-            <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+          <mesh position={[0.012, 0.012, 0.065]}>
+            <circleGeometry args={[0.008, 32]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.85} />
           </mesh>
         </group>
-        <mesh ref={rightEyelidRef} position={[0, 0.06, 0.02]}>
-          <boxGeometry args={[0.12, 0.025, 0.04]} />
-          <meshStandardMaterial color={skinColor} />
+        <mesh ref={rightEyelidRef} position={[0, 0.09, 0.03]}>
+          <boxGeometry args={[0.18, 0.04, 0.06]} />
+          <meshStandardMaterial color={skinColor} metalness={0.2} roughness={0.6} />
         </mesh>
-        <mesh position={[0, 0, 0.01]}>
-          <ringGeometry args={[0.052, 0.062, 48]} />
-          <meshBasicMaterial color={digitalColor} transparent opacity={0.45} />
+        <mesh position={[0, 0, 0.015]}>
+          <ringGeometry args={[0.08, 0.095, 96]} />
+          <meshBasicMaterial color={digitalColor} transparent opacity={0.5} />
         </mesh>
       </group>
 
-      {/* Eyebrows */}
-      <mesh ref={leftBrowRef} position={[-0.11, 0.18, 0.34]}>
-        <capsuleGeometry args={[0.008, 0.06, 8, 16]} />
+      {/* Eyebrows - smoother capsules */}
+      <mesh ref={leftBrowRef} position={[-0.16, 0.27, 0.45]}>
+        <capsuleGeometry args={[0.012, 0.09, 24, 48]} />
         <meshBasicMaterial color={digitalColor} />
       </mesh>
-      <mesh ref={rightBrowRef} position={[0.11, 0.18, 0.34]}>
-        <capsuleGeometry args={[0.008, 0.06, 8, 16]} />
+      <mesh ref={rightBrowRef} position={[0.16, 0.27, 0.45]}>
+        <capsuleGeometry args={[0.012, 0.09, 24, 48]} />
         <meshBasicMaterial color={digitalColor} />
       </mesh>
 
-      {/* Nose */}
-      <group position={[0, -0.02, 0.38]}>
+      {/* Nose - better geometry */}
+      <group position={[0, -0.03, 0.5]}>
         {/* Nose bridge */}
         <mesh>
-          <boxGeometry args={[0.022, 0.1, 0.03]} />
-          <meshStandardMaterial color={skinColor} transparent opacity={0.85} />
+          <boxGeometry args={[0.032, 0.15, 0.045]} />
+          <meshStandardMaterial color={skinColor} transparent opacity={0.88} metalness={0.25} roughness={0.6} />
         </mesh>
-        {/* Nose tip */}
-        <mesh position={[0, -0.04, 0.015]}>
-          <sphereGeometry args={[0.025, 24, 24]} />
-          <meshStandardMaterial color={skinColor} transparent opacity={0.85} />
+        {/* Nose tip - HIGH POLY */}
+        <mesh position={[0, -0.06, 0.02]}>
+          <sphereGeometry args={[0.038, 48, 48]} />
+          <meshStandardMaterial color={skinColor} transparent opacity={0.88} metalness={0.25} roughness={0.6} />
         </mesh>
         {/* Digital accent */}
-        <mesh position={[0, 0, 0.02]}>
-          <boxGeometry args={[0.015, 0.08, 0.005]} />
-          <meshBasicMaterial color={digitalColor} transparent opacity={0.25} />
+        <mesh position={[0, 0, 0.03]}>
+          <boxGeometry args={[0.022, 0.12, 0.008]} />
+          <meshBasicMaterial color={digitalColor} transparent opacity={0.3} />
         </mesh>
       </group>
 
-      {/* Mouth */}
-      <group position={[0, -0.14, 0.34]}>
+      {/* Mouth - smoother geometry */}
+      <group position={[0, -0.21, 0.45]}>
         {/* Mouth cavity */}
         <mesh ref={mouthRef}>
-          <capsuleGeometry args={[0.025, 0.07, 16, 24]} />
+          <capsuleGeometry args={[0.038, 0.1, 32, 64]} />
           <meshBasicMaterial color="#0a0a15" />
         </mesh>
-        {/* Lip outline glow */}
-        <mesh position={[0, 0, 0.01]}>
-          <torusGeometry args={[0.045, 0.008, 16, 48]} />
-          <meshBasicMaterial color={accentColor} transparent opacity={0.35} />
+        {/* Lip outline glow - HIGH POLY */}
+        <mesh position={[0, 0, 0.015]}>
+          <torusGeometry args={[0.068, 0.012, 32, 128]} />
+          <meshBasicMaterial color={accentColor} transparent opacity={0.4} />
         </mesh>
       </group>
 
-      {/* Cheekbone accents */}
-      <mesh position={[-0.22, -0.02, 0.22]} rotation={[0, -0.5, 0]}>
-        <planeGeometry args={[0.08, 0.12]} />
-        <meshBasicMaterial color={digitalColor} transparent opacity={0.08} wireframe />
+      {/* Cheekbone accents - larger */}
+      <mesh position={[-0.33, -0.03, 0.28]} rotation={[0, -0.5, 0]}>
+        <planeGeometry args={[0.12, 0.18]} />
+        <meshBasicMaterial color={digitalColor} transparent opacity={0.1} wireframe />
       </mesh>
-      <mesh position={[0.22, -0.02, 0.22]} rotation={[0, 0.5, 0]}>
-        <planeGeometry args={[0.08, 0.12]} />
-        <meshBasicMaterial color={digitalColor} transparent opacity={0.08} wireframe />
+      <mesh position={[0.33, -0.03, 0.28]} rotation={[0, 0.5, 0]}>
+        <planeGeometry args={[0.12, 0.18]} />
+        <meshBasicMaterial color={digitalColor} transparent opacity={0.1} wireframe />
       </mesh>
 
-      {/* Forehead circuit lines */}
+      {/* Forehead circuit lines - more prominent */}
       {[0, 1, 2].map((i) => (
-        <mesh key={i} position={[0, 0.28 + i * 0.025, 0.32 - i * 0.015]}>
-          <boxGeometry args={[0.18 - i * 0.035, 0.004, 0.004]} />
-          <meshBasicMaterial color={digitalColor} transparent opacity={0.25 - i * 0.08} />
+        <mesh key={i} position={[0, 0.42 + i * 0.038, 0.42 - i * 0.022]}>
+          <boxGeometry args={[0.27 - i * 0.05, 0.006, 0.006]} />
+          <meshBasicMaterial color={digitalColor} transparent opacity={0.3 - i * 0.1} />
         </mesh>
       ))}
 
-      {/* Temple circuits */}
+      {/* Temple circuits - larger */}
       {[-1, 1].map((side) => (
-        <group key={side} position={[side * 0.32, 0.05, 0.12]}>
+        <group key={side} position={[side * 0.48, 0.08, 0.15]}>
           {[0, 1, 2].map((i) => (
-            <mesh key={i} position={[0, i * 0.04, 0]} rotation={[0, side * 0.6, 0]}>
-              <boxGeometry args={[0.04, 0.003, 0.003]} />
-              <meshBasicMaterial color={digitalColor} transparent opacity={0.3 - i * 0.1} />
+            <mesh key={i} position={[0, i * 0.06, 0]} rotation={[0, side * 0.6, 0]}>
+              <boxGeometry args={[0.06, 0.005, 0.005]} />
+              <meshBasicMaterial color={digitalColor} transparent opacity={0.35 - i * 0.12} />
             </mesh>
           ))}
         </group>
       ))}
+
+      {/* Outer glow effect */}
+      <mesh position={[0, 0, -0.05]} scale={0.7}>
+        <sphereGeometry args={[1, 48, 48]} />
+        <meshBasicMaterial color={digitalColor} transparent opacity={0.04} />
+      </mesh>
     </group>
   );
 };
 
-// Holographic scanlines
+// Holographic scanlines - wider coverage
 const ScanlineEffect = ({ state }: { state: AIState }) => {
   const scanRef = useRef<THREE.Mesh>(null);
 
@@ -321,33 +333,33 @@ const ScanlineEffect = ({ state }: { state: AIState }) => {
     if (!scanRef.current) return;
     const t = clock.getElapsedTime();
     const speed = state === "thinking" ? 2.5 : 1;
-    scanRef.current.position.y = Math.sin(t * speed) * 0.35;
-    (scanRef.current.material as THREE.MeshBasicMaterial).opacity = 0.08 + Math.sin(t * 8) * 0.04;
+    scanRef.current.position.y = Math.sin(t * speed) * 0.55;
+    (scanRef.current.material as THREE.MeshBasicMaterial).opacity = 0.1 + Math.sin(t * 8) * 0.05;
   });
 
   return (
-    <mesh ref={scanRef} position={[0, 0, 0.55]}>
-      <planeGeometry args={[1.2, 0.008]} />
-      <meshBasicMaterial color="#00ff88" transparent opacity={0.12} />
+    <mesh ref={scanRef} position={[0, 0, 0.7]}>
+      <planeGeometry args={[1.8, 0.012]} />
+      <meshBasicMaterial color="#00ff88" transparent opacity={0.15} />
     </mesh>
   );
 };
 
-// Particle aura around face
+// Particle aura around face - more particles, bigger spread
 const ParticleAura = ({ state }: { state: AIState }) => {
   const pointsRef = useRef<THREE.Points>(null);
-  const count = 350;
+  const count = 500;
 
   const positions = useMemo(() => {
     const pos = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const radius = 0.45 + Math.random() * 0.25;
+      const radius = 0.6 + Math.random() * 0.4;
 
       pos[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
       pos[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      pos[i * 3 + 2] = radius * Math.cos(phi) - 0.08;
+      pos[i * 3 + 2] = radius * Math.cos(phi) - 0.05;
     }
     return pos;
   }, []);
@@ -355,10 +367,10 @@ const ParticleAura = ({ state }: { state: AIState }) => {
   useFrame(({ clock }) => {
     if (!pointsRef.current) return;
     const t = clock.getElapsedTime();
-    pointsRef.current.rotation.y = t * 0.08;
+    pointsRef.current.rotation.y = t * 0.06;
   });
 
-  const opacity = state === "thinking" ? 0.5 : state === "speaking" ? 0.35 : 0.18;
+  const opacity = state === "thinking" ? 0.55 : state === "speaking" ? 0.4 : 0.22;
 
   return (
     <points ref={pointsRef}>
@@ -366,7 +378,7 @@ const ParticleAura = ({ state }: { state: AIState }) => {
         <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
       </bufferGeometry>
       <pointsMaterial
-        size={0.012}
+        size={0.015}
         color="#00d4ff"
         transparent
         opacity={opacity}

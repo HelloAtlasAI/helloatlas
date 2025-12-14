@@ -50,19 +50,27 @@ export const HolographicCard = ({ card, index, onClose }: HolographicCardProps) 
     setMousePos({ x: 0, y: 0 });
   };
 
-  // Calculate position around the center
-  const angle = (index / 4) * Math.PI * 2 - Math.PI / 2;
-  const radius = 45; // percentage from center
-  const x = 50 + Math.cos(angle) * radius;
-  const y = 50 + Math.sin(angle) * radius * 0.6; // Flatten vertically
+  // Fixed positions - top, right, bottom, left (avoiding center and header overlap)
+  const fixedPositions: { x: number; y: number; hideOnMobile: boolean }[] = [
+    { x: 50, y: 22, hideOnMobile: false },    // Top center - below header
+    { x: 88, y: 50, hideOnMobile: true },     // Right side
+    { x: 50, y: 78, hideOnMobile: false },    // Bottom center - above input
+    { x: 12, y: 50, hideOnMobile: true },     // Left side
+  ];
+  
+  const pos = fixedPositions[index % 4];
+  const x = pos.x;
+  const y = pos.y;
+  const hideOnMobile = pos.hideOnMobile;
 
   return (
     <div
       ref={cardRef}
       className={cn(
-        "absolute w-72 transition-all duration-700 ease-out cursor-pointer",
+        "absolute w-56 md:w-64 transition-all duration-700 ease-out cursor-pointer",
         "transform-gpu perspective-1000",
-        isVisible ? "opacity-100 scale-100" : "opacity-0 scale-50"
+        isVisible ? "opacity-100 scale-100" : "opacity-0 scale-50",
+        hideOnMobile && "hidden lg:block"
       )}
       style={{
         left: `${x}%`,
@@ -75,41 +83,11 @@ export const HolographicCard = ({ card, index, onClose }: HolographicCardProps) 
         `,
         transformStyle: "preserve-3d",
         animationDelay: `${card.delay || index * 200}ms`,
+        maxWidth: "calc(50% - 2rem)",
       }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Connection line to center */}
-      <svg
-        className="absolute pointer-events-none"
-        style={{
-          left: "50%",
-          top: "50%",
-          width: "200px",
-          height: "200px",
-          transform: `translate(-50%, -50%) rotate(${angle + Math.PI}rad)`,
-          opacity: isVisible ? 0.3 : 0,
-          transition: "opacity 0.5s ease-out",
-        }}
-      >
-        <defs>
-          <linearGradient id={`line-gradient-${card.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <line
-          x1="100"
-          y1="100"
-          x2="200"
-          y2="100"
-          stroke={`url(#line-gradient-${card.id})`}
-          strokeWidth="1"
-          strokeDasharray="4 4"
-          className="animate-pulse"
-        />
-      </svg>
-
       {/* Card content */}
       <div
         className={cn(
