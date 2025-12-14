@@ -1,10 +1,11 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { AIAvatar3D } from "@/components/aria/AIAvatar3D";
-import { AIOrb } from "@/components/aria/AIOrb";
+import { NeuralCore3D } from "@/components/aria/NeuralCore3D";
+import { ParticleUniverse } from "@/components/aria/ParticleUniverse";
+import { HolographicCards, demoHolographicCards } from "@/components/aria/HolographicCard";
+import { ImmersiveBackground } from "@/components/aria/ImmersiveBackground";
+import { StateIndicator } from "@/components/aria/StateIndicator";
 import { ChatInput } from "@/components/aria/ChatInput";
-import { FloatingCards, demoCards } from "@/components/aria/FloatingCards";
-import { BackgroundEffects } from "@/components/aria/BackgroundEffects";
 import { ConversationPanel } from "@/components/aria/ConversationPanel";
 import { useChat } from "@/hooks/useChat";
 import { useVoice } from "@/hooks/useVoice";
@@ -15,8 +16,8 @@ import { LogOut, User, Loader2, Volume2, VolumeX } from "lucide-react";
 const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
-  const [cards, setCards] = useState(demoCards);
-  const [use3DAvatar, setUse3DAvatar] = useState(true);
+  const [cards, setCards] = useState(demoHolographicCards);
+  const [showParticleUniverse, setShowParticleUniverse] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const APP_NAME = "Atlas";
 
@@ -74,43 +75,56 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background">
-      {/* Background effects */}
-      <BackgroundEffects />
+      {/* Immersive 3D Particle Universe Background */}
+      {showParticleUniverse && <ParticleUniverse state={effectiveAiState} />}
+      
+      {/* Layered ambient background */}
+      <ImmersiveBackground state={effectiveAiState} />
 
-      {/* Header */}
-      <header className="relative z-10 flex items-center justify-between px-6 py-4">
+      {/* Header - floating glass style */}
+      <header className="relative z-20 flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <span className="text-lg font-bold text-primary-foreground">A</span>
+          <div 
+            className="w-12 h-12 rounded-2xl flex items-center justify-center relative overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, hsl(var(--primary) / 0.3), hsl(var(--secondary) / 0.3))",
+              boxShadow: "0 0 30px hsl(var(--primary) / 0.3), inset 0 1px 0 hsl(var(--foreground) / 0.1)",
+            }}
+          >
+            <span className="text-xl font-bold text-foreground">A</span>
+            <div className="absolute inset-0 bg-gradient-to-t from-transparent to-white/10" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-foreground tracking-tight">{APP_NAME}</h1>
-            <p className="text-xs text-muted-foreground">AI Research Assistant</p>
+            <h1 className="text-xl font-semibold text-foreground tracking-tight">{APP_NAME}</h1>
+            <p className="text-xs text-muted-foreground">Neural AI Interface</p>
           </div>
         </div>
 
-        <nav className="flex items-center gap-2">
+        <nav className="flex items-center gap-3">
+          {/* State indicator */}
+          <StateIndicator state={effectiveAiState} />
+          
           {/* Voice toggle */}
           <button
             onClick={() => setVoiceEnabled(!voiceEnabled)}
-            className="p-2 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+            className="p-2.5 rounded-xl bg-muted/20 backdrop-blur-sm hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-all border border-border/20"
             title={voiceEnabled ? "Disable voice responses" : "Enable voice responses"}
           >
             {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </button>
 
-          {/* Avatar toggle */}
+          {/* Particle toggle */}
           <button
-            onClick={() => setUse3DAvatar(!use3DAvatar)}
-            className="px-3 py-1.5 text-xs rounded-lg bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+            onClick={() => setShowParticleUniverse(!showParticleUniverse)}
+            className="px-3 py-2 text-xs rounded-xl bg-muted/20 backdrop-blur-sm text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-all border border-border/20"
           >
-            {use3DAvatar ? "2D Mode" : "3D Mode"}
+            {showParticleUniverse ? "Simple BG" : "Universe BG"}
           </button>
 
           {isAuthenticated ? (
             <>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/30">
-                <User className="w-4 h-4 text-muted-foreground" />
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/20 backdrop-blur-sm border border-border/20">
+                <User className="w-4 h-4 text-primary" />
                 <span className="text-sm text-foreground">
                   {user?.user_metadata?.display_name || user?.email?.split("@")[0]}
                 </span>
@@ -119,7 +133,7 @@ const Index = () => {
                 variant="ghost"
                 size="sm"
                 onClick={handleSignOut}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground rounded-xl"
               >
                 <LogOut className="w-4 h-4" />
               </Button>
@@ -127,7 +141,7 @@ const Index = () => {
           ) : (
             <Button
               onClick={() => navigate("/auth")}
-              className="px-4 py-2 text-sm rounded-xl bg-primary/10 text-primary hover:bg-primary/20"
+              className="px-4 py-2 text-sm rounded-xl bg-primary/20 text-primary hover:bg-primary/30 border border-primary/30"
             >
               Sign In
             </Button>
@@ -135,36 +149,33 @@ const Index = () => {
         </nav>
       </header>
 
-      {/* Floating data cards */}
-      <FloatingCards cards={cards} onCardClose={handleCardClose} />
+      {/* Holographic data cards orbiting the center */}
+      <HolographicCards cards={cards} onCardClose={handleCardClose} />
 
-      {/* Main content - AI Avatar */}
+      {/* Main content - Neural Core */}
       <main className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-12rem)]">
-        {/* Welcome text */}
-        <div className="text-center mb-8 animate-fade-in">
-          <h2 className="text-2xl md:text-3xl font-light text-foreground mb-2">
-            Hello{user?.user_metadata?.display_name ? `, ${user.user_metadata.display_name}` : ""}.
-            I'm <span className="font-semibold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">{APP_NAME}</span>
+        {/* Welcome text - more ethereal */}
+        <div className="text-center mb-4 animate-fade-in relative z-10">
+          <h2 className="text-3xl md:text-4xl font-extralight text-foreground mb-2 tracking-wide">
+            {user?.user_metadata?.display_name ? `Hello, ${user.user_metadata.display_name}` : "Welcome"}
           </h2>
-          <p className="text-muted-foreground text-sm md:text-base">
-            Your personal AI assistant. Ask me anything or tap the mic to talk.
+          <p className="text-muted-foreground text-sm md:text-base font-light">
+            I'm <span className="font-medium bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">{APP_NAME}</span>, your neural AI interface
           </p>
         </div>
 
-        {/* AI Avatar - 3D or 2D */}
-        {use3DAvatar ? (
-          <div className="w-80 h-80 mb-16">
-            <AIAvatar3D state={effectiveAiState} audioLevel={audioLevel} />
-          </div>
-        ) : (
-          <AIOrb state={effectiveAiState} className="mb-16" />
-        )}
+        {/* Neural Core 3D Visualization */}
+        <div className="w-[400px] h-[400px] md:w-[500px] md:h-[500px] relative">
+          <NeuralCore3D state={effectiveAiState} audioLevel={audioLevel} />
+        </div>
 
-        {/* Conversation panel */}
-        <ConversationPanel messages={messages} />
+        {/* Conversation panel - positioned below */}
+        <div className="w-full max-w-2xl px-4 mt-4">
+          <ConversationPanel messages={messages} />
+        </div>
       </main>
 
-      {/* Bottom input area */}
+      {/* Bottom input area - refined glass style */}
       <footer className="fixed bottom-0 left-0 right-0 z-20 p-4 md:p-6">
         <div className="max-w-2xl mx-auto">
           <ChatInput
@@ -176,14 +187,14 @@ const Index = () => {
             disabled={isLoading || isPlaying}
           />
           
-          {/* Quick action chips */}
+          {/* Quick action chips - more refined */}
           <div className="flex flex-wrap justify-center gap-2 mt-4">
-            {["Check my emails", "Find flights", "Stock prices", "Create document"].map((action) => (
+            {["Check emails", "Search flights", "Stock analysis", "Create document"].map((action) => (
               <button
                 key={action}
                 onClick={() => sendMessage(action)}
                 disabled={isLoading || isPlaying}
-                className="px-3 py-1.5 text-xs rounded-full bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors border border-border/30 disabled:opacity-50"
+                className="px-4 py-2 text-xs rounded-full bg-muted/20 backdrop-blur-sm text-muted-foreground hover:bg-primary/20 hover:text-primary transition-all border border-border/20 hover:border-primary/30 disabled:opacity-50"
               >
                 {action}
               </button>
