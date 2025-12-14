@@ -236,7 +236,7 @@ const Dashboard = () => {
         onLogoutClick={handleLogout}
       />
       
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="relative z-10 w-full px-4 sm:px-6 lg:px-8 py-6">
         {/* Mosaic Grid Layout - Dynamic sizing with minmax */}
         <AnimatePresence mode="wait">
           {!expandedCard ? (
