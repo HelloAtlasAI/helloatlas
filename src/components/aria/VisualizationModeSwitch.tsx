@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cpu, User, Sparkles, Circle, Waves, Zap, Grid3X3 } from "lucide-react";
+import { Cpu, User, Sparkles, Brain, CircuitBoard, Leaf, Globe } from "lucide-react";
 
-export type VisualizationMode = "cyber" | "face" | "hybrid" | "void" | "ocean" | "storm" | "lattice";
+export type VisualizationMode = "cyber" | "face" | "hybrid" | "neural" | "circuit" | "organic" | "cosmic";
 
 interface VisualizationModeSwitchProps {
   mode: VisualizationMode;
@@ -13,10 +13,10 @@ const modes = [
   { id: "cyber" as const, label: "Cyber Nexus", icon: Cpu, description: "Digital core visualization" },
   { id: "face" as const, label: "Neural Persona", icon: User, description: "AI face avatar" },
   { id: "hybrid" as const, label: "Hybrid", icon: Sparkles, description: "Combined experience" },
-  { id: "void" as const, label: "Infinite Void", icon: Circle, description: "Cosmic singularity" },
-  { id: "ocean" as const, label: "Living Ocean", icon: Waves, description: "Volumetric fluid consciousness" },
-  { id: "storm" as const, label: "Storm Mind", icon: Zap, description: "Electrical neural storm" },
-  { id: "lattice" as const, label: "Infinite Lattice", icon: Grid3X3, description: "4D crystalline structure" },
+  { id: "neural" as const, label: "Neural Pathways", icon: Brain, description: "Brain-like data signals" },
+  { id: "circuit" as const, label: "Digital Circuit", icon: CircuitBoard, description: "PCB electron flow" },
+  { id: "organic" as const, label: "Organic Growth", icon: Leaf, description: "Living vascular network" },
+  { id: "cosmic" as const, label: "Cosmic Web", icon: Globe, description: "Universal data filaments" },
 ];
 
 export const VisualizationModeSwitch = ({ mode, onModeChange }: VisualizationModeSwitchProps) => {
