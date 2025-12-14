@@ -8,80 +8,74 @@ interface DataStreamNetworkProps {
   audioLevel: number;
 }
 
-// Vertex shader for flowing data particles along bezier curves
+// Structured grid shader - aligned data lines with clean intersections
 const streamVertexShader = `
   uniform float uTime;
   uniform float uAudioLevel;
   uniform float uFlowSpeed;
   
-  attribute float aStreamIndex;
+  attribute float aLineIndex;
   attribute float aProgress;
-  attribute float aRandomness;
-  attribute vec3 aControlPoint1;
-  attribute vec3 aControlPoint2;
-  attribute vec3 aEndPoint;
+  attribute float aAxis; // 0=X, 1=Y, 2=Z
+  attribute float aLinePosition;
   
   varying float vAlpha;
   varying vec3 vColor;
   varying float vPulse;
   
-  // Cubic bezier interpolation
-  vec3 cubicBezier(vec3 p0, vec3 p1, vec3 p2, vec3 p3, float t) {
-    float t2 = t * t;
-    float t3 = t2 * t;
-    float mt = 1.0 - t;
-    float mt2 = mt * mt;
-    float mt3 = mt2 * mt;
-    return mt3 * p0 + 3.0 * mt2 * t * p1 + 3.0 * mt * t2 * p2 + t3 * p3;
-  }
-  
   void main() {
-    // Animate progress along the stream
-    float animatedProgress = mod(aProgress + uTime * uFlowSpeed * (0.3 + aRandomness * 0.4), 1.0);
+    vec3 pos = position;
     
-    // Starting point (from sphere surface)
-    vec3 startPoint = position;
+    // Animate particles along their axis
+    float flowOffset = uTime * uFlowSpeed * (0.4 + mod(aLineIndex, 5.0) * 0.1);
+    float animatedProgress = mod(aProgress + flowOffset, 1.0);
     
-    // Interpolate along bezier curve
-    vec3 pos = cubicBezier(startPoint, aControlPoint1, aControlPoint2, aEndPoint, animatedProgress);
+    // Calculate position along the line
+    float lineExtent = 4.0;
+    float coord = (animatedProgress - 0.5) * lineExtent * 2.0;
     
-    // Add subtle wave motion perpendicular to stream direction
-    float waveOffset = sin(animatedProgress * 12.0 + uTime * 3.0 + aStreamIndex) * 0.03;
-    pos.x += waveOffset * cos(aStreamIndex);
-    pos.y += waveOffset * sin(aStreamIndex);
+    if (aAxis < 0.5) {
+      pos.x = coord;
+    } else if (aAxis < 1.5) {
+      pos.y = coord;
+    } else {
+      pos.z = coord;
+    }
     
-    // Audio reactivity
-    pos *= 1.0 + uAudioLevel * 0.05;
+    // Audio reactivity - subtle expansion
+    pos *= 1.0 + uAudioLevel * 0.04;
     
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Size varies along stream - brighter/larger at "data pulses"
-    float pulsePhase = mod(animatedProgress * 5.0 - uTime * 2.0, 1.0);
-    float isPulse = smoothstep(0.0, 0.1, pulsePhase) * (1.0 - smoothstep(0.1, 0.2, pulsePhase));
+    // Data pulse effect - brighter particles traveling along lines
+    float pulsePhase = mod(animatedProgress * 3.0 - uTime * 1.5, 1.0);
+    float isPulse = smoothstep(0.0, 0.12, pulsePhase) * (1.0 - smoothstep(0.12, 0.25, pulsePhase));
     vPulse = isPulse;
     
-    float baseSize = 0.4 + isPulse * 0.8;
-    gl_PointSize = baseSize * (150.0 / -mvPosition.z);
+    float baseSize = 0.35 + isPulse * 0.6;
+    gl_PointSize = baseSize * (140.0 / -mvPosition.z);
     
-    // Alpha fades at endpoints
-    float endFade = smoothstep(0.0, 0.1, animatedProgress) * (1.0 - smoothstep(0.9, 1.0, animatedProgress));
-    vAlpha = endFade * (0.4 + isPulse * 0.5);
+    // Alpha fades at line endpoints
+    float endFade = smoothstep(0.0, 0.08, animatedProgress) * (1.0 - smoothstep(0.92, 1.0, animatedProgress));
+    vAlpha = endFade * (0.35 + isPulse * 0.55);
     
-    // Color gradient along stream - cyan to blue to purple
-    vec3 colorStart = vec3(0.0, 0.5, 0.7);
-    vec3 colorMid = vec3(0.1, 0.3, 0.6);
-    vec3 colorEnd = vec3(0.3, 0.1, 0.5);
+    // Color based on axis - cyan/blue/purple gradient
+    vec3 xColor = vec3(0.0, 0.55, 0.75);
+    vec3 yColor = vec3(0.15, 0.35, 0.65);
+    vec3 zColor = vec3(0.3, 0.15, 0.55);
     
-    if (animatedProgress < 0.5) {
-      vColor = mix(colorStart, colorMid, animatedProgress * 2.0);
+    if (aAxis < 0.5) {
+      vColor = xColor;
+    } else if (aAxis < 1.5) {
+      vColor = yColor;
     } else {
-      vColor = mix(colorMid, colorEnd, (animatedProgress - 0.5) * 2.0);
+      vColor = zColor;
     }
     
     // Brighten pulses
-    vColor += vec3(0.2, 0.3, 0.4) * isPulse;
-    vColor += vec3(0.05, 0.1, 0.15) * uAudioLevel;
+    vColor += vec3(0.2, 0.25, 0.3) * isPulse;
+    vColor += vec3(0.04, 0.08, 0.12) * uAudioLevel;
   }
 `;
 
@@ -96,17 +90,65 @@ const streamFragmentShader = `
     
     float alpha = (1.0 - smoothstep(0.0, 0.5, dist)) * vAlpha;
     
-    // Add glow for pulses
     vec3 color = vColor;
     if (vPulse > 0.3) {
-      color += vec3(0.1, 0.2, 0.3) * vPulse;
+      color += vec3(0.12, 0.18, 0.25) * vPulse;
     }
     
     gl_FragColor = vec4(color, alpha);
   }
 `;
 
-// Background atmosphere shader
+// Intersection nodes shader - glowing points at grid crossings
+const nodeVertexShader = `
+  uniform float uTime;
+  uniform float uAudioLevel;
+  
+  attribute float aPhase;
+  
+  varying float vAlpha;
+  varying vec3 vColor;
+  
+  void main() {
+    vec3 pos = position;
+    
+    // Subtle breathing at intersections
+    float breathe = sin(uTime * 1.2 + aPhase * 6.28) * 0.04;
+    pos *= 1.0 + breathe + uAudioLevel * 0.08;
+    
+    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    
+    float pulse = 0.5 + sin(uTime * 1.8 + aPhase * 3.14) * 0.25;
+    gl_PointSize = (2.5 + pulse * 1.5 + uAudioLevel * 2.0) * (100.0 / -mvPosition.z);
+    
+    vAlpha = 0.55 + pulse * 0.35;
+    
+    // Bright cyan intersection nodes
+    vColor = vec3(0.15, 0.55, 0.75) + vec3(0.1, 0.15, 0.2) * uAudioLevel;
+  }
+`;
+
+const nodeFragmentShader = `
+  varying float vAlpha;
+  varying vec3 vColor;
+  
+  void main() {
+    float dist = length(gl_PointCoord - vec2(0.5));
+    if (dist > 0.5) discard;
+    
+    float alpha = pow(1.0 - dist * 2.0, 1.4) * vAlpha;
+    
+    vec3 color = vColor;
+    if (dist < 0.12) {
+      color += vec3(0.25, 0.35, 0.45);
+    }
+    
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
+
+// Atmosphere shader - subtle background particles
 const atmosphereVertexShader = `
   uniform float uTime;
   uniform float uAudioLevel;
@@ -120,29 +162,25 @@ const atmosphereVertexShader = `
   void main() {
     vec3 pos = position;
     
-    // Slow drift motion
-    float drift = uTime * aSpeed * 0.1;
-    pos.x += sin(drift + aRandomness * 6.28) * 0.3;
-    pos.y += cos(drift * 0.7 + aRandomness * 3.14) * 0.3;
-    pos.z += sin(drift * 0.5 + aRandomness * 9.42) * 0.2;
+    float drift = uTime * aSpeed * 0.08;
+    pos.x += sin(drift + aRandomness * 6.28) * 0.2;
+    pos.y += cos(drift * 0.7 + aRandomness * 3.14) * 0.2;
+    pos.z += sin(drift * 0.5 + aRandomness * 9.42) * 0.15;
     
-    // Subtle pull toward center when audio
-    float centerPull = uAudioLevel * 0.1;
-    pos = mix(pos, normalize(pos) * length(pos) * 0.9, centerPull);
+    float centerPull = uAudioLevel * 0.08;
+    pos = mix(pos, normalize(pos) * length(pos) * 0.92, centerPull);
     
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    gl_PointSize = (0.3 + aRandomness * 0.4) * (100.0 / -mvPosition.z);
+    gl_PointSize = (0.25 + aRandomness * 0.35) * (100.0 / -mvPosition.z);
     
-    // Very subtle alpha for atmosphere
     float distFromCenter = length(pos);
-    vAlpha = 0.15 * (1.0 - smoothstep(2.0, 8.0, distFromCenter));
+    vAlpha = 0.12 * (1.0 - smoothstep(2.0, 7.0, distFromCenter));
     
-    // Deep blue/purple atmosphere
     vColor = mix(
-      vec3(0.02, 0.05, 0.12),
-      vec3(0.08, 0.03, 0.15),
+      vec3(0.02, 0.04, 0.1),
+      vec3(0.06, 0.02, 0.12),
       aRandomness
     );
   }
@@ -162,58 +200,6 @@ const atmosphereFragmentShader = `
   }
 `;
 
-// Connection nodes shader
-const nodeVertexShader = `
-  uniform float uTime;
-  uniform float uAudioLevel;
-  
-  attribute float aPhase;
-  
-  varying float vAlpha;
-  varying vec3 vColor;
-  
-  void main() {
-    vec3 pos = position;
-    
-    // Subtle breathing
-    float breathe = sin(uTime * 1.5 + aPhase * 6.28) * 0.05;
-    pos *= 1.0 + breathe + uAudioLevel * 0.1;
-    
-    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-    gl_Position = projectionMatrix * mvPosition;
-    
-    // Larger glowing nodes
-    float pulse = 0.5 + sin(uTime * 2.0 + aPhase * 3.14) * 0.3;
-    gl_PointSize = (2.0 + pulse * 1.5 + uAudioLevel * 2.0) * (100.0 / -mvPosition.z);
-    
-    vAlpha = 0.6 + pulse * 0.3;
-    
-    // Bright cyan nodes
-    vColor = vec3(0.1, 0.5, 0.7) + vec3(0.1, 0.2, 0.2) * uAudioLevel;
-  }
-`;
-
-const nodeFragmentShader = `
-  varying float vAlpha;
-  varying vec3 vColor;
-  
-  void main() {
-    float dist = length(gl_PointCoord - vec2(0.5));
-    if (dist > 0.5) discard;
-    
-    // Soft glow falloff
-    float alpha = pow(1.0 - dist * 2.0, 1.5) * vAlpha;
-    
-    // Core is brighter
-    vec3 color = vColor;
-    if (dist < 0.15) {
-      color += vec3(0.3, 0.4, 0.5);
-    }
-    
-    gl_FragColor = vec4(color, alpha);
-  }
-`;
-
 export const DataStreamNetwork = ({ state, audioLevel }: DataStreamNetworkProps) => {
   const streamsRef = useRef<THREE.Points>(null);
   const streamMaterialRef = useRef<THREE.ShaderMaterial>(null);
@@ -224,93 +210,126 @@ export const DataStreamNetwork = ({ state, audioLevel }: DataStreamNetworkProps)
   
   const smoothAudioRef = useRef(0);
 
-  // Generate data stream geometry
+  // Generate structured grid of aligned data lines
   const streamGeometry = useMemo(() => {
-    const streamCount = 30; // 30 streams
-    const particlesPerStream = 1500; // Dense particles per stream
-    const totalParticles = streamCount * particlesPerStream;
+    const particlesPerLine = 800;
     
-    const positions = new Float32Array(totalParticles * 3);
-    const streamIndices = new Float32Array(totalParticles);
-    const progresses = new Float32Array(totalParticles);
-    const randomness = new Float32Array(totalParticles);
-    const controlPoints1 = new Float32Array(totalParticles * 3);
-    const controlPoints2 = new Float32Array(totalParticles * 3);
-    const endPoints = new Float32Array(totalParticles * 3);
+    // Grid configuration - 12 lines per axis at different positions
+    const gridPositions = [-1.8, -1.2, -0.6, 0, 0.6, 1.2, 1.8];
+    const depthLayers = [-0.8, 0, 0.8];
     
-    for (let s = 0; s < streamCount; s++) {
-      // Random start point on sphere surface
-      const startTheta = Math.random() * Math.PI * 2;
-      const startPhi = Math.acos(2 * Math.random() - 1);
-      const startRadius = 0.6 + Math.random() * 0.2;
-      
-      const startX = startRadius * Math.sin(startPhi) * Math.cos(startTheta);
-      const startY = startRadius * Math.sin(startPhi) * Math.sin(startTheta);
-      const startZ = startRadius * Math.cos(startPhi);
-      
-      // Generate bezier control points for organic curves
-      const endTheta = Math.random() * Math.PI * 2;
-      const endPhi = Math.acos(2 * Math.random() - 1);
-      const endRadius = 2.5 + Math.random() * 2.0;
-      
-      const endX = endRadius * Math.sin(endPhi) * Math.cos(endTheta);
-      const endY = endRadius * Math.sin(endPhi) * Math.sin(endTheta);
-      const endZ = endRadius * Math.cos(endPhi);
-      
-      // Control points create organic curved paths
-      const midRadius = (startRadius + endRadius) * 0.5;
-      const curveOffset = 0.5 + Math.random() * 1.0;
-      
-      const cp1X = startX + (endX - startX) * 0.3 + (Math.random() - 0.5) * curveOffset;
-      const cp1Y = startY + (endY - startY) * 0.3 + (Math.random() - 0.5) * curveOffset;
-      const cp1Z = startZ + (endZ - startZ) * 0.3 + (Math.random() - 0.5) * curveOffset;
-      
-      const cp2X = startX + (endX - startX) * 0.7 + (Math.random() - 0.5) * curveOffset;
-      const cp2Y = startY + (endY - startY) * 0.7 + (Math.random() - 0.5) * curveOffset;
-      const cp2Z = startZ + (endZ - startZ) * 0.7 + (Math.random() - 0.5) * curveOffset;
-      
-      for (let p = 0; p < particlesPerStream; p++) {
-        const idx = s * particlesPerStream + p;
-        const i3 = idx * 3;
-        
-        // Start position (will be animated along curve)
-        positions[i3] = startX;
-        positions[i3 + 1] = startY;
-        positions[i3 + 2] = startZ;
-        
-        streamIndices[idx] = s;
-        progresses[idx] = p / particlesPerStream; // Spread along stream
-        randomness[idx] = Math.random();
-        
-        controlPoints1[i3] = cp1X;
-        controlPoints1[i3 + 1] = cp1Y;
-        controlPoints1[i3 + 2] = cp1Z;
-        
-        controlPoints2[i3] = cp2X;
-        controlPoints2[i3 + 1] = cp2Y;
-        controlPoints2[i3 + 2] = cp2Z;
-        
-        endPoints[i3] = endX;
-        endPoints[i3 + 1] = endY;
-        endPoints[i3 + 2] = endZ;
+    const lines: { axis: number; y: number; z: number; x: number }[] = [];
+    
+    // Horizontal lines (X-axis) at various Y and Z positions
+    for (const y of gridPositions) {
+      for (const z of depthLayers) {
+        lines.push({ axis: 0, y, z, x: 0 });
       }
     }
     
+    // Vertical lines (Y-axis) at various X and Z positions
+    for (const x of gridPositions) {
+      for (const z of depthLayers) {
+        lines.push({ axis: 1, y: 0, z, x });
+      }
+    }
+    
+    // Depth lines (Z-axis) at various X and Y positions
+    for (const x of [-1.2, 0, 1.2]) {
+      for (const y of [-1.2, 0, 1.2]) {
+        lines.push({ axis: 2, y, z: 0, x });
+      }
+    }
+    
+    const totalParticles = lines.length * particlesPerLine;
+    
+    const positions = new Float32Array(totalParticles * 3);
+    const lineIndices = new Float32Array(totalParticles);
+    const progresses = new Float32Array(totalParticles);
+    const axes = new Float32Array(totalParticles);
+    const linePositions = new Float32Array(totalParticles);
+    
+    let idx = 0;
+    lines.forEach((line, lineIdx) => {
+      for (let p = 0; p < particlesPerLine; p++) {
+        const i3 = idx * 3;
+        const progress = p / particlesPerLine;
+        
+        // Set fixed position on non-animated axes
+        if (line.axis === 0) {
+          positions[i3] = 0; // Will be animated
+          positions[i3 + 1] = line.y;
+          positions[i3 + 2] = line.z;
+        } else if (line.axis === 1) {
+          positions[i3] = line.x;
+          positions[i3 + 1] = 0; // Will be animated
+          positions[i3 + 2] = line.z;
+        } else {
+          positions[i3] = line.x;
+          positions[i3 + 1] = line.y;
+          positions[i3 + 2] = 0; // Will be animated
+        }
+        
+        lineIndices[idx] = lineIdx;
+        progresses[idx] = progress;
+        axes[idx] = line.axis;
+        linePositions[idx] = line.axis === 0 ? line.y : (line.axis === 1 ? line.x : line.y);
+        
+        idx++;
+      }
+    });
+    
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute("aStreamIndex", new THREE.BufferAttribute(streamIndices, 1));
+    geo.setAttribute("aLineIndex", new THREE.BufferAttribute(lineIndices, 1));
     geo.setAttribute("aProgress", new THREE.BufferAttribute(progresses, 1));
-    geo.setAttribute("aRandomness", new THREE.BufferAttribute(randomness, 1));
-    geo.setAttribute("aControlPoint1", new THREE.BufferAttribute(controlPoints1, 3));
-    geo.setAttribute("aControlPoint2", new THREE.BufferAttribute(controlPoints2, 3));
-    geo.setAttribute("aEndPoint", new THREE.BufferAttribute(endPoints, 3));
+    geo.setAttribute("aAxis", new THREE.BufferAttribute(axes, 1));
+    geo.setAttribute("aLinePosition", new THREE.BufferAttribute(linePositions, 1));
     
     return geo;
   }, []);
 
-  // Atmosphere particles (100k for dense background)
+  // Intersection nodes at grid crossings
+  const nodeGeometry = useMemo(() => {
+    const nodes: [number, number, number][] = [];
+    const gridPositions = [-1.8, -1.2, -0.6, 0, 0.6, 1.2, 1.8];
+    const depthLayers = [-0.8, 0, 0.8];
+    
+    // Create nodes at intersections
+    for (const x of gridPositions) {
+      for (const y of gridPositions) {
+        for (const z of depthLayers) {
+          // Only create nodes where lines actually intersect
+          const hasHorizontal = gridPositions.includes(y) && depthLayers.includes(z);
+          const hasVertical = gridPositions.includes(x) && depthLayers.includes(z);
+          if (hasHorizontal && hasVertical) {
+            nodes.push([x, y, z]);
+          }
+        }
+      }
+    }
+    
+    const count = nodes.length;
+    const positions = new Float32Array(count * 3);
+    const phases = new Float32Array(count);
+    
+    nodes.forEach((node, i) => {
+      positions[i * 3] = node[0];
+      positions[i * 3 + 1] = node[1];
+      positions[i * 3 + 2] = node[2];
+      phases[i] = Math.random();
+    });
+    
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("aPhase", new THREE.BufferAttribute(phases, 1));
+    
+    return geo;
+  }, []);
+
+  // Sparse atmosphere particles
   const atmosphereGeometry = useMemo(() => {
-    const count = 100000;
+    const count = 40000;
     const positions = new Float32Array(count * 3);
     const randomness = new Float32Array(count);
     const speeds = new Float32Array(count);
@@ -318,51 +337,22 @@ export const DataStreamNetwork = ({ state, audioLevel }: DataStreamNetworkProps)
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
       
-      // Distribute in a large volume around the scene
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 1.5 + Math.random() * 6; // From just outside sphere to far out
+      const r = 1.8 + Math.random() * 5;
       
       positions[i3] = r * Math.sin(phi) * Math.cos(theta);
       positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       positions[i3 + 2] = r * Math.cos(phi);
       
       randomness[i] = Math.random();
-      speeds[i] = 0.5 + Math.random() * 1.5;
+      speeds[i] = 0.4 + Math.random() * 1.2;
     }
     
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geo.setAttribute("aRandomness", new THREE.BufferAttribute(randomness, 1));
     geo.setAttribute("aSpeed", new THREE.BufferAttribute(speeds, 1));
-    
-    return geo;
-  }, []);
-
-  // Connection node geometry
-  const nodeGeometry = useMemo(() => {
-    const count = 60; // Glowing connection nodes
-    const positions = new Float32Array(count * 3);
-    const phases = new Float32Array(count);
-    
-    for (let i = 0; i < count; i++) {
-      const i3 = i * 3;
-      
-      // Distribute nodes around the data streams
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = 1.0 + Math.random() * 3.0;
-      
-      positions[i3] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      positions[i3 + 2] = r * Math.cos(phi);
-      
-      phases[i] = Math.random();
-    }
-    
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute("aPhase", new THREE.BufferAttribute(phases, 1));
     
     return geo;
   }, []);
@@ -374,21 +364,7 @@ export const DataStreamNetwork = ({ state, audioLevel }: DataStreamNetworkProps)
       uniforms: {
         uTime: { value: 0 },
         uAudioLevel: { value: 0 },
-        uFlowSpeed: { value: 0.3 },
-      },
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-  }, []);
-
-  const atmosphereMaterial = useMemo(() => {
-    return new THREE.ShaderMaterial({
-      vertexShader: atmosphereVertexShader,
-      fragmentShader: atmosphereFragmentShader,
-      uniforms: {
-        uTime: { value: 0 },
-        uAudioLevel: { value: 0 },
+        uFlowSpeed: { value: 0.25 },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -410,16 +386,29 @@ export const DataStreamNetwork = ({ state, audioLevel }: DataStreamNetworkProps)
     });
   }, []);
 
+  const atmosphereMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      vertexShader: atmosphereVertexShader,
+      fragmentShader: atmosphereFragmentShader,
+      uniforms: {
+        uTime: { value: 0 },
+        uAudioLevel: { value: 0 },
+      },
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+  }, []);
+
   useFrame((frameState) => {
     const time = frameState.clock.elapsedTime;
     smoothAudioRef.current = THREE.MathUtils.lerp(smoothAudioRef.current, audioLevel, 0.1);
 
-    // State-based flow speed
-    let flowSpeed = 0.3;
+    let flowSpeed = 0.25;
     switch (state) {
-      case "listening": flowSpeed = 0.5; break;
-      case "thinking": flowSpeed = 1.0; break;
-      case "speaking": flowSpeed = 0.7; break;
+      case "listening": flowSpeed = 0.4; break;
+      case "thinking": flowSpeed = 0.8; break;
+      case "speaking": flowSpeed = 0.55; break;
     }
 
     if (streamMaterialRef.current) {
@@ -428,34 +417,34 @@ export const DataStreamNetwork = ({ state, audioLevel }: DataStreamNetworkProps)
       streamMaterialRef.current.uniforms.uFlowSpeed.value = THREE.MathUtils.lerp(
         streamMaterialRef.current.uniforms.uFlowSpeed.value,
         flowSpeed,
-        0.05
+        0.04
       );
-    }
-
-    if (atmosphereMaterialRef.current) {
-      atmosphereMaterialRef.current.uniforms.uTime.value = time;
-      atmosphereMaterialRef.current.uniforms.uAudioLevel.value = smoothAudioRef.current;
     }
 
     if (nodeMaterialRef.current) {
       nodeMaterialRef.current.uniforms.uTime.value = time;
       nodeMaterialRef.current.uniforms.uAudioLevel.value = smoothAudioRef.current;
     }
+
+    if (atmosphereMaterialRef.current) {
+      atmosphereMaterialRef.current.uniforms.uTime.value = time;
+      atmosphereMaterialRef.current.uniforms.uAudioLevel.value = smoothAudioRef.current;
+    }
   });
 
   return (
     <group>
-      {/* Dense atmosphere background */}
+      {/* Background atmosphere */}
       <points ref={atmosphereRef} geometry={atmosphereGeometry}>
         <primitive object={atmosphereMaterial} ref={atmosphereMaterialRef} attach="material" />
       </points>
       
-      {/* Flowing data streams */}
+      {/* Aligned data stream grid */}
       <points ref={streamsRef} geometry={streamGeometry}>
         <primitive object={streamMaterial} ref={streamMaterialRef} attach="material" />
       </points>
       
-      {/* Glowing connection nodes */}
+      {/* Intersection nodes */}
       <points ref={nodesRef} geometry={nodeGeometry}>
         <primitive object={nodeMaterial} ref={nodeMaterialRef} attach="material" />
       </points>
