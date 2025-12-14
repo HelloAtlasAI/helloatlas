@@ -182,16 +182,21 @@ export const UnifiedVisualization = ({
           )}
         </Suspense>
 
-        {/* Post-processing effects for immersive visuals */}
+        {/* Post-processing effects - enhanced per mode */}
         <EffectComposer>
           <Bloom 
-            intensity={1.2} 
-            luminanceThreshold={0.2} 
-            luminanceSmoothing={0.9}
+            intensity={mode === "cosmic" ? 1.8 : mode === "neural" ? 1.5 : mode === "circuit" ? 1.4 : 1.2} 
+            luminanceThreshold={0.15} 
+            luminanceSmoothing={0.95}
             mipmapBlur
           />
-          <Vignette offset={0.3} darkness={0.5} />
-          <Noise opacity={0.015} blendFunction={BlendFunction.OVERLAY} />
+          <ChromaticAberration 
+            offset={new THREE.Vector2(mode === "circuit" ? 0.002 : 0.001, mode === "circuit" ? 0.002 : 0.001)} 
+            radialModulation={false}
+            modulationOffset={0}
+          />
+          <Vignette offset={0.25} darkness={mode === "cosmic" ? 0.7 : 0.5} />
+          <Noise opacity={0.02} blendFunction={BlendFunction.OVERLAY} />
         </EffectComposer>
 
         {/* HUD overlay layer */}
