@@ -46,8 +46,8 @@ export const UnifiedVisualization = ({
         {/* Post-processing for ethereal glow */}
         <EffectComposer>
           <Bloom 
-            intensity={2.0}
-            luminanceThreshold={0.1}
+            intensity={0.8}
+            luminanceThreshold={0.2}
             luminanceSmoothing={0.9}
             mipmapBlur
           />

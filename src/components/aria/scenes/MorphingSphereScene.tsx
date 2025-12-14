@@ -114,9 +114,9 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Dynamic particle size based on depth + audio
-    float baseSizeMultiplier = 2.5 + uAudioLevel * 1.5;
-    gl_PointSize = baseSizeMultiplier * (350.0 / -mvPosition.z);
+    // Dynamic particle size based on depth and audio (reduced)
+    float baseSizeMultiplier = 1.5 + uAudioLevel * 1.0;
+    gl_PointSize = baseSizeMultiplier * (250.0 / -mvPosition.z);
   }
 `;
 
@@ -133,11 +133,11 @@ const fragmentShader = `
     float dist = length(gl_PointCoord - vec2(0.5));
     if (dist > 0.5) discard;
     
-    // Color palette: deep blue → cyan → purple → white highlights
-    vec3 deepBlue = vec3(0.02, 0.05, 0.25);
-    vec3 cyan = vec3(0.0, 0.75, 1.0);
-    vec3 purple = vec3(0.45, 0.1, 0.7);
-    vec3 white = vec3(1.0, 1.0, 1.0);
+    // Color palette: deep blue → cyan → purple (muted)
+    vec3 deepBlue = vec3(0.01, 0.03, 0.15);
+    vec3 cyan = vec3(0.0, 0.55, 0.8);
+    vec3 purple = vec3(0.35, 0.08, 0.55);
+    vec3 white = vec3(0.9, 0.9, 1.0);
     
     // Gradient based on displacement height
     float t = vDisplacement * 0.5 + 0.5;
@@ -150,13 +150,13 @@ const fragmentShader = `
     // Add subtle audio-reactive color shift
     color += vec3(0.0, 0.1, 0.15) * uAudioLevel;
     
-    // Soft circular falloff with glow
+    // Soft circular falloff
     float alpha = 1.0 - smoothstep(0.2, 0.5, dist);
-    alpha *= 0.85;
+    alpha *= 0.5;
     
-    // Fresnel-like edge glow
+    // Fresnel-like edge glow (reduced)
     float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.0);
-    alpha += fresnel * 0.15;
+    alpha += fresnel * 0.08;
     
     gl_FragColor = vec4(color, alpha);
   }
@@ -173,7 +173,7 @@ export const MorphingSphereScene = ({ state, audioLevel }: MorphingSphereScenePr
   
   // Create particle geometry from icosahedron
   const geometry = useMemo(() => {
-    const ico = new THREE.IcosahedronGeometry(2, 7); // ~40k vertices
+    const ico = new THREE.IcosahedronGeometry(0.8, 7); // 60% smaller
     const positions = ico.attributes.position.array;
     
     const particleGeometry = new THREE.BufferGeometry();
