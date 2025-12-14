@@ -1,46 +1,35 @@
-import { cn } from "@/lib/utils";
-import { ReactNode } from "react";
+import { motion } from 'framer-motion';
+import { ReactNode } from 'react';
 
 interface DashboardCardProps {
   children: ReactNode;
   className?: string;
-  glowing?: boolean;
   header?: ReactNode;
   onClick?: () => void;
+  glowColor?: string;
+  glowing?: boolean;
 }
 
 export const DashboardCard = ({ 
   children, 
-  className, 
-  glowing = false,
+  className = '', 
   header,
   onClick,
+  glowColor
 }: DashboardCardProps) => {
   return (
-    <div
+    <motion.div
+      className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900/90 via-slate-800/80 to-slate-900/90 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 ${onClick ? 'cursor-pointer' : ''} ${className}`}
       onClick={onClick}
-      className={cn(
-        "relative h-full rounded-2xl overflow-hidden transition-all duration-300",
-        "bg-dashboard-card/90 backdrop-blur-xl",
-        "border border-dashboard-border",
-        "shadow-lg shadow-dashboard-shadow/10",
-        glowing && "ring-2 ring-dashboard-primary/30 shadow-dashboard-primary/20",
-        onClick && "cursor-pointer hover:border-dashboard-primary/50",
-        className
-      )}
+      whileHover={{ scale: 1.02, borderColor: 'rgba(255,255,255,0.2)' }}
+      transition={{ duration: 0.2 }}
     >
-      {/* Subtle gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-dashboard-card-highlight/5 to-transparent pointer-events-none" />
-      
-      {header && (
-        <div className="relative px-5 py-4 border-b border-dashboard-border">
-          {header}
-        </div>
-      )}
-      
-      <div className={cn("relative", header ? "p-5" : "p-5 h-full")}>
-        {children}
+      <div className="absolute inset-0 opacity-30" style={{ background: glowColor ? `radial-gradient(ellipse at top, ${glowColor} 0%, transparent 60%)` : 'radial-gradient(ellipse at top, rgba(99, 102, 241, 0.15) 0%, transparent 60%)' }} />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent" />
+      <div className="relative z-10 h-full flex flex-col">
+        {header && <div className="px-5 py-4 border-b border-white/5">{header}</div>}
+        <div className="flex-1 p-5">{children}</div>
       </div>
-    </div>
+    </motion.div>
   );
 };
