@@ -7,6 +7,9 @@ import { ParticleTrails } from "../particles/ParticleTrails";
 interface MorphingSphereClassicProps {
   state: AIState;
   audioLevel: number;
+  particleDensity?: number;
+  trailLength?: number;
+  morphIntensity?: number;
 }
 
 const vertexShader = `
@@ -14,6 +17,7 @@ const vertexShader = `
   uniform float uAudioLevel;
   uniform float uMorphStrength;
   uniform float uNoiseSpeed;
+  uniform float uDensityDivisor;
   
   varying float vDisplacement;
   varying vec3 vNormal;
@@ -105,9 +109,10 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Ultra-dense: smaller particles
+    // Dynamic density: smaller divisor = larger particles = less dense look
+    float densityDivisor = uDensityDivisor;
     float baseSizeMultiplier = 0.35 + uAudioLevel * 0.15;
-    gl_PointSize = baseSizeMultiplier * (300.0 / -mvPosition.z);
+    gl_PointSize = baseSizeMultiplier * (densityDivisor / -mvPosition.z);
   }
 `;
 
@@ -144,7 +149,13 @@ const fragmentShader = `
   }
 `;
 
-export const MorphingSphereClassic = ({ state, audioLevel }: MorphingSphereClassicProps) => {
+export const MorphingSphereClassic = ({ 
+  state, 
+  audioLevel, 
+  particleDensity = 75,
+  trailLength = 6,
+  morphIntensity = 50,
+}: MorphingSphereClassicProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const rotationRef = useRef(new THREE.Euler());
@@ -152,6 +163,13 @@ export const MorphingSphereClassic = ({ state, audioLevel }: MorphingSphereClass
   const smoothAudioRef = useRef(0);
   const targetMorphRef = useRef(0.15);
   const targetSpeedRef = useRef(0.3);
+  
+  // Map morphIntensity (0-100) to actual values
+  const baseMorphStrength = 0.05 + (morphIntensity / 100) * 0.5;
+  const baseNoiseSpeed = 0.1 + (morphIntensity / 100) * 1.0;
+  
+  // Map particleDensity (25-100) to divisor (higher density = larger divisor = smaller particles)
+  const densityDivisor = 200 + (particleDensity / 100) * 200;
 
   const geometry = useMemo(() => {
     // Detail level 9 for ultra-dense sphere (~655k particles)
@@ -170,8 +188,9 @@ export const MorphingSphereClassic = ({ state, audioLevel }: MorphingSphereClass
       uniforms: {
         uTime: { value: 0 },
         uAudioLevel: { value: 0 },
-        uMorphStrength: { value: 0.15 },
-        uNoiseSpeed: { value: 0.3 },
+        uMorphStrength: { value: baseMorphStrength },
+        uNoiseSpeed: { value: baseNoiseSpeed },
+        uDensityDivisor: { value: densityDivisor },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -184,12 +203,17 @@ export const MorphingSphereClassic = ({ state, audioLevel }: MorphingSphereClass
 
     const time = frameState.clock.elapsedTime;
 
+    // State-based modifiers on top of user intensity
+    let stateMultiplier = 1.0;
+    let speedMultiplier = 1.0;
     switch (state) {
-      case "listening": targetMorphRef.current = 0.25; targetSpeedRef.current = 0.5; break;
-      case "thinking": targetMorphRef.current = 0.35; targetSpeedRef.current = 0.8; break;
-      case "speaking": targetMorphRef.current = 0.3; targetSpeedRef.current = 0.6; break;
-      default: targetMorphRef.current = 0.15; targetSpeedRef.current = 0.3;
+      case "listening": stateMultiplier = 1.3; speedMultiplier = 1.3; break;
+      case "thinking": stateMultiplier = 1.8; speedMultiplier = 2.0; break;
+      case "speaking": stateMultiplier = 1.5; speedMultiplier = 1.5; break;
     }
+    
+    targetMorphRef.current = baseMorphStrength * stateMultiplier;
+    targetSpeedRef.current = baseNoiseSpeed * speedMultiplier;
 
     smoothAudioRef.current = THREE.MathUtils.lerp(smoothAudioRef.current, audioLevel, 0.1);
 
@@ -198,6 +222,7 @@ export const MorphingSphereClassic = ({ state, audioLevel }: MorphingSphereClass
     uniforms.uAudioLevel.value = smoothAudioRef.current;
     uniforms.uMorphStrength.value = THREE.MathUtils.lerp(uniforms.uMorphStrength.value, targetMorphRef.current, 0.05);
     uniforms.uNoiseSpeed.value = THREE.MathUtils.lerp(uniforms.uNoiseSpeed.value, targetSpeedRef.current, 0.05);
+    uniforms.uDensityDivisor.value = THREE.MathUtils.lerp(uniforms.uDensityDivisor.value, densityDivisor, 0.05);
 
     pointsRef.current.rotation.y += 0.001;
     pointsRef.current.rotation.x = Math.sin(time * 0.1) * 0.05;
@@ -214,6 +239,7 @@ export const MorphingSphereClassic = ({ state, audioLevel }: MorphingSphereClass
         audioLevel={smoothAudioRef.current} 
         sphereGeometry={geometry}
         sphereRotation={rotationRef.current}
+        trailLength={trailLength}
       />
     </group>
   );

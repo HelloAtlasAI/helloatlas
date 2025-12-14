@@ -5,6 +5,7 @@ import { HolographicCards, demoHolographicCards } from "@/components/aria/Hologr
 import { StateIndicator } from "@/components/aria/StateIndicator";
 import { ChatInput } from "@/components/aria/ChatInput";
 import { ConversationPanel } from "@/components/aria/ConversationPanel";
+import { ControlPanel } from "@/components/aria/ControlPanel";
 import { useChat } from "@/hooks/useChat";
 import { useVoice } from "@/hooks/useVoice";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +27,9 @@ const Index = () => {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [sphereVariant, setSphereVariant] = useState<SphereVariant>("classic");
   const [showHUD, setShowHUD] = useState(false);
+  const [particleDensity, setParticleDensity] = useState(75);
+  const [trailLength, setTrailLength] = useState(6);
+  const [morphIntensity, setMorphIntensity] = useState(50);
   const APP_NAME = "Atlas";
 
   const {
@@ -89,6 +93,9 @@ const Index = () => {
           audioLevel={audioLevel}
           variant={sphereVariant}
           showHUD={showHUD}
+          particleDensity={particleDensity}
+          trailLength={trailLength}
+          morphIntensity={morphIntensity}
         />
       </div>
 
@@ -120,6 +127,18 @@ const Index = () => {
             HUD
           </button>
         )}
+        
+        {/* Control Panel */}
+        <div className="mt-2">
+          <ControlPanel
+            particleDensity={particleDensity}
+            trailLength={trailLength}
+            morphIntensity={morphIntensity}
+            onParticleDensityChange={setParticleDensity}
+            onTrailLengthChange={setTrailLength}
+            onMorphIntensityChange={setMorphIntensity}
+          />
+        </div>
       </div>
 
       {/* Header - on top of 3D */}
