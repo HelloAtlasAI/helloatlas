@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Message } from "@/components/aria/ConversationPanel";
 import { AIState } from "@/components/aria/AIOrb";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,14 +7,14 @@ import { toast } from "sonner";
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-memory`;
 
 interface UseChatWithMemoryOptions {
-  onSpeakResponse?: (text: string) => void;
   onCardFocus?: (cardId: string | null) => void;
 }
 
-export const useChatWithMemory = ({ onSpeakResponse, onCardFocus }: UseChatWithMemoryOptions = {}) => {
+export const useChatWithMemory = ({ onCardFocus }: UseChatWithMemoryOptions = {}) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [aiState, setAiState] = useState<AIState>("idle");
   const [isLoading, setIsLoading] = useState(false);
+  const [lastResponse, setLastResponse] = useState<string>("");
 
   // Detect card focus from message content
   const detectCardFocus = useCallback((content: string) => {
@@ -34,7 +34,7 @@ export const useChatWithMemory = ({ onSpeakResponse, onCardFocus }: UseChatWithM
     }
   }, [onCardFocus]);
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string): Promise<string | null> => {
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -152,10 +152,10 @@ export const useChatWithMemory = ({ onSpeakResponse, onCardFocus }: UseChatWithM
       // Clear card focus after response
       setTimeout(() => onCardFocus?.(null), 2000);
 
-      // Speak the response if callback provided
-      if (onSpeakResponse && assistantContent) {
-        onSpeakResponse(assistantContent);
-      }
+      // Store the last response for optional TTS
+      setLastResponse(assistantContent);
+      
+      return assistantContent;
     } catch (error) {
       console.error("Chat error:", error);
       toast.error("Failed to get response. Please try again.");
@@ -166,11 +166,12 @@ export const useChatWithMemory = ({ onSpeakResponse, onCardFocus }: UseChatWithM
         return prev;
       });
       onCardFocus?.(null);
+      return null;
     } finally {
       setAiState("idle");
       setIsLoading(false);
     }
-  }, [messages, onSpeakResponse, detectCardFocus, onCardFocus]);
+  }, [messages, detectCardFocus, onCardFocus]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -183,5 +184,6 @@ export const useChatWithMemory = ({ onSpeakResponse, onCardFocus }: UseChatWithM
     isLoading,
     sendMessage,
     clearMessages,
+    lastResponse,
   };
 };

@@ -1,13 +1,17 @@
-import { memo } from 'react';
-import { motion } from 'framer-motion';
-import { Mic, Sparkles, MessageCircle } from 'lucide-react';
+import { memo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { CleanSphere } from './CleanSphere';
 
 interface AIAssistantCardProps {
   state: 'idle' | 'listening' | 'thinking' | 'speaking';
   audioLevel: number;
   userName?: string;
-  onClick: () => void;
+  isRecording?: boolean;
+  isProcessing?: boolean;
+  onVoicePress?: () => void;
+  onVoiceRelease?: () => void;
+  onClick?: () => void;
 }
 
 const getGreeting = () => {
@@ -17,117 +21,130 @@ const getGreeting = () => {
   return 'Good evening';
 };
 
-const getStateMessage = (state: string) => {
+const getStateMessage = (state: string, isRecording?: boolean) => {
+  if (isRecording) return "I'm listening...";
   switch (state) {
     case 'listening':
       return "I'm listening...";
     case 'thinking':
-      return 'Processing your request...';
+      return 'Processing...';
     case 'speaking':
       return 'Speaking...';
     default:
-      return 'How can I help you today?';
+      return 'How can I help?';
   }
 };
 
-const AIAssistantCardComponent = ({ state, audioLevel, userName, onClick }: AIAssistantCardProps) => {
+const AIAssistantCardComponent = ({ 
+  state, 
+  audioLevel, 
+  userName, 
+  isRecording,
+  isProcessing,
+  onVoicePress,
+  onVoiceRelease,
+  onClick 
+}: AIAssistantCardProps) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
   return (
     <motion.div
-      className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-card/95 via-card/90 to-card/95 backdrop-blur-xl border border-border shadow-2xl"
+      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/90 via-card/85 to-card/90 backdrop-blur-xl border border-border/50 shadow-xl h-full"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.4 }}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
     >
-      {/* Background effects */}
-      <div className="absolute inset-0 overflow-hidden">
-        <motion.div
-          className="absolute -top-1/2 -left-1/2 w-full h-full opacity-30"
-          style={{
-            background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 60%)',
-          }}
-          animate={{
-            x: [0, 50, 0],
-            y: [0, 30, 0],
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute -bottom-1/2 -right-1/2 w-full h-full opacity-30"
-          style={{
-            background: 'radial-gradient(circle, hsl(var(--accent) / 0.3) 0%, transparent 60%)',
-          }}
-          animate={{
-            x: [0, -50, 0],
-            y: [0, -30, 0],
-          }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        />
-      </div>
-      
-      {/* Shine effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent" />
+      {/* Subtle background glow */}
+      <motion.div
+        className="absolute inset-0 opacity-30"
+        style={{
+          background: 'radial-gradient(circle at 30% 50%, hsl(var(--primary) / 0.2) 0%, transparent 50%)',
+        }}
+        animate={{
+          opacity: isHovered ? 0.4 : 0.3,
+        }}
+      />
       
       {/* Content */}
-      <div className="relative z-10 p-8">
-        <div className="flex flex-col lg:flex-row items-center gap-8">
-          {/* Sphere */}
-          <div className="w-48 h-48 lg:w-56 lg:h-56">
-            <CleanSphere
-              state={state}
-              audioLevel={audioLevel}
-              onClick={onClick}
-              className="w-full h-full"
-            />
-          </div>
-          
-          {/* Text content */}
-          <div className="flex-1 text-center lg:text-left">
-            <motion.div
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/20 border border-primary/20 mb-4"
-              animate={{ opacity: [0.8, 1, 0.8] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span className="text-xs font-medium text-primary">Atlas AI Assistant</span>
-            </motion.div>
-            
-            <h2 className="text-2xl lg:text-3xl font-light text-foreground mb-2">
-              {getGreeting()}, <span className="font-semibold">{userName || 'there'}</span>
-            </h2>
-            
-            <p className="text-lg text-muted-foreground mb-6">
-              {getStateMessage(state)}
-            </p>
-            
-            {/* Action buttons */}
-            <div className="flex flex-wrap justify-center lg:justify-start gap-3">
-              <motion.button
-                onClick={onClick}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Mic className="w-4 h-4" />
-                Start Speaking
-              </motion.button>
-              
-              <motion.button
-                onClick={onClick}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-medium border border-border hover:bg-accent transition-colors"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <MessageCircle className="w-4 h-4" />
-                Type a Message
-              </motion.button>
-            </div>
-            
-            {/* Keyboard shortcut hint */}
-            <p className="mt-4 text-xs text-muted-foreground">
-              Press and hold <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">Space</kbd> to talk
-            </p>
-          </div>
+      <div className="relative z-10 p-4 h-full flex items-center gap-4">
+        {/* Compact Sphere */}
+        <div className="w-20 h-20 flex-shrink-0">
+          <CleanSphere
+            state={state}
+            audioLevel={audioLevel}
+            onClick={onClick}
+            className="w-full h-full"
+          />
         </div>
+        
+        {/* Text content */}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base font-medium text-foreground truncate">
+            {getGreeting()}, <span className="text-primary">{userName || 'there'}</span>
+          </h3>
+          
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={state + (isRecording ? '-rec' : '')}
+              className="text-sm text-muted-foreground mt-0.5"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              transition={{ duration: 0.2 }}
+            >
+              {getStateMessage(state, isRecording)}
+            </motion.p>
+          </AnimatePresence>
+          
+          <p className="text-xs text-muted-foreground/60 mt-1 hidden sm:block">
+            Hold <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono text-[10px]">Space</kbd> to talk
+          </p>
+        </div>
+        
+        {/* Voice button */}
+        <motion.button
+          className={`
+            relative flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center
+            transition-colors duration-200
+            ${isRecording 
+              ? 'bg-red-500/20 border-red-500/50 text-red-400' 
+              : isProcessing
+              ? 'bg-primary/20 border-primary/50 text-primary'
+              : 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
+            }
+            border backdrop-blur-sm
+          `}
+          onMouseDown={onVoicePress}
+          onMouseUp={onVoiceRelease}
+          onMouseLeave={onVoiceRelease}
+          onTouchStart={onVoicePress}
+          onTouchEnd={onVoiceRelease}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          {/* Pulsing ring when recording */}
+          <AnimatePresence>
+            {isRecording && (
+              <motion.div
+                className="absolute inset-0 rounded-xl border-2 border-red-400"
+                initial={{ scale: 1, opacity: 0.8 }}
+                animate={{ scale: 1.3, opacity: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1, repeat: Infinity }}
+              />
+            )}
+          </AnimatePresence>
+          
+          {isProcessing ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : isRecording ? (
+            <MicOff className="w-5 h-5" />
+          ) : (
+            <Mic className="w-5 h-5" />
+          )}
+        </motion.button>
       </div>
     </motion.div>
   );
