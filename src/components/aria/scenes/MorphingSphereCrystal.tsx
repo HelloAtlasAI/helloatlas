@@ -45,8 +45,8 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    float baseSizeMultiplier = 1.0 + uAudioLevel * 0.5;
-    gl_PointSize = baseSizeMultiplier * (180.0 / -mvPosition.z);
+    float baseSizeMultiplier = 0.8 + uAudioLevel * 0.4;
+    gl_PointSize = baseSizeMultiplier * (90.0 / -mvPosition.z);
   }
 `;
 
@@ -87,8 +87,8 @@ export const MorphingSphereCrystal = ({ state, audioLevel }: MorphingSphereCryst
   const smoothAudioRef = useRef(0);
 
   const geometry = useMemo(() => {
-    // Use lower subdivision for more angular look
-    const ico = new THREE.IcosahedronGeometry(0.8, 5);
+    // Higher subdivision for more detailed crystalline look
+    const ico = new THREE.IcosahedronGeometry(0.8, 7);
     const positions = ico.attributes.position.array;
     const normals = ico.attributes.normal.array;
     

@@ -32,7 +32,7 @@ const coreVertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    gl_PointSize = (1.0 + uAudioLevel * 0.5) * (150.0 / -mvPosition.z);
+    gl_PointSize = (0.8 + uAudioLevel * 0.4) * (80.0 / -mvPosition.z);
   }
 `;
 
@@ -96,7 +96,7 @@ const ringVertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    gl_PointSize = (1.5 + uAudioLevel) * (120.0 / -mvPosition.z);
+    gl_PointSize = (1.0 + uAudioLevel * 0.5) * (60.0 / -mvPosition.z);
     
     vAlpha = 0.3 + sin(angle * 2.0) * 0.1;
     
@@ -130,7 +130,7 @@ const OrbitalRing = ({ ringIndex, audioLevel, state }: { ringIndex: number; audi
   const materialRef = useRef<THREE.ShaderMaterial>(null);
 
   const geometry = useMemo(() => {
-    const count = 200;
+    const count = 800;
     const positions = new Float32Array(count * 3);
     const angles = new Float32Array(count);
     const speeds = new Float32Array(count);
@@ -196,7 +196,7 @@ export const MorphingSphereDataFlow = ({ state, audioLevel, pool, hudVisible }: 
   const smoothAudioRef = useRef(0);
 
   const coreGeometry = useMemo(() => {
-    const ico = new THREE.IcosahedronGeometry(0.5, 6);
+    const ico = new THREE.IcosahedronGeometry(0.5, 7);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(ico.attributes.position.array), 3));
     geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(ico.attributes.normal.array), 3));

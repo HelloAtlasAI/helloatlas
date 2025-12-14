@@ -104,8 +104,8 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    float baseSizeMultiplier = 1.2 + uAudioLevel * 0.8;
-    gl_PointSize = baseSizeMultiplier * (200.0 / -mvPosition.z);
+    float baseSizeMultiplier = 1.0 + uAudioLevel * 0.6;
+    gl_PointSize = baseSizeMultiplier * (100.0 / -mvPosition.z);
   }
 `;
 
@@ -150,7 +150,7 @@ export const MorphingSphereClassic = ({ state, audioLevel }: MorphingSphereClass
   const targetSpeedRef = useRef(0.3);
 
   const geometry = useMemo(() => {
-    const ico = new THREE.IcosahedronGeometry(0.8, 7);
+    const ico = new THREE.IcosahedronGeometry(0.8, 8);
     const positions = ico.attributes.position.array;
     const particleGeometry = new THREE.BufferGeometry();
     particleGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(positions), 3));
