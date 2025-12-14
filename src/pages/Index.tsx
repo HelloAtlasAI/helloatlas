@@ -1,15 +1,10 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { CyberGrid3D } from "@/components/aria/CyberGrid3D";
-import { DigitalFace3D } from "@/components/aria/DigitalFace3D";
-import { HybridVisualization } from "@/components/aria/HybridVisualization";
-import { DataRain } from "@/components/aria/DataRain";
-import { HolographicHUD } from "@/components/aria/HolographicHUD";
-import { ParticleUniverse } from "@/components/aria/ParticleUniverse";
+import { UnifiedVisualization, VisualizationMode } from "@/components/aria/UnifiedVisualization";
 import { HolographicCards, demoHolographicCards } from "@/components/aria/HolographicCard";
 import { ImmersiveBackground } from "@/components/aria/ImmersiveBackground";
 import { StateIndicator } from "@/components/aria/StateIndicator";
-import { VisualizationModeSwitch, VisualizationMode } from "@/components/aria/VisualizationModeSwitch";
+import { VisualizationModeSwitch } from "@/components/aria/VisualizationModeSwitch";
 import { ChatInput } from "@/components/aria/ChatInput";
 import { ConversationPanel } from "@/components/aria/ConversationPanel";
 import { useChat } from "@/hooks/useChat";
@@ -77,36 +72,9 @@ const Index = () => {
     );
   }
 
-  // Render the appropriate visualization based on mode
-  const renderVisualization = () => {
-    const commonProps = {
-      state: effectiveAiState,
-      audioLevel,
-    };
-
-    switch (visualizationMode) {
-      case "face":
-        return <DigitalFace3D {...commonProps} isSpeaking={isPlaying} />;
-      case "hybrid":
-        return <HybridVisualization {...commonProps} isSpeaking={isPlaying} />;
-      case "cyber":
-      default:
-        return <CyberGrid3D {...commonProps} />;
-    }
-  };
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background">
-      {/* Data Rain background */}
-      <div className="fixed inset-0 z-0 opacity-30">
-        <DataRain state={effectiveAiState} />
-      </div>
-      
-      {/* Particle Universe */}
-      <div className="fixed inset-0 z-0 opacity-50">
-        <ParticleUniverse state={effectiveAiState} />
-      </div>
-      
       {/* Layered ambient background */}
       <ImmersiveBackground state={effectiveAiState} />
 
@@ -175,11 +143,6 @@ const Index = () => {
         </nav>
       </header>
 
-      {/* Holographic HUD overlay */}
-      <div className="fixed inset-0 z-10 pointer-events-none">
-        <HolographicHUD state={effectiveAiState} />
-      </div>
-
       {/* Holographic data cards */}
       <HolographicCards cards={cards} onCardClose={handleCardClose} />
 
@@ -194,9 +157,14 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Main Visualization */}
+        {/* Main Unified Visualization - Single Canvas */}
         <div className="w-[400px] h-[400px] md:w-[500px] md:h-[500px] relative">
-          {renderVisualization()}
+          <UnifiedVisualization
+            mode={visualizationMode}
+            state={effectiveAiState}
+            audioLevel={audioLevel}
+            isSpeaking={isPlaying}
+          />
         </div>
 
         {/* Conversation panel */}
