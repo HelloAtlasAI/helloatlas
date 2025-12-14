@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_insights: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          insight_type: string
+          is_read: boolean | null
+          is_spoken: boolean | null
+          priority: number | null
+          related_event_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          insight_type: string
+          is_read?: boolean | null
+          is_spoken?: boolean | null
+          priority?: number | null
+          related_event_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          insight_type?: string
+          is_read?: boolean | null
+          is_spoken?: boolean | null
+          priority?: number | null
+          related_event_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_insights_related_event_id_fkey"
+            columns: ["related_event_id"]
+            isOneToOne: false
+            referencedRelation: "user_life_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_memory: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          importance: number | null
+          key: string
+          last_mentioned: string | null
+          memory_type: string
+          mention_count: number | null
+          updated_at: string
+          user_id: string
+          value: Json
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          importance?: number | null
+          key: string
+          last_mentioned?: string | null
+          memory_type: string
+          mention_count?: number | null
+          updated_at?: string
+          user_id: string
+          value: Json
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          importance?: number | null
+          key?: string
+          last_mentioned?: string | null
+          memory_type?: string
+          mention_count?: number | null
+          updated_at?: string
+          user_id?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           created_at: string
@@ -34,6 +123,39 @@ export type Database = {
           id?: string
           title?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      data_sources: {
+        Row: {
+          config: Json | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          last_synced: string | null
+          source_name: string
+          source_type: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_synced?: string | null
+          source_name: string
+          source_type: string
+          user_id: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_synced?: string | null
+          source_name?: string
+          source_type?: string
           user_id?: string
         }
         Relationships: []
@@ -73,26 +195,83 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          birthday: string | null
+          communication_style: string | null
           created_at: string
           display_name: string | null
+          first_name: string | null
           id: string
+          nickname: string | null
+          timezone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          birthday?: string | null
+          communication_style?: string | null
           created_at?: string
           display_name?: string | null
+          first_name?: string | null
           id?: string
+          nickname?: string | null
+          timezone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          birthday?: string | null
+          communication_style?: string | null
           created_at?: string
           display_name?: string | null
+          first_name?: string | null
           id?: string
+          nickname?: string | null
+          timezone?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_life_events: {
+        Row: {
+          created_at: string
+          description: string
+          event_date: string
+          event_type: string
+          follow_up_after: string | null
+          id: string
+          is_recurring: boolean | null
+          people_involved: Json | null
+          sentiment: string | null
+          should_follow_up: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          event_date: string
+          event_type: string
+          follow_up_after?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          people_involved?: Json | null
+          sentiment?: string | null
+          should_follow_up?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          event_date?: string
+          event_type?: string
+          follow_up_after?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          people_involved?: Json | null
+          sentiment?: string | null
+          should_follow_up?: boolean | null
           user_id?: string
         }
         Relationships: []
