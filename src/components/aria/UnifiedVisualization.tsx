@@ -8,10 +8,11 @@ import { AIState } from "./AIOrb";
 const CyberGridScene = lazy(() => import("./scenes/CyberGridScene").then(m => ({ default: m.CyberGridScene })));
 const DigitalFaceScene = lazy(() => import("./scenes/DigitalFaceScene").then(m => ({ default: m.DigitalFaceScene })));
 const HybridScene = lazy(() => import("./scenes/HybridScene").then(m => ({ default: m.HybridScene })));
+const NeuralBlobScene = lazy(() => import("./scenes/NeuralBlobScene").then(m => ({ default: m.NeuralBlobScene })));
 const BackgroundScene = lazy(() => import("./scenes/BackgroundScene").then(m => ({ default: m.BackgroundScene })));
 const HUDScene = lazy(() => import("./scenes/HUDScene").then(m => ({ default: m.HUDScene })));
 
-export type VisualizationMode = "cyber" | "face" | "hybrid";
+export type VisualizationMode = "cyber" | "face" | "hybrid" | "neural";
 
 interface UnifiedVisualizationProps {
   mode: VisualizationMode;
@@ -34,10 +35,11 @@ export const UnifiedVisualization = ({
   const cameraConfig = useMemo(() => {
     switch (mode) {
       case "face":
-        // Camera closer for better face visibility, tighter FOV
         return { position: [0, 0, 1.8] as [number, number, number], fov: 38 };
       case "hybrid":
         return { position: [0, 0, 2.2] as [number, number, number], fov: 42 };
+      case "neural":
+        return { position: [0, 0, 6] as [number, number, number], fov: 55 };
       default:
         return { position: [0, 0, 2.8] as [number, number, number], fov: 50 };
     }
@@ -148,6 +150,13 @@ export const UnifiedVisualization = ({
           )}
           {mode === "hybrid" && (
             <HybridScene 
+              state={state} 
+              audioLevel={audioLevel}
+              isSpeaking={isSpeaking}
+            />
+          )}
+          {mode === "neural" && (
+            <NeuralBlobScene 
               state={state} 
               audioLevel={audioLevel}
               isSpeaking={isSpeaking}
