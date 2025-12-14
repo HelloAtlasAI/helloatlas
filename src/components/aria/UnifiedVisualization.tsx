@@ -34,11 +34,12 @@ export const UnifiedVisualization = ({
   const cameraConfig = useMemo(() => {
     switch (mode) {
       case "face":
-        return { position: [0, 0, 1.8] as [number, number, number], fov: 45 };
+        // Camera closer to see larger face
+        return { position: [0, 0, 1.4] as [number, number, number], fov: 48 };
       case "hybrid":
-        return { position: [0, 0, 2.2] as [number, number, number], fov: 50 };
+        return { position: [0, 0, 1.8] as [number, number, number], fov: 50 };
       default:
-        return { position: [0, 0, 2.8] as [number, number, number], fov: 55 };
+        return { position: [0, 0, 2.4] as [number, number, number], fov: 52 };
     }
   }, [mode]);
 
