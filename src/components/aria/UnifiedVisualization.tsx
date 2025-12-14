@@ -34,10 +34,10 @@ export const UnifiedVisualization = ({
   const cameraConfig = useMemo(() => {
     switch (mode) {
       case "face":
-        // Camera positioned for fullscreen face view
-        return { position: [0, 0, 2.2] as [number, number, number], fov: 55 };
+        // Camera positioned for 60-70% face coverage
+        return { position: [0, 0, 3.2] as [number, number, number], fov: 50 };
       case "hybrid":
-        return { position: [0, 0, 2.5] as [number, number, number], fov: 52 };
+        return { position: [0, 0, 2.8] as [number, number, number], fov: 50 };
       default:
         return { position: [0, 0, 3] as [number, number, number], fov: 55 };
     }
