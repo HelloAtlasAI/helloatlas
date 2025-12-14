@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { UnifiedVisualization, VisualizationMode } from "@/components/aria/UnifiedVisualization";
 import { HolographicCards, demoHolographicCards } from "@/components/aria/HolographicCard";
-import { ImmersiveBackground } from "@/components/aria/ImmersiveBackground";
 import { StateIndicator } from "@/components/aria/StateIndicator";
 import { VisualizationModeSwitch } from "@/components/aria/VisualizationModeSwitch";
 import { ChatInput } from "@/components/aria/ChatInput";
@@ -17,7 +16,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [cards, setCards] = useState(demoHolographicCards);
-  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>("cyber");
+  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>("face");
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const APP_NAME = "Atlas";
 
@@ -75,14 +74,21 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background">
-      {/* Layered ambient background */}
-      <ImmersiveBackground state={effectiveAiState} />
+      {/* FULLSCREEN 3D Canvas - covers entire viewport */}
+      <div className="fixed inset-0 z-0">
+        <UnifiedVisualization
+          mode={visualizationMode}
+          state={effectiveAiState}
+          audioLevel={audioLevel}
+          isSpeaking={isPlaying}
+        />
+      </div>
 
-      {/* Header */}
-      <header className="relative z-20 flex items-center justify-between px-6 py-4">
+      {/* Header - on top of 3D */}
+      <header className="relative z-30 flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
           <div 
-            className="w-12 h-12 rounded-2xl flex items-center justify-center relative overflow-hidden"
+            className="w-12 h-12 rounded-2xl flex items-center justify-center relative overflow-hidden backdrop-blur-md"
             style={{
               background: "linear-gradient(135deg, hsl(var(--primary) / 0.3), hsl(var(--secondary) / 0.3))",
               boxShadow: "0 0 30px hsl(var(--primary) / 0.3), inset 0 1px 0 hsl(var(--foreground) / 0.1)",
@@ -143,15 +149,14 @@ const Index = () => {
         </nav>
       </header>
 
-      {/* Holographic data cards - lower z-index than welcome text */}
-      <div className="relative z-5">
+      {/* Holographic data cards */}
+      <div className="relative z-10">
         <HolographicCards cards={cards} onCardClose={handleCardClose} />
       </div>
 
-      {/* Main content */}
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-12rem)]">
-        {/* Welcome text positioned at top with higher z-index */}
-        <div className="text-center mb-8 animate-fade-in relative z-30 mt-4">
+      {/* Main content - welcome text */}
+      <main className="relative z-20 flex flex-col items-center pt-8 pointer-events-none">
+        <div className="text-center mb-8 animate-fade-in">
           <h2 className="text-3xl md:text-4xl font-extralight text-foreground mb-2 tracking-wide drop-shadow-lg">
             {user?.user_metadata?.display_name ? `Hello, ${user.user_metadata.display_name}` : "Welcome"}
           </h2>
@@ -160,24 +165,14 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Main Unified Visualization - Single Canvas */}
-        <div className="w-[400px] h-[400px] md:w-[500px] md:h-[500px] relative">
-          <UnifiedVisualization
-            mode={visualizationMode}
-            state={effectiveAiState}
-            audioLevel={audioLevel}
-            isSpeaking={isPlaying}
-          />
-        </div>
-
         {/* Conversation panel */}
-        <div className="w-full max-w-2xl px-4 mt-4">
+        <div className="w-full max-w-2xl px-4 mt-[45vh] pointer-events-auto">
           <ConversationPanel messages={messages} />
         </div>
       </main>
 
       {/* Bottom input area */}
-      <footer className="fixed bottom-0 left-0 right-0 z-20 p-4 md:p-6">
+      <footer className="fixed bottom-0 left-0 right-0 z-40 p-4 md:p-6">
         <div className="max-w-2xl mx-auto">
           <ChatInput
             onSend={sendMessage}
