@@ -352,3 +352,163 @@ export const createSpring = (stiffness: number, damping: number): Transition => 
 // Combine multiple animations
 export const combineAnimations = (...animations: Record<string, any>[]) =>
   animations.reduce((acc, anim) => ({ ...acc, ...anim }), {});
+
+// ============================================
+// EXPERIMENTAL / IMMERSIVE ANIMATIONS
+// ============================================
+
+// Premium card enter - reality-bending effect
+export const immersiveCardEnter: Variants = {
+  hidden: {
+    opacity: 0,
+    scale: 0.85,
+    y: 60,
+    filter: 'blur(20px) saturate(0.5)',
+    rotateX: 15,
+  },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    filter: 'blur(0px) saturate(1)',
+    rotateX: 0,
+    transition: {
+      type: 'spring',
+      damping: 20,
+      stiffness: 100,
+      mass: 0.8,
+      staggerChildren: 0.08,
+    },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    y: -30,
+    filter: 'blur(15px)',
+    transition: { duration: 0.3 },
+  },
+};
+
+// Parallax depth layer animations
+export const parallaxLayerVariants = {
+  background: {
+    depth: 0.3,
+    transition: { type: 'spring', damping: 30, stiffness: 100 },
+  },
+  midground: {
+    depth: 1,
+    transition: { type: 'spring', damping: 25, stiffness: 150 },
+  },
+  foreground: {
+    depth: 2,
+    transition: { type: 'spring', damping: 20, stiffness: 200 },
+  },
+};
+
+// Magnetic button attraction effect
+export const magneticButtonVariants: Variants = {
+  idle: { scale: 1, x: 0, y: 0 },
+  hover: {
+    scale: 1.05,
+    transition: { type: 'spring', damping: 15, stiffness: 300 },
+  },
+  attracted: {
+    transition: { type: 'spring', damping: 10, stiffness: 200 },
+  },
+};
+
+// Glassmorphic reveal animation
+export const glassRevealVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    backdropFilter: 'blur(0px)',
+    backgroundColor: 'transparent',
+  },
+  visible: {
+    opacity: 1,
+    backdropFilter: 'blur(20px)',
+    backgroundColor: 'hsl(var(--card) / 0.6)',
+    transition: { duration: 0.5, ease: 'easeOut' },
+  },
+};
+
+// Weather-specific animations
+export const weatherTransitions = {
+  sunRays: {
+    animate: {
+      opacity: [0.3, 0.6, 0.3],
+      scale: [1, 1.05, 1],
+    },
+    transition: {
+      duration: 4,
+      repeat: Infinity,
+      ease: 'easeInOut',
+    },
+  },
+  rainDrop: {
+    initial: { y: -20, opacity: 0 },
+    animate: { y: 100, opacity: [0, 1, 0] },
+    transition: { duration: 1, ease: 'linear' },
+  },
+  cloudDrift: {
+    animate: { x: [0, 20, 0] },
+    transition: { duration: 20, repeat: Infinity, ease: 'linear' },
+  },
+  lightning: {
+    flash: {
+      opacity: [0, 1, 0.5, 1, 0],
+      transition: { duration: 0.15, times: [0, 0.2, 0.4, 0.6, 1] },
+    },
+  },
+};
+
+// Data stream animation for backgrounds
+export const dataStreamVariants: Variants = {
+  hidden: { pathLength: 0, opacity: 0 },
+  visible: {
+    pathLength: 1,
+    opacity: 0.5,
+    transition: {
+      pathLength: { duration: 2, ease: 'linear' },
+      opacity: { duration: 0.5 },
+    },
+  },
+};
+
+// Holographic shimmer effect
+export const holographicShimmer: Variants = {
+  shimmer: {
+    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+    transition: {
+      duration: 3,
+      repeat: Infinity,
+      ease: 'linear',
+    },
+  },
+};
+
+// Orb pulsation for AI elements
+export const orbPulseVariants: Variants = {
+  idle: {
+    scale: 1,
+    opacity: 0.8,
+  },
+  active: {
+    scale: [1, 1.1, 1],
+    opacity: [0.8, 1, 0.8],
+    transition: {
+      duration: 2,
+      repeat: Infinity,
+      ease: 'easeInOut',
+    },
+  },
+  speaking: {
+    scale: [1, 1.15, 1.05, 1.2, 1],
+    opacity: [0.8, 1, 0.9, 1, 0.8],
+    transition: {
+      duration: 0.8,
+      repeat: Infinity,
+      ease: 'easeInOut',
+    },
+  },
+};

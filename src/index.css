@@ -272,3 +272,24 @@
     transform: scaleY(1.5);
   }
 }
+
+@keyframes lightning-flash {
+  0%, 100% {
+    opacity: 0;
+  }
+  10%, 30% {
+    opacity: 0.8;
+  }
+  20%, 40% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes cloud-drift {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100vw);
+  }
+}
