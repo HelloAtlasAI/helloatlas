@@ -261,7 +261,7 @@ const Dashboard = () => {
             animate="visible"
             custom={4}
           >
-            <CalendarCard />
+            <CalendarCard onExpand={() => setExpandedCard('calendar')} />
           </motion.div>
 
           {/* Stocks - Wide, 2 columns, 2 rows */}
@@ -283,7 +283,7 @@ const Dashboard = () => {
             animate="visible"
             custom={6}
           >
-            <TasksCard />
+            <TasksCard onExpand={() => setExpandedCard('tasks')} />
           </motion.div>
 
           {/* Notes - 2 rows */}
@@ -294,7 +294,7 @@ const Dashboard = () => {
             animate="visible"
             custom={7}
           >
-            <NotesCard />
+            <NotesCard onExpand={() => setExpandedCard('notes')} />
           </motion.div>
 
           {/* News - Wide, 2 columns, 2 rows */}
