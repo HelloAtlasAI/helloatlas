@@ -34,10 +34,10 @@ export const UnifiedVisualization = ({
   const cameraConfig = useMemo(() => {
     switch (mode) {
       case "face":
-        // Camera positioned for 50-60% face coverage - smaller, more elegant
-        return { position: [0, 0, 2.2] as [number, number, number], fov: 42 };
+        // Camera closer for better face visibility, tighter FOV
+        return { position: [0, 0, 1.8] as [number, number, number], fov: 38 };
       case "hybrid":
-        return { position: [0, 0, 2.4] as [number, number, number], fov: 45 };
+        return { position: [0, 0, 2.2] as [number, number, number], fov: 42 };
       default:
         return { position: [0, 0, 2.8] as [number, number, number], fov: 50 };
     }
@@ -61,68 +61,71 @@ export const UnifiedVisualization = ({
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
         
-        {/* Enhanced lighting rig for face visibility */}
-        {/* Strong key light - main illumination from front-top */}
+        {/* ========== ENHANCED LIGHTING RIG ========== */}
+        
+        {/* KEY LIGHT - Strong frontal illumination (intensity 3.5) */}
         <spotLight 
-          position={[0, 2.5, 4]} 
-          intensity={2.5} 
+          position={[0, 2, 4.5]} 
+          intensity={3.5} 
           color="#ffffff"
-          angle={0.7}
-          penumbra={0.4}
-          distance={12}
+          angle={0.65}
+          penumbra={0.35}
+          distance={14}
           castShadow
         />
         
-        {/* Secondary key light - frontal fill */}
+        {/* SECONDARY KEY - Frontal fill for face visibility */}
         <spotLight 
-          position={[0, 0, 5]} 
-          intensity={1.8} 
-          color="#e8e8ff"
+          position={[0, 0.2, 5.5]} 
+          intensity={2.5} 
+          color="#f0f0ff"
           angle={0.5}
-          penumbra={0.6}
-          distance={10}
+          penumbra={0.55}
+          distance={12}
         />
         
-        {/* Fill light - softer, from side */}
-        <pointLight position={[-2.5, 1, 3]} intensity={0.8} color="#00d4ff" distance={8} />
-        <pointLight position={[2.5, 1, 3]} intensity={0.8} color="#00d4ff" distance={8} />
+        {/* FILL LIGHTS - Cyan accent from sides */}
+        <pointLight position={[-2, 0.8, 3.5]} intensity={1.2} color="#00d4ff" distance={9} />
+        <pointLight position={[2, 0.8, 3.5]} intensity={1.2} color="#00d4ff" distance={9} />
         
-        {/* Rim lights - edge definition from behind */}
-        <pointLight position={[-1.5, 0, -2]} intensity={1.5} color="#00ffaa" distance={6} />
-        <pointLight position={[1.5, 0, -2]} intensity={1.5} color="#00ffaa" distance={6} />
+        {/* RIM LIGHTS - Edge definition (intensity 1.2) */}
+        <pointLight position={[-1.2, 0, -2.5]} intensity={1.2} color="#00ffaa" distance={7} />
+        <pointLight position={[1.2, 0, -2.5]} intensity={1.2} color="#00ffaa" distance={7} />
         
-        {/* Top rim for head contour */}
-        <pointLight position={[0, 2, -1]} intensity={1} color="#00d4ff" distance={5} />
+        {/* TOP RIM - Head contour definition */}
+        <pointLight position={[0, 2.2, -1.5]} intensity={1.1} color="#00d4ff" distance={6} />
         
-        {/* Bottom fill to illuminate dark areas */}
-        <pointLight position={[0, -2, 2]} intensity={0.6} color="#a855f7" distance={5} />
+        {/* BOTTOM FILL - Purple accent from below */}
+        <pointLight position={[0, -2.5, 2.5]} intensity={0.8} color="#a855f7" distance={6} />
         
-        {/* Accent lights */}
-        <pointLight position={[3, 2, 2]} intensity={0.6} color="#a855f7" distance={6} />
-        <pointLight position={[-3, 2, 2]} intensity={0.6} color="#ec4899" distance={6} />
+        {/* ACCENT LIGHTS - Subtle color variation */}
+        <pointLight position={[2.8, 1.8, 2.2]} intensity={0.7} color="#a855f7" distance={7} />
+        <pointLight position={[-2.8, 1.8, 2.2]} intensity={0.7} color="#ec4899" distance={7} />
         
-        {/* Subtle ambient - slightly brighter for visibility */}
-        <ambientLight intensity={0.12} color="#112233" />
+        {/* AMBIENT - Brighter for overall visibility */}
+        <ambientLight intensity={0.18} color="#1a2a3a" />
         
-        {/* Face-specific spotlight - brighter center focus */}
+        {/* FACE-SPECIFIC SPOTLIGHT - Enhanced center focus */}
         {mode === "face" && (
           <>
             <spotLight 
-              position={[0, 0.3, 3]} 
-              intensity={2.5} 
+              position={[0, 0.5, 3.5]} 
+              intensity={3.2} 
               color="#ffffff"
-              angle={0.4}
-              penumbra={0.7}
-              distance={5}
+              angle={0.38}
+              penumbra={0.65}
+              distance={6}
             />
             <spotLight 
-              position={[0, -0.5, 2.5]} 
-              intensity={1} 
+              position={[0, -0.8, 3]} 
+              intensity={1.4} 
               color="#00d4ff"
-              angle={0.5}
-              penumbra={0.8}
-              distance={4}
+              angle={0.45}
+              penumbra={0.75}
+              distance={5}
             />
+            {/* Eye highlight light */}
+            <pointLight position={[0, 0.1, 2]} intensity={0.6} color="#ffffff" distance={3} />
           </>
         )}
 
