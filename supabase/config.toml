@@ -3,6 +3,9 @@ project_id = "gyfllxzecctdnmxqgazo"
 [functions.chat]
 verify_jwt = false
 
+[functions.chat-with-memory]
+verify_jwt = false
+
 [functions.elevenlabs-tts]
 verify_jwt = false
 
