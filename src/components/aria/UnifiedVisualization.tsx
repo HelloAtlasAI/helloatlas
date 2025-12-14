@@ -1,6 +1,8 @@
 import { Suspense, lazy, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Environment, AdaptiveDpr, AdaptiveEvents, Preload } from "@react-three/drei";
+import { EffectComposer, Bloom, Vignette, ChromaticAberration, Noise } from "@react-three/postprocessing";
+import { BlendFunction } from "postprocessing";
 import * as THREE from "three";
 import { AIState } from "./AIOrb";
 
@@ -10,12 +12,14 @@ const DigitalFaceScene = lazy(() => import("./scenes/DigitalFaceScene").then(m =
 const HybridScene = lazy(() => import("./scenes/HybridScene").then(m => ({ default: m.HybridScene })));
 const BackgroundScene = lazy(() => import("./scenes/BackgroundScene").then(m => ({ default: m.BackgroundScene })));
 const HUDScene = lazy(() => import("./scenes/HUDScene").then(m => ({ default: m.HUDScene })));
-const NebulaCoreScene = lazy(() => import("./scenes/NebulaCoreScene").then(m => ({ default: m.NebulaCoreScene })));
-const OceanDepthScene = lazy(() => import("./scenes/OceanDepthScene").then(m => ({ default: m.OceanDepthScene })));
-const PlasmaStormScene = lazy(() => import("./scenes/PlasmaStormScene").then(m => ({ default: m.PlasmaStormScene })));
-const QuantumFieldScene = lazy(() => import("./scenes/QuantumFieldScene").then(m => ({ default: m.QuantumFieldScene })));
 
-export type VisualizationMode = "cyber" | "face" | "hybrid" | "nebula" | "ocean" | "plasma" | "quantum";
+// New immersive universe scenes
+const InfiniteVoidScene = lazy(() => import("./scenes/InfiniteVoidScene").then(m => ({ default: m.InfiniteVoidScene })));
+const LivingOceanScene = lazy(() => import("./scenes/LivingOceanScene").then(m => ({ default: m.LivingOceanScene })));
+const StormMindScene = lazy(() => import("./scenes/StormMindScene").then(m => ({ default: m.StormMindScene })));
+const InfiniteLatticeScene = lazy(() => import("./scenes/InfiniteLatticeScene").then(m => ({ default: m.InfiniteLatticeScene })));
+
+export type VisualizationMode = "cyber" | "face" | "hybrid" | "void" | "ocean" | "storm" | "lattice";
 
 interface UnifiedVisualizationProps {
   mode: VisualizationMode;
@@ -41,11 +45,14 @@ export const UnifiedVisualization = ({
         return { position: [0, 0, 1.8] as [number, number, number], fov: 38 };
       case "hybrid":
         return { position: [0, 0, 2.2] as [number, number, number], fov: 42 };
-      case "nebula":
+      case "void":
+        return { position: [0, 0, 7] as [number, number, number], fov: 60 };
       case "ocean":
-      case "plasma":
-      case "quantum":
+        return { position: [0, 0, 5] as [number, number, number], fov: 55 };
+      case "storm":
         return { position: [0, 0, 6] as [number, number, number], fov: 55 };
+      case "lattice":
+        return { position: [0, 0, 8] as [number, number, number], fov: 65 };
       default:
         return { position: [0, 0, 2.8] as [number, number, number], fov: 50 };
     }
@@ -161,21 +168,36 @@ export const UnifiedVisualization = ({
               isSpeaking={isSpeaking}
             />
           )}
-          {mode === "nebula" && (
-            <NebulaCoreScene state={state} audioLevel={audioLevel} />
+          {mode === "void" && (
+            <InfiniteVoidScene state={state} audioLevel={audioLevel} />
           )}
           {mode === "ocean" && (
-            <OceanDepthScene state={state} audioLevel={audioLevel} />
+            <LivingOceanScene state={state} audioLevel={audioLevel} />
           )}
-          {mode === "plasma" && (
-            <PlasmaStormScene state={state} audioLevel={audioLevel} />
+          {mode === "storm" && (
+            <StormMindScene state={state} audioLevel={audioLevel} />
           )}
-          {mode === "quantum" && (
-            <QuantumFieldScene state={state}
-            audioLevel={audioLevel}
-          />
-        )}
+          {mode === "lattice" && (
+            <InfiniteLatticeScene state={state} audioLevel={audioLevel} />
+          )}
         </Suspense>
+
+        {/* Post-processing effects for immersive visuals */}
+        <EffectComposer>
+          <Bloom 
+            intensity={1.2} 
+            luminanceThreshold={0.2} 
+            luminanceSmoothing={0.9}
+            mipmapBlur
+          />
+          <Vignette offset={0.3} darkness={0.5} />
+          <Noise opacity={0.015} blendFunction={BlendFunction.OVERLAY} />
+        </EffectComposer>
+            offset={new THREE.Vector2(0.0003, 0.0003)}
+            blendFunction={BlendFunction.NORMAL}
+          />
+          <Noise opacity={0.015} blendFunction={BlendFunction.OVERLAY} />
+        </EffectComposer>
 
         {/* HUD overlay layer */}
         <Suspense fallback={<SceneLoader />}>

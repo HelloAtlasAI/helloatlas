@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cpu, User, Sparkles, CloudLightning, Fish, Zap, Atom } from "lucide-react";
+import { Cpu, User, Sparkles, Circle, Waves, Zap, Grid3X3 } from "lucide-react";
 
-export type VisualizationMode = "cyber" | "face" | "hybrid" | "nebula" | "ocean" | "plasma" | "quantum";
+export type VisualizationMode = "cyber" | "face" | "hybrid" | "void" | "ocean" | "storm" | "lattice";
 
 interface VisualizationModeSwitchProps {
   mode: VisualizationMode;
@@ -13,10 +13,10 @@ const modes = [
   { id: "cyber" as const, label: "Cyber Nexus", icon: Cpu, description: "Digital core visualization" },
   { id: "face" as const, label: "Neural Persona", icon: User, description: "AI face avatar" },
   { id: "hybrid" as const, label: "Hybrid", icon: Sparkles, description: "Combined experience" },
-  { id: "nebula" as const, label: "Nebula Core", icon: CloudLightning, description: "Cosmic birth of data" },
-  { id: "ocean" as const, label: "Ocean Depth", icon: Fish, description: "Bioluminescent flow" },
-  { id: "plasma" as const, label: "Plasma Storm", icon: Zap, description: "Raw energy chaos" },
-  { id: "quantum" as const, label: "Quantum Field", icon: Atom, description: "Probability waves" },
+  { id: "void" as const, label: "Infinite Void", icon: Circle, description: "Cosmic singularity" },
+  { id: "ocean" as const, label: "Living Ocean", icon: Waves, description: "Volumetric fluid consciousness" },
+  { id: "storm" as const, label: "Storm Mind", icon: Zap, description: "Electrical neural storm" },
+  { id: "lattice" as const, label: "Infinite Lattice", icon: Grid3X3, description: "4D crystalline structure" },
 ];
 
 export const VisualizationModeSwitch = ({ mode, onModeChange }: VisualizationModeSwitchProps) => {
