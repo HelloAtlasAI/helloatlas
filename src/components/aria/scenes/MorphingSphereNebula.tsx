@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AIState } from "../AIOrb";
 import { ParticleTrails } from "../particles/ParticleTrails";
+import { NebulaBackground } from "../particles/NebulaBackground";
 
 interface MorphingSphereNebulaProps {
   state: AIState;
@@ -180,9 +181,15 @@ export const MorphingSphereNebula = ({
 
   return (
     <group>
+      {/* Immersive nebula background with cosmic gas streams */}
+      <NebulaBackground state={state} audioLevel={smoothAudioRef.current} />
+      
+      {/* Central nebula sphere */}
       <points ref={pointsRef} geometry={geometry}>
         <primitive object={material} ref={materialRef} attach="material" />
       </points>
+      
+      {/* Particle trails */}
       <ParticleTrails 
         state={state} 
         audioLevel={smoothAudioRef.current} 

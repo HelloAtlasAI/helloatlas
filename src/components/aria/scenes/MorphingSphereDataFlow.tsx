@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { AIState } from "../AIOrb";
 import { ParticlePool } from "../particles/useParticlePool";
 import { ParticleTrails } from "../particles/ParticleTrails";
+import { DataStreamNetwork } from "../particles/DataStreamNetwork";
 
 interface MorphingSphereDataFlowProps {
   state: AIState;
@@ -15,10 +16,12 @@ interface MorphingSphereDataFlowProps {
   morphIntensity?: number;
 }
 
-// Core sphere shader
+// Core sphere shader with morphing
 const coreVertexShader = `
   uniform float uTime;
   uniform float uAudioLevel;
+  uniform float uMorphStrength;
+  uniform float uDensityDivisor;
   
   varying float vDisplacement;
   varying vec3 vNormal;
@@ -27,8 +30,10 @@ const coreVertexShader = `
     vNormal = normalize(normalMatrix * normal);
     
     vec3 pos = position;
-    float displacement = sin(pos.x * 5.0 + uTime) * cos(pos.y * 5.0 + uTime * 0.7) * 0.05;
-    displacement += uAudioLevel * 0.08;
+    
+    // Dynamic morphing based on intensity
+    float displacement = sin(pos.x * 5.0 + uTime) * cos(pos.y * 5.0 + uTime * 0.7) * uMorphStrength;
+    displacement += uAudioLevel * uMorphStrength * 1.5;
     
     vDisplacement = displacement;
     pos += normal * displacement;
@@ -36,8 +41,7 @@ const coreVertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Ultra-dense: smaller particles
-    gl_PointSize = (0.3 + uAudioLevel * 0.15) * (250.0 / -mvPosition.z);
+    gl_PointSize = (0.3 + uAudioLevel * 0.15) * (uDensityDivisor / -mvPosition.z);
   }
 `;
 
@@ -55,148 +59,11 @@ const coreFragmentShader = `
     float t = vDisplacement * 5.0 + 0.5;
     vec3 color = mix(core, glow, smoothstep(0.3, 0.7, t));
     
-    // Higher alpha for solid appearance
     float alpha = (1.0 - smoothstep(0.1, 0.5, dist)) * 0.7;
     
     gl_FragColor = vec4(color, alpha);
   }
 `;
-
-// Orbital ring shader
-const ringVertexShader = `
-  uniform float uTime;
-  uniform float uRingIndex;
-  uniform float uAudioLevel;
-  uniform float uOrbitSpeed;
-  
-  attribute float aAngle;
-  attribute float aSpeed;
-  
-  varying float vAlpha;
-  varying vec3 vColor;
-  
-  void main() {
-    float angle = aAngle + uTime * aSpeed * uOrbitSpeed;
-    float radius = 1.2 + uRingIndex * 0.3;
-    
-    // Orbital position
-    vec3 pos;
-    if (uRingIndex < 0.5) {
-      // XY plane
-      pos = vec3(cos(angle) * radius, sin(angle) * radius, 0.0);
-    } else if (uRingIndex < 1.5) {
-      // XZ plane
-      pos = vec3(cos(angle) * radius, 0.0, sin(angle) * radius);
-    } else {
-      // Tilted plane
-      pos = vec3(
-        cos(angle) * radius,
-        sin(angle) * radius * 0.5,
-        sin(angle) * radius * 0.866
-      );
-    }
-    
-    // Add wave motion
-    pos += normalize(pos) * sin(angle * 3.0 + uTime * 2.0) * 0.05 * (1.0 + uAudioLevel);
-    
-    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-    gl_Position = projectionMatrix * mvPosition;
-    
-    // Smaller particles for dense rings
-    gl_PointSize = (0.5 + uAudioLevel * 0.3) * (150.0 / -mvPosition.z);
-    
-    vAlpha = 0.5 + sin(angle * 2.0) * 0.15;
-    
-    // Color based on ring
-    vec3 colors[3];
-    colors[0] = vec3(0.0, 0.3, 0.5);
-    colors[1] = vec3(0.2, 0.1, 0.4);
-    colors[2] = vec3(0.1, 0.3, 0.3);
-    
-    int idx = int(uRingIndex);
-    vColor = colors[idx];
-  }
-`;
-
-const ringFragmentShader = `
-  varying float vAlpha;
-  varying vec3 vColor;
-  
-  void main() {
-    float dist = length(gl_PointCoord - vec2(0.5));
-    if (dist > 0.5) discard;
-    
-    float alpha = (1.0 - smoothstep(0.1, 0.5, dist)) * vAlpha;
-    
-    gl_FragColor = vec4(vColor, alpha);
-  }
-`;
-
-const OrbitalRing = ({ ringIndex, audioLevel, state }: { ringIndex: number; audioLevel: number; state: AIState }) => {
-  const pointsRef = useRef<THREE.Points>(null);
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
-
-  const geometry = useMemo(() => {
-    // Much denser orbital rings
-    const count = 2000;
-    const positions = new Float32Array(count * 3);
-    const angles = new Float32Array(count);
-    const speeds = new Float32Array(count);
-    
-    for (let i = 0; i < count; i++) {
-      positions[i * 3] = 0;
-      positions[i * 3 + 1] = 0;
-      positions[i * 3 + 2] = 0;
-      angles[i] = (i / count) * Math.PI * 2;
-      speeds[i] = 0.8 + Math.random() * 0.4;
-    }
-    
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute("aAngle", new THREE.BufferAttribute(angles, 1));
-    geo.setAttribute("aSpeed", new THREE.BufferAttribute(speeds, 1));
-    
-    return geo;
-  }, []);
-
-  const material = useMemo(() => {
-    return new THREE.ShaderMaterial({
-      vertexShader: ringVertexShader,
-      fragmentShader: ringFragmentShader,
-      uniforms: {
-        uTime: { value: 0 },
-        uRingIndex: { value: ringIndex },
-        uAudioLevel: { value: 0 },
-        uOrbitSpeed: { value: 0.5 },
-      },
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-  }, [ringIndex]);
-
-  useFrame((frameState) => {
-    if (!materialRef.current) return;
-
-    let targetSpeed = 0.5;
-    switch (state) {
-      case "listening": targetSpeed = 0.8; break;
-      case "thinking": targetSpeed = 1.5; break;
-      case "speaking": targetSpeed = 1.0; break;
-    }
-
-    const uniforms = materialRef.current.uniforms;
-    uniforms.uTime.value = frameState.clock.elapsedTime;
-    uniforms.uAudioLevel.value = audioLevel;
-    uniforms.uOrbitSpeed.value = THREE.MathUtils.lerp(uniforms.uOrbitSpeed.value, targetSpeed, 0.05);
-  });
-
-  return (
-    <points ref={pointsRef} geometry={geometry}>
-      <primitive object={material} ref={materialRef} attach="material" />
-    </points>
-  );
-};
 
 export const MorphingSphereDataFlow = ({ 
   state, 
@@ -212,8 +79,13 @@ export const MorphingSphereDataFlow = ({
   const smoothAudioRef = useRef(0);
   const rotationRef = useRef(new THREE.Euler());
 
+  // Map morphIntensity (0-100) to morph strength
+  const baseMorphStrength = 0.02 + (morphIntensity / 100) * 0.1;
+  
+  // Map particleDensity (25-100) to divisor
+  const densityDivisor = 180 + (particleDensity / 100) * 150;
+
   const coreGeometry = useMemo(() => {
-    // Detail level 9 for ultra-dense core
     const ico = new THREE.IcosahedronGeometry(0.5, 9);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(ico.attributes.position.array), 3));
@@ -228,6 +100,8 @@ export const MorphingSphereDataFlow = ({
       uniforms: {
         uTime: { value: 0 },
         uAudioLevel: { value: 0 },
+        uMorphStrength: { value: baseMorphStrength },
+        uDensityDivisor: { value: densityDivisor },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -241,8 +115,21 @@ export const MorphingSphereDataFlow = ({
     const time = frameState.clock.elapsedTime;
     smoothAudioRef.current = THREE.MathUtils.lerp(smoothAudioRef.current, audioLevel, 0.1);
 
-    coreMaterialRef.current.uniforms.uTime.value = time;
-    coreMaterialRef.current.uniforms.uAudioLevel.value = smoothAudioRef.current;
+    // State-based modifiers
+    let stateMultiplier = 1.0;
+    switch (state) {
+      case "listening": stateMultiplier = 1.2; break;
+      case "thinking": stateMultiplier = 1.8; break;
+      case "speaking": stateMultiplier = 1.4; break;
+    }
+
+    const targetMorphStrength = baseMorphStrength * stateMultiplier;
+
+    const uniforms = coreMaterialRef.current.uniforms;
+    uniforms.uTime.value = time;
+    uniforms.uAudioLevel.value = smoothAudioRef.current;
+    uniforms.uMorphStrength.value = THREE.MathUtils.lerp(uniforms.uMorphStrength.value, targetMorphStrength, 0.05);
+    uniforms.uDensityDivisor.value = THREE.MathUtils.lerp(uniforms.uDensityDivisor.value, densityDivisor, 0.05);
 
     coreRef.current.rotation.y += 0.002;
     rotationRef.current.copy(coreRef.current.rotation);
@@ -250,6 +137,9 @@ export const MorphingSphereDataFlow = ({
 
   return (
     <group>
+      {/* Immersive data stream network (replaces orbital rings) */}
+      <DataStreamNetwork state={state} audioLevel={smoothAudioRef.current} />
+      
       {/* Central core */}
       <points ref={coreRef} geometry={coreGeometry}>
         <primitive object={coreMaterial} ref={coreMaterialRef} attach="material" />
@@ -263,11 +153,6 @@ export const MorphingSphereDataFlow = ({
         sphereRotation={rotationRef.current}
         trailLength={trailLength}
       />
-      
-      {/* Orbital rings */}
-      <OrbitalRing ringIndex={0} audioLevel={smoothAudioRef.current} state={state} />
-      <OrbitalRing ringIndex={1} audioLevel={smoothAudioRef.current} state={state} />
-      <OrbitalRing ringIndex={2} audioLevel={smoothAudioRef.current} state={state} />
     </group>
   );
 };

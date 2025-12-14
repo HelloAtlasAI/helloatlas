@@ -10,7 +10,7 @@ import { MorphingSphereCrystal } from "./scenes/MorphingSphereCrystal";
 import { MorphingSpherePulse } from "./scenes/MorphingSpherePulse";
 import { MorphingSphereDataFlow } from "./scenes/MorphingSphereDataFlow";
 import { ParticleUniverseSystem } from "./particles/ParticleUniverseSystem";
-import { ParticleHUDElement } from "./hud/ParticleHUDElement";
+import { ParticleCard, CardData } from "./hud/ParticleCard";
 import { useParticlePool } from "./particles/useParticlePool";
 
 export type SphereVariant = "classic" | "nebula" | "crystal" | "pulse" | "dataflow";
@@ -25,6 +25,38 @@ interface VariantVisualizationProps {
   morphIntensity?: number;
   className?: string;
 }
+
+// Demo card data for particle cards
+const demoCards: CardData[] = [
+  {
+    id: "1",
+    type: "email",
+    title: "3 Unread Emails",
+    subtitle: "from today",
+    content: "Meeting reminder from Sarah, Project update from Dev Team",
+  },
+  {
+    id: "2",
+    type: "flight",
+    title: "Paris Flight",
+    subtitle: "Dec 20, 2024",
+    content: "Air France AF1234 departing at 10:30 AM. Gate B42.",
+  },
+  {
+    id: "3",
+    type: "stock",
+    title: "AAPL Stock",
+    subtitle: "+2.4% today",
+    content: "Apple Inc. trading at $195.42. Market cap: $3.01T.",
+  },
+  {
+    id: "4",
+    type: "calendar",
+    title: "Next Meeting",
+    subtitle: "in 2 hours",
+    content: "Product Review with Marketing Team. 3 attendees.",
+  },
+];
 
 const VariantScene = ({ 
   state, 
@@ -65,8 +97,8 @@ const VariantScene = ({
     }
   };
 
-  // Show particle HUD for pulse and dataflow variants
-  const showParticleHUD = (variant === "pulse" || variant === "dataflow") && showHUD;
+  // Show particle cards for pulse and dataflow variants
+  const showParticleCards = (variant === "pulse" || variant === "dataflow") && showHUD;
 
   return (
     <>
@@ -76,44 +108,40 @@ const VariantScene = ({
       {/* Main sphere */}
       {renderSphere()}
       
-      {/* Massive glassmorphic particle HUD elements */}
-      {showParticleHUD && (
+      {/* Pixel-perfect particle cards with HTML content overlay */}
+      {showParticleCards && (
         <>
-          <ParticleHUDElement
+          <ParticleCard
             visible={showHUD}
-            position={[2.2, 0.9, 0]}
-            width={1.4}
-            height={0.9}
-            particleCount={8000}
-            color={[0.05, 0.25, 0.4]}
-            cornerRadius={0.12}
+            position={[2.3, 0.8, 0]}
+            width={1.5}
+            height={0.95}
+            card={demoCards[0]}
+            particleCount={9000}
           />
-          <ParticleHUDElement
+          <ParticleCard
             visible={showHUD}
-            position={[-2.3, -0.4, 0]}
-            width={1.2}
+            position={[-2.4, -0.5, 0]}
+            width={1.35}
             height={1.0}
+            card={demoCards[1]}
+            particleCount={8000}
+          />
+          <ParticleCard
+            visible={showHUD}
+            position={[2.0, -1.2, 0]}
+            width={1.2}
+            height={0.8}
+            card={demoCards[2]}
             particleCount={7000}
-            color={[0.2, 0.08, 0.35]}
-            cornerRadius={0.1}
           />
-          <ParticleHUDElement
+          <ParticleCard
             visible={showHUD}
-            position={[1.8, -1.3, 0]}
-            width={1.0}
-            height={0.6}
-            particleCount={5000}
-            color={[0.08, 0.3, 0.35]}
-            cornerRadius={0.08}
-          />
-          <ParticleHUDElement
-            visible={showHUD}
-            position={[-1.5, 1.2, 0]}
-            width={0.9}
-            height={0.5}
-            particleCount={4000}
-            color={[0.15, 0.2, 0.4]}
-            cornerRadius={0.1}
+            position={[-1.8, 1.1, 0]}
+            width={1.1}
+            height={0.75}
+            card={demoCards[3]}
+            particleCount={6000}
           />
         </>
       )}
