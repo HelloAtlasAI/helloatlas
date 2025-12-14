@@ -60,32 +60,33 @@ const createHeadProfileCurve = () => {
   return points;
 };
 
-// Realistic iris pattern with depth
+// Realistic iris pattern with depth - fixed Z-separation to prevent flickering
 const IrisGeometry = ({ radius = 0.055, color = "#00d4ff" }: { radius?: number; color?: string }) => {
   return (
     <group>
       {/* Iris base - concave for realism */}
-      <mesh position={[0, 0, 0.052]}>
+      <mesh position={[0, 0, 0.04]} renderOrder={10}>
         <circleGeometry args={[radius, 128]} />
         <meshStandardMaterial 
           color={color} 
           metalness={0.4} 
           roughness={0.3}
           emissive={color}
-          emissiveIntensity={0.3}
+          emissiveIntensity={0.5}
+          depthWrite={true}
         />
       </mesh>
       
       {/* Limbal ring (dark outer edge) */}
-      <mesh position={[0, 0, 0.053]}>
+      <mesh position={[0, 0, 0.055]} renderOrder={11}>
         <ringGeometry args={[radius * 0.88, radius, 128]} />
-        <meshBasicMaterial color="#004455" transparent opacity={0.6} />
+        <meshBasicMaterial color="#004455" transparent opacity={0.6} depthWrite={false} />
       </mesh>
       
       {/* Collarette (inner ring structure) */}
-      <mesh position={[0, 0, 0.054]}>
+      <mesh position={[0, 0, 0.07]} renderOrder={12}>
         <ringGeometry args={[radius * 0.45, radius * 0.55, 128]} />
-        <meshBasicMaterial color="#00aacc" transparent opacity={0.5} />
+        <meshBasicMaterial color="#00aacc" transparent opacity={0.5} depthWrite={false} />
       </mesh>
       
       {/* Radial fibers */}
@@ -96,41 +97,43 @@ const IrisGeometry = ({ radius = 0.055, color = "#00d4ff" }: { radius?: number; 
         return (
           <mesh 
             key={i} 
-            position={[0, 0, 0.0545]}
+            position={[0, 0, 0.085]}
             rotation={[0, 0, angle]}
+            renderOrder={13}
           >
             <planeGeometry args={[0.002, outerR - innerR]} />
             <meshBasicMaterial 
               color={i % 3 === 0 ? "#00ffff" : "#006688"} 
               transparent 
-              opacity={0.3} 
+              opacity={0.3}
+              depthWrite={false}
             />
           </mesh>
         );
       })}
       
       {/* Pupil - 3D depth */}
-      <mesh position={[0, 0, 0.056]}>
+      <mesh position={[0, 0, 0.1]} renderOrder={14}>
         <circleGeometry args={[radius * 0.35, 64]} />
-        <meshBasicMaterial color="#000000" />
+        <meshBasicMaterial color="#000000" depthWrite={true} />
       </mesh>
       
       {/* Pupil inner depth */}
-      <mesh position={[0, 0, 0.048]}>
+      <mesh position={[0, 0, 0.02]} renderOrder={9}>
         <circleGeometry args={[radius * 0.32, 64]} />
-        <meshBasicMaterial color="#000000" />
+        <meshBasicMaterial color="#000000" depthWrite={true} />
       </mesh>
       
       {/* Specular highlight - primary */}
-      <mesh position={[radius * 0.2, radius * 0.2, 0.062]}>
+      <mesh position={[radius * 0.2, radius * 0.2, 0.12]} renderOrder={15}>
         <circleGeometry args={[0.012, 32]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.9} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.9} depthWrite={false} />
       </mesh>
       
       {/* Specular highlight - secondary */}
-      <mesh position={[-radius * 0.15, radius * 0.25, 0.061]}>
+      <mesh position={[-radius * 0.15, radius * 0.25, 0.115]} renderOrder={15}>
         <circleGeometry args={[0.006, 24]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.6} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -537,52 +540,55 @@ const RealisticFace = ({
   const digitalColor = "#00d4ff";
 
   return (
-    <group ref={faceRef} scale={2.5} position={[0, 0.05, 0]}>
+    <group ref={faceRef} scale={1.4} position={[0, 0, 0]}>
       {/* Main head using LatheGeometry for realistic profile */}
-      <mesh rotation={[0, 0, 0]}>
+      <mesh rotation={[0, 0, 0]} renderOrder={0}>
         <latheGeometry args={[headProfile, 256, 0, Math.PI * 2]} />
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           color={skinColor}
-          metalness={0.3}
-          roughness={0.5}
-          transparent
-          opacity={0.92}
-          side={THREE.DoubleSide}
+          metalness={0.15}
+          roughness={0.65}
+          clearcoat={0.1}
+          clearcoatRoughness={0.4}
+          side={THREE.FrontSide}
+          depthWrite={true}
+          depthTest={true}
         />
       </mesh>
 
-      {/* Inner skull glow */}
-      <mesh>
+      {/* Inner skull glow - increased offset to prevent z-fighting */}
+      <mesh scale={0.8} renderOrder={-1}>
         <latheGeometry args={[headProfile.map(p => new THREE.Vector2(p.x * 0.95, p.y)), 128]} />
-        <meshBasicMaterial color={digitalColor} transparent opacity={0.03} side={THREE.BackSide} />
+        <meshBasicMaterial color={digitalColor} transparent opacity={0.04} side={THREE.BackSide} depthWrite={false} />
       </mesh>
 
       {/* Jaw bone extension */}
-      <mesh ref={jawRef} position={[0, -0.38, 0.08]}>
+      <mesh ref={jawRef} position={[0, -0.38, 0.08]} renderOrder={1}>
         <sphereGeometry args={[0.26, 96, 96]} />
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           color={skinColor}
-          metalness={0.28}
-          roughness={0.55}
-          transparent
-          opacity={0.9}
+          metalness={0.15}
+          roughness={0.6}
+          clearcoat={0.08}
+          side={THREE.FrontSide}
+          depthWrite={true}
         />
       </mesh>
 
       {/* Cheekbones */}
-      <mesh position={[-0.28, 0.02, 0.28]} rotation={[0, -0.4, 0]}>
+      <mesh position={[-0.28, 0.02, 0.28]} rotation={[0, -0.4, 0]} renderOrder={2}>
         <sphereGeometry args={[0.12, 48, 48]} />
-        <meshStandardMaterial color={skinColor} metalness={0.25} roughness={0.5} transparent opacity={0.85} />
+        <meshPhysicalMaterial color={skinColor} metalness={0.15} roughness={0.6} side={THREE.FrontSide} depthWrite={true} />
       </mesh>
-      <mesh position={[0.28, 0.02, 0.28]} rotation={[0, 0.4, 0]}>
+      <mesh position={[0.28, 0.02, 0.28]} rotation={[0, 0.4, 0]} renderOrder={2}>
         <sphereGeometry args={[0.12, 48, 48]} />
-        <meshStandardMaterial color={skinColor} metalness={0.25} roughness={0.5} transparent opacity={0.85} />
+        <meshPhysicalMaterial color={skinColor} metalness={0.15} roughness={0.6} side={THREE.FrontSide} depthWrite={true} />
       </mesh>
 
       {/* Digital wireframe overlay */}
-      <mesh scale={0.52}>
+      <mesh scale={0.52} renderOrder={20}>
         <icosahedronGeometry args={[1, 4]} />
-        <meshBasicMaterial color={digitalColor} wireframe transparent opacity={0.08} />
+        <meshBasicMaterial color={digitalColor} wireframe transparent opacity={0.08} depthWrite={false} />
       </mesh>
 
       {/* Eye assemblies */}
@@ -646,19 +652,20 @@ const RealisticFace = ({
       </mesh>
 
       {/* Outer aura glow */}
-      <mesh scale={0.65}>
+      <mesh scale={0.68} renderOrder={-5}>
         <sphereGeometry args={[1, 48, 48]} />
-        <meshBasicMaterial color={digitalColor} transparent opacity={0.025} />
+        <meshBasicMaterial color={digitalColor} transparent opacity={0.03} depthWrite={false} side={THREE.BackSide} />
       </mesh>
 
       {/* Fresnel rim light simulation */}
-      <mesh scale={0.58}>
+      <mesh scale={0.72} renderOrder={-6}>
         <sphereGeometry args={[1, 64, 64]} />
         <meshBasicMaterial 
           color="#00ffaa" 
           transparent 
-          opacity={0.06}
+          opacity={0.08}
           side={THREE.BackSide}
+          depthWrite={false}
         />
       </mesh>
     </group>
