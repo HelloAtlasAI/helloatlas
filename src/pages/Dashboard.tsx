@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useVoice } from '@/hooks/useVoice';
+import { useWakeWord, WakeWordState } from '@/hooks/useWakeWord';
 import { useChatWithMemory } from '@/hooks/useChatWithMemory';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { AIAssistantCard } from '@/components/dashboard/AIAssistantCard';
+import { AtlasInterface } from '@/components/dashboard/AtlasInterface';
 import { MiniAICard } from '@/components/dashboard/MiniAICard';
 import { ImmersiveCardShell } from '@/components/dashboard/ImmersiveCardShell';
 import { MorphableCard } from '@/components/dashboard/MorphableCard';
@@ -123,6 +124,8 @@ const Dashboard = () => {
   const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
   const [focusedCard, setFocusedCard] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [lastUserMessage, setLastUserMessage] = useState<string>('');
+  const [lastAiResponse, setLastAiResponse] = useState<string>('');
 
   const {
     isRecording,
@@ -138,6 +141,34 @@ const Dashboard = () => {
     onCardFocus: setFocusedCard,
   });
 
+  // Wake word detection
+  const {
+    state: wakeWordState,
+    setState: setWakeWordState,
+    transcript: wakeWordTranscript,
+    isSupported: isWakeWordSupported,
+    startPassiveListening,
+    resetToPassive,
+  } = useWakeWord({
+    keyword: 'atlas',
+    onWakeWordDetected: () => {
+      // Play activation sound (could be added later)
+      console.log('Wake word detected!');
+      stopCurrentAudio();
+      startRecording();
+    },
+    onTimeout: () => {
+      console.log('Wake word timeout');
+    },
+  });
+
+  // Start passive listening on mount
+  useEffect(() => {
+    if (user && !authLoading) {
+      startPassiveListening();
+    }
+  }, [user, authLoading, startPassiveListening]);
+
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
@@ -145,7 +176,16 @@ const Dashboard = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Determine effective AI state
+  // Determine effective Atlas state
+  const effectiveAtlasState: WakeWordState = isRecording 
+    ? 'listening' 
+    : isVoiceProcessing || isLoading
+      ? 'thinking'
+      : isPlaying 
+        ? 'speaking' 
+        : wakeWordState;
+
+  // Determine effective AI state for legacy components
   const effectiveAiState: AIState = isRecording 
     ? 'listening' 
     : isVoiceProcessing || isLoading
@@ -164,59 +204,48 @@ const Dashboard = () => {
     if (!isRecording) return;
     
     setIsVoiceProcessing(true);
+    setWakeWordState('thinking');
     try {
       const transcribedText = await stopRecording();
       if (transcribedText && transcribedText.trim()) {
+        setLastUserMessage(transcribedText);
         setIsConversationOpen(true);
-        await sendMessage(transcribedText);
+        const response = await sendMessage(transcribedText);
+        if (response) {
+          setLastAiResponse(response);
+        }
       }
     } finally {
       setIsVoiceProcessing(false);
+      resetToPassive();
     }
-  }, [isRecording, stopRecording, sendMessage]);
+  }, [isRecording, stopRecording, sendMessage, setWakeWordState, resetToPassive]);
 
   const handleSendMessage = useCallback(async () => {
     if (!inputValue.trim()) return;
     const message = inputValue;
     setInputValue('');
-    await sendMessage(message);
+    setLastUserMessage(message);
+    const response = await sendMessage(message);
+    if (response) {
+      setLastAiResponse(response);
+    }
   }, [inputValue, sendMessage]);
 
   const handleAssistantClick = useCallback(() => {
     setIsConversationOpen(true);
   }, []);
 
+  const handleManualActivate = useCallback(() => {
+    stopCurrentAudio();
+    startRecording();
+    setWakeWordState('listening');
+  }, [stopCurrentAudio, startRecording, setWakeWordState]);
+
   const handleLogout = useCallback(async () => {
     await signOut();
     navigate('/auth');
   }, [signOut, navigate]);
-
-  // Keyboard shortcut for voice
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat && !isConversationOpen && 
-          document.activeElement?.tagName !== 'INPUT' && 
-          document.activeElement?.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        handleVoicePress();
-      }
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && 
-          document.activeElement?.tagName !== 'INPUT' && 
-          document.activeElement?.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        handleVoiceRelease();
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [isConversationOpen, handleVoicePress, handleVoiceRelease]);
 
   if (authLoading) {
     return (
@@ -286,23 +315,23 @@ const Dashboard = () => {
         <AnimatePresence mode="wait">
           {!expandedCard ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5 auto-rows-[minmax(140px,auto)] w-full">
-          {/* AI Assistant - Spans 2 columns, compact */}
+          {/* Atlas AI Interface - Spans 2 columns, row-span-2 for sphere */}
           <motion.div 
-            className={`md:col-span-2 xl:col-span-2 row-span-1 ${getFocusedClasses('assistant', focusedCard)}`}
+            className={`md:col-span-2 xl:col-span-2 row-span-2 ${getFocusedClasses('assistant', focusedCard)}`}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
             custom={0}
           >
-            <AIAssistantCard
-              state={effectiveAiState}
+            <AtlasInterface
+              state={effectiveAtlasState}
               audioLevel={audioLevel}
               userName={userName}
-              isRecording={isRecording}
-              isProcessing={isVoiceProcessing || isLoading}
-              onVoicePress={handleVoicePress}
-              onVoiceRelease={handleVoiceRelease}
-              onClick={handleAssistantClick}
+              transcript={wakeWordTranscript}
+              lastMessage={lastUserMessage}
+              lastResponse={lastAiResponse}
+              isSupported={isWakeWordSupported}
+              onManualActivate={handleManualActivate}
             />
           </motion.div>
 
