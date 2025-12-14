@@ -82,12 +82,13 @@ export const StocksAtmosphere = () => {
       </div>
       
       {/* Trend lines */}
-      <svg className="absolute inset-0 w-full h-full opacity-10">
+      <svg className="absolute inset-0 w-full h-full opacity-10" viewBox="0 0 100 100" preserveAspectRatio="none">
         <motion.path
-          d="M0 50% Q 25% 30%, 50% 50% T 100% 40%"
+          d="M0 50 Q 25 30, 50 50 T 100 40"
           fill="none"
           stroke="hsl(142, 71%, 45%)"
-          strokeWidth="2"
+          strokeWidth="1"
+          vectorEffect="non-scaling-stroke"
           initial={{ pathLength: 0 }}
           animate={{ pathLength: 1 }}
           transition={{ duration: 3, repeat: Infinity }}
@@ -410,12 +411,13 @@ export const TravelAtmosphere = () => {
       </motion.div>
       
       {/* Flight path */}
-      <svg className="absolute inset-0 w-full h-full opacity-30">
+      <svg className="absolute inset-0 w-full h-full opacity-30" viewBox="0 0 100 100" preserveAspectRatio="none">
         <motion.path
-          d="M10% 80% Q 30% 20%, 50% 50% T 85% 30%"
+          d="M10 80 Q 30 20, 50 50 T 85 30"
           fill="none"
           stroke="hsl(260, 80%, 60%)"
-          strokeWidth="2"
+          strokeWidth="1"
+          vectorEffect="non-scaling-stroke"
           strokeDasharray="8 4"
           initial={{ pathLength: 0 }}
           animate={{ pathLength: 1 }}
