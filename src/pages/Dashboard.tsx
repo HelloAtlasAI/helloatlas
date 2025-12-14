@@ -59,21 +59,20 @@ const Dashboard = () => {
   }, [user, authLoading, navigate]);
 
   const handleSpeakResponse = useCallback((text: string) => {
-    speak(text);
-  }, [speak]);
+    speakText(text);
+  }, [speakText]);
 
   const effectiveAiState = isRecording ? "listening" : isPlaying ? "speaking" : aiState;
 
   const handleVoiceStart = useCallback(async () => {
-    if (isPlaying) {
-      stopSpeaking();
-    }
     await startRecording();
     setAiState("listening");
-  }, [isPlaying, stopSpeaking, startRecording, setAiState]);
+  }, [startRecording, setAiState]);
 
   const handleVoiceStop = useCallback(async () => {
+    setIsProcessingVoice(true);
     const transcription = await stopRecording();
+    setIsProcessingVoice(false);
     if (transcription) {
       await sendMessage(transcription);
     }
@@ -91,9 +90,9 @@ const Dashboard = () => {
   // Handle proactive AI speaking
   useEffect(() => {
     if (proactiveInsight && !isPlaying && !isRecording) {
-      speak(proactiveInsight.content);
+      speakText(proactiveInsight.content);
     }
-  }, [proactiveInsight, speak, isPlaying, isRecording]);
+  }, [proactiveInsight, speakText, isPlaying, isRecording]);
 
   if (authLoading) {
     return (

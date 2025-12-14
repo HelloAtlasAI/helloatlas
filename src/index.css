@@ -66,6 +66,21 @@
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 230 30% 20%;
     --sidebar-ring: 195 100% 50%;
+
+    /* Dashboard Light Theme Colors */
+    --dashboard-bg: 220 20% 97%;
+    --dashboard-card: 0 0% 100%;
+    --dashboard-card-highlight: 210 40% 96%;
+    --dashboard-foreground: 222 47% 11%;
+    --dashboard-muted: 215 16% 47%;
+    --dashboard-border: 214 32% 91%;
+    --dashboard-shadow: 222 47% 11%;
+    --dashboard-primary: 217 91% 60%;
+    --dashboard-secondary: 262 83% 58%;
+    --dashboard-accent: 280 80% 60%;
+    --dashboard-success: 142 71% 45%;
+    --dashboard-warning: 38 92% 50%;
+    --dashboard-danger: 0 84% 60%;
   }
 
   .dark {
