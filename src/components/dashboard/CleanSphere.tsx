@@ -10,8 +10,9 @@ const vertexShader = `
   varying vec3 vNormal;
   varying float vDisplacement;
   varying vec3 vPosition;
+  varying vec3 vWorldPosition;
   
-  // Simplex noise function
+  // Improved simplex noise with better derivatives
   vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
   vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
   vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
@@ -63,22 +64,34 @@ const vertexShader = `
     return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
   }
   
+  // Smooth easing function
+  float smootherstep(float edge0, float edge1, float x) {
+    x = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+    return x * x * x * (x * (x * 6.0 - 15.0) + 10.0);
+  }
+  
   void main() {
     vNormal = normal;
     vPosition = position;
     
-    float baseSpeed = 0.3;
-    float speed = baseSpeed + uAudioLevel * 0.5;
+    float baseSpeed = 0.25;
+    float speed = baseSpeed + uAudioLevel * 0.4;
     
-    // Multi-layered noise for organic morphing
-    float noise1 = snoise(position * 1.5 + uTime * speed) * 0.4;
-    float noise2 = snoise(position * 3.0 + uTime * speed * 1.5) * 0.2;
-    float noise3 = snoise(position * 6.0 + uTime * speed * 2.0) * 0.1;
+    // 4 octaves of noise for ultra-smooth organic morphing
+    float noise1 = snoise(position * 1.2 + uTime * speed) * 0.35;
+    float noise2 = snoise(position * 2.4 + uTime * speed * 1.3) * 0.2;
+    float noise3 = snoise(position * 4.8 + uTime * speed * 1.6) * 0.12;
+    float noise4 = snoise(position * 9.6 + uTime * speed * 2.0) * 0.06;
     
-    float displacement = (noise1 + noise2 + noise3) * uMorphIntensity * (1.0 + uAudioLevel * 2.0);
+    float combinedNoise = noise1 + noise2 + noise3 + noise4;
+    
+    // Smoother audio reactivity with easing
+    float smoothAudio = smootherstep(0.0, 1.0, uAudioLevel);
+    float displacement = combinedNoise * uMorphIntensity * (1.0 + smoothAudio * 1.5);
     vDisplacement = displacement;
     
     vec3 newPosition = position + normal * displacement;
+    vWorldPosition = (modelMatrix * vec4(newPosition, 1.0)).xyz;
     
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
   }
@@ -94,29 +107,45 @@ const fragmentShader = `
   varying vec3 vNormal;
   varying float vDisplacement;
   varying vec3 vPosition;
+  varying vec3 vWorldPosition;
+  
+  // Smooth easing
+  float smootherstep(float edge0, float edge1, float x) {
+    x = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+    return x * x * x * (x * (x * 6.0 - 15.0) + 10.0);
+  }
   
   void main() {
-    // Dynamic color mixing based on displacement and position
-    float colorMix = (vDisplacement + 0.5) * 0.5 + sin(uTime * 0.5) * 0.1;
-    colorMix = clamp(colorMix, 0.0, 1.0);
+    // Smoother color mixing
+    float colorMix = smootherstep(-0.3, 0.6, vDisplacement + sin(uTime * 0.4) * 0.15);
     
     vec3 color1 = mix(uColorA, uColorB, colorMix);
     vec3 color2 = mix(uColorB, uColorC, colorMix);
-    vec3 finalColor = mix(color1, color2, sin(vPosition.y * 2.0 + uTime) * 0.5 + 0.5);
+    float yFactor = smootherstep(-1.0, 1.0, sin(vPosition.y * 1.5 + uTime * 0.5) * 0.5 + 0.5);
+    vec3 finalColor = mix(color1, color2, yFactor);
     
-    // Fresnel effect for edge glow
-    vec3 viewDir = normalize(cameraPosition - vPosition);
-    float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 3.0);
+    // Enhanced Fresnel with subsurface scattering effect
+    vec3 viewDir = normalize(cameraPosition - vWorldPosition);
+    float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 2.5);
     
-    // Add glow at edges
-    finalColor += uColorC * fresnel * (0.5 + uAudioLevel);
+    // Subsurface scattering simulation
+    float sss = pow(max(dot(-viewDir, vNormal) * 0.5 + 0.5, 0.0), 2.0) * 0.3;
+    finalColor += uColorB * sss;
     
-    // Inner glow based on displacement
-    float innerGlow = smoothstep(-0.2, 0.3, vDisplacement) * 0.3;
+    // Rim glow
+    float rimGlow = fresnel * (0.6 + uAudioLevel * 0.5);
+    finalColor += uColorC * rimGlow;
+    
+    // Inner glow based on displacement with smooth falloff
+    float innerGlow = smootherstep(-0.15, 0.25, vDisplacement) * 0.25;
     finalColor += uColorB * innerGlow;
     
-    // Slight transparency at edges
-    float alpha = 0.85 + fresnel * 0.15;
+    // Ambient occlusion in crevices
+    float ao = smootherstep(-0.3, 0.1, vDisplacement);
+    finalColor *= 0.7 + ao * 0.3;
+    
+    // Smooth alpha
+    float alpha = 0.9 + fresnel * 0.1;
     
     gl_FragColor = vec4(finalColor, alpha);
   }
@@ -129,14 +158,16 @@ interface SphereProps {
 
 function Sphere({ state, audioLevel }: SphereProps) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const smoothedAudioRef = useRef(0);
+  const smoothedMorphRef = useRef(0.25);
   
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
     uAudioLevel: { value: 0 },
-    uMorphIntensity: { value: 0.3 },
-    uColorA: { value: new THREE.Color('#0ea5e9') }, // Cyan
-    uColorB: { value: new THREE.Color('#8b5cf6') }, // Purple
-    uColorC: { value: new THREE.Color('#06b6d4') }, // Teal
+    uMorphIntensity: { value: 0.25 },
+    uColorA: { value: new THREE.Color('#0ea5e9') },
+    uColorB: { value: new THREE.Color('#8b5cf6') },
+    uColorC: { value: new THREE.Color('#06b6d4') },
   }), []);
   
   useFrame((_, delta) => {
@@ -144,24 +175,27 @@ function Sphere({ state, audioLevel }: SphereProps) {
     
     uniforms.uTime.value += delta;
     
-    // Smooth audio level interpolation
-    const targetAudio = audioLevel;
-    uniforms.uAudioLevel.value += (targetAudio - uniforms.uAudioLevel.value) * 0.1;
+    // Ultra-smooth audio level with exponential smoothing
+    const audioSmoothing = 0.15;
+    smoothedAudioRef.current += (audioLevel - smoothedAudioRef.current) * audioSmoothing;
+    uniforms.uAudioLevel.value = smoothedAudioRef.current;
     
-    // Morph intensity based on state
-    const targetMorph = state === 'speaking' ? 0.6 : 
-                        state === 'thinking' ? 0.5 : 
-                        state === 'listening' ? 0.4 : 0.25;
-    uniforms.uMorphIntensity.value += (targetMorph - uniforms.uMorphIntensity.value) * 0.05;
+    // Smooth morph intensity with easing
+    const targetMorph = state === 'speaking' ? 0.55 : 
+                        state === 'thinking' ? 0.45 : 
+                        state === 'listening' ? 0.38 : 0.22;
+    const morphSmoothing = 0.08;
+    smoothedMorphRef.current += (targetMorph - smoothedMorphRef.current) * morphSmoothing;
+    uniforms.uMorphIntensity.value = smoothedMorphRef.current;
     
-    // Gentle rotation
-    meshRef.current.rotation.y += delta * 0.1;
-    meshRef.current.rotation.x += delta * 0.05;
+    // Gentle organic rotation
+    meshRef.current.rotation.y += delta * 0.08;
+    meshRef.current.rotation.x += delta * 0.04;
   });
   
   return (
     <mesh ref={meshRef}>
-      <icosahedronGeometry args={[1.5, 64]} />
+      <icosahedronGeometry args={[1.5, 128]} />
       <shaderMaterial
         uniforms={uniforms}
         vertexShader={vertexShader}
@@ -191,27 +225,32 @@ export const CleanSphere = ({
       className={`relative cursor-pointer ${className}`}
       onClick={onClick}
     >
-      {/* Outer glow effect */}
+      {/* Outer glow effect with smoother transitions */}
       <div 
-        className="absolute inset-0 rounded-full blur-3xl opacity-50 transition-all duration-500"
+        className="absolute inset-0 rounded-full blur-2xl transition-all duration-700 ease-out"
         style={{
           background: state === 'speaking' 
-            ? 'radial-gradient(circle, rgba(139, 92, 246, 0.6) 0%, rgba(14, 165, 233, 0.3) 50%, transparent 70%)'
+            ? 'radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, rgba(14, 165, 233, 0.25) 50%, transparent 70%)'
             : state === 'listening'
-            ? 'radial-gradient(circle, rgba(6, 182, 212, 0.5) 0%, rgba(139, 92, 246, 0.2) 50%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(14, 165, 233, 0.3) 0%, rgba(139, 92, 246, 0.15) 50%, transparent 70%)',
-          transform: `scale(${1 + audioLevel * 0.3})`,
+            ? 'radial-gradient(circle, rgba(6, 182, 212, 0.45) 0%, rgba(139, 92, 246, 0.2) 50%, transparent 70%)'
+            : state === 'thinking'
+            ? 'radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, rgba(6, 182, 212, 0.2) 50%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(14, 165, 233, 0.25) 0%, rgba(139, 92, 246, 0.1) 50%, transparent 70%)',
+          transform: `scale(${1 + audioLevel * 0.25})`,
+          opacity: 0.6 + audioLevel * 0.3,
         }}
       />
       
       <Canvas
         camera={{ position: [0, 0, 4], fov: 50 }}
         style={{ background: 'transparent' }}
-        gl={{ alpha: true, antialias: true }}
+        gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
+        dpr={[1, 2]}
       >
-        <ambientLight intensity={0.2} />
-        <pointLight position={[10, 10, 10]} intensity={0.5} />
-        <pointLight position={[-10, -10, -10]} intensity={0.3} color="#8b5cf6" />
+        <ambientLight intensity={0.25} />
+        <pointLight position={[10, 10, 10]} intensity={0.6} />
+        <pointLight position={[-10, -10, -10]} intensity={0.35} color="#8b5cf6" />
+        <pointLight position={[0, 10, 0]} intensity={0.2} color="#06b6d4" />
         <Sphere state={state} audioLevel={audioLevel} />
       </Canvas>
     </div>

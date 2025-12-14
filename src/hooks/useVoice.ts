@@ -6,13 +6,41 @@ export const useVoice = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  
+  // Single audio instance to prevent layering
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const playbackContextRef = useRef<AudioContext | null>(null);
+  const isPlayingRef = useRef(false);
+
+  const stopCurrentAudio = useCallback(() => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.src = '';
+      currentAudioRef.current = null;
+    }
+    if (playbackContextRef.current) {
+      playbackContextRef.current.close().catch(() => {});
+      playbackContextRef.current = null;
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    isPlayingRef.current = false;
+    setIsPlaying(false);
+    setAudioLevel(0);
+  }, []);
 
   const startRecording = useCallback(async () => {
+    // Stop any playing audio first
+    stopCurrentAudio();
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -29,13 +57,18 @@ export const useVoice = () => {
       source.connect(analyserRef.current);
       analyserRef.current.fftSize = 256;
 
-      // Analyze audio levels
+      // Analyze audio levels with smoothing
       const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+      let smoothedLevel = 0;
+      
       const updateLevel = () => {
         if (analyserRef.current) {
           analyserRef.current.getByteFrequencyData(dataArray);
           const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-          setAudioLevel(average / 255);
+          const targetLevel = average / 255;
+          // Exponential smoothing for natural feel
+          smoothedLevel += (targetLevel - smoothedLevel) * 0.3;
+          setAudioLevel(smoothedLevel);
         }
         animationFrameRef.current = requestAnimationFrame(updateLevel);
       };
@@ -62,7 +95,7 @@ export const useVoice = () => {
       toast.error("Failed to access microphone. Please check permissions.");
       return false;
     }
-  }, []);
+  }, [stopCurrentAudio]);
 
   const stopRecording = useCallback(async (): Promise<string | null> => {
     return new Promise((resolve) => {
@@ -74,9 +107,11 @@ export const useVoice = () => {
       // Stop audio analysis
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
       if (audioContextRef.current) {
-        audioContextRef.current.close();
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
       }
       setAudioLevel(0);
 
@@ -117,7 +152,13 @@ export const useVoice = () => {
   }, []);
 
   const speakText = useCallback(async (text: string): Promise<void> => {
+    // Prevent duplicate audio - stop any existing playback
+    if (isPlayingRef.current) {
+      stopCurrentAudio();
+    }
+    
     try {
+      isPlayingRef.current = true;
       setIsPlaying(true);
 
       const { data, error } = await supabase.functions.invoke("elevenlabs-tts", {
@@ -127,7 +168,7 @@ export const useVoice = () => {
       if (error) {
         console.error("TTS error:", error);
         toast.error("Failed to generate speech");
-        setIsPlaying(false);
+        stopCurrentAudio();
         return;
       }
 
@@ -141,24 +182,30 @@ export const useVoice = () => {
       const audioBlob = new Blob([audioArray], { type: "audio/mpeg" });
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
+      currentAudioRef.current = audio;
 
       // Set up audio analysis for playback
-      const audioContext = new AudioContext();
-      const analyser = audioContext.createAnalyser();
-      const source = audioContext.createMediaElementSource(audio);
+      playbackContextRef.current = new AudioContext();
+      const analyser = playbackContextRef.current.createAnalyser();
+      const source = playbackContextRef.current.createMediaElementSource(audio);
       source.connect(analyser);
-      analyser.connect(audioContext.destination);
+      analyser.connect(playbackContextRef.current.destination);
       analyser.fftSize = 256;
 
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      let smoothedLevel = 0;
+      
       const updateLevel = () => {
+        if (!isPlayingRef.current) return;
+        
         analyser.getByteFrequencyData(dataArray);
         const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-        setAudioLevel(average / 255);
+        const targetLevel = average / 255;
+        // Smoother interpolation
+        smoothedLevel += (targetLevel - smoothedLevel) * 0.25;
+        setAudioLevel(smoothedLevel);
         
-        if (isPlaying) {
-          requestAnimationFrame(updateLevel);
-        }
+        animationFrameRef.current = requestAnimationFrame(updateLevel);
       };
 
       audio.onplay = () => {
@@ -166,19 +213,21 @@ export const useVoice = () => {
       };
 
       audio.onended = () => {
-        setIsPlaying(false);
-        setAudioLevel(0);
         URL.revokeObjectURL(audioUrl);
-        audioContext.close();
+        stopCurrentAudio();
+      };
+
+      audio.onerror = () => {
+        stopCurrentAudio();
       };
 
       await audio.play();
     } catch (err) {
       console.error("TTS playback error:", err);
       toast.error("Failed to play audio");
-      setIsPlaying(false);
+      stopCurrentAudio();
     }
-  }, [isPlaying]);
+  }, [stopCurrentAudio]);
 
   return {
     isRecording,
@@ -187,5 +236,6 @@ export const useVoice = () => {
     startRecording,
     stopRecording,
     speakText,
+    stopCurrentAudio,
   };
 };

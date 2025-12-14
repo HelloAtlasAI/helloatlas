@@ -13,7 +13,6 @@ import { WeatherCard } from '@/components/dashboard/WeatherCard';
 import { StocksCard } from '@/components/dashboard/StocksCard';
 import { TravelCard } from '@/components/dashboard/TravelCard';
 import { DocumentsCard } from '@/components/dashboard/DocumentsCard';
-import { VoiceButton } from '@/components/dashboard/VoiceButton';
 import { ConversationDrawer } from '@/components/dashboard/ConversationDrawer';
 
 type AIState = 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -25,6 +24,7 @@ const Dashboard = () => {
   const [isConversationOpen, setIsConversationOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
+  const [focusedCard, setFocusedCard] = useState<string | null>(null);
 
   const {
     isRecording,
@@ -32,15 +32,12 @@ const Dashboard = () => {
     audioLevel,
     startRecording,
     stopRecording,
-    speakText
+    speakText,
+    stopCurrentAudio
   } = useVoice();
 
-  const handleSpeakResponse = useCallback((text: string) => {
-    speakText(text);
-  }, [speakText]);
-
-  const { messages, aiState, setAiState, isLoading, sendMessage } = useChatWithMemory({
-    onSpeakResponse: handleSpeakResponse,
+  const { messages, aiState, setAiState, isLoading, sendMessage, clearMessages } = useChatWithMemory({
+    onCardFocus: setFocusedCard,
   });
 
   // Redirect if not authenticated
@@ -53,16 +50,21 @@ const Dashboard = () => {
   // Determine effective AI state
   const effectiveAiState: AIState = isRecording 
     ? 'listening' 
-    : isPlaying 
-      ? 'speaking' 
-      : aiState;
+    : isVoiceProcessing || isLoading
+      ? 'thinking'
+      : isPlaying 
+        ? 'speaking' 
+        : aiState;
 
   const handleVoicePress = useCallback(() => {
+    stopCurrentAudio();
     startRecording();
     setAiState('listening');
-  }, [startRecording, setAiState]);
+  }, [startRecording, setAiState, stopCurrentAudio]);
 
   const handleVoiceRelease = useCallback(async () => {
+    if (!isRecording) return;
+    
     setIsVoiceProcessing(true);
     try {
       const transcribedText = await stopRecording();
@@ -73,7 +75,7 @@ const Dashboard = () => {
     } finally {
       setIsVoiceProcessing(false);
     }
-  }, [stopRecording, sendMessage]);
+  }, [isRecording, stopRecording, sendMessage]);
 
   const handleSendMessage = useCallback(async () => {
     if (!inputValue.trim()) return;
@@ -94,13 +96,17 @@ const Dashboard = () => {
   // Keyboard shortcut for voice
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !isConversationOpen && document.activeElement?.tagName !== 'INPUT') {
+      if (e.code === 'Space' && !e.repeat && !isConversationOpen && 
+          document.activeElement?.tagName !== 'INPUT' && 
+          document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
         handleVoicePress();
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && isRecording) {
+      if (e.code === 'Space' && 
+          document.activeElement?.tagName !== 'INPUT' && 
+          document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
         handleVoiceRelease();
       }
@@ -112,18 +118,16 @@ const Dashboard = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isConversationOpen, isRecording, handleVoicePress, handleVoiceRelease]);
+  }, [isConversationOpen, handleVoicePress, handleVoiceRelease]);
 
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <motion.div
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          className="text-muted-foreground text-xl"
-        >
-          Loading...
-        </motion.div>
+          className="w-12 h-12 rounded-full border-2 border-primary border-t-transparent"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        />
       </div>
     );
   }
@@ -163,88 +167,89 @@ const Dashboard = () => {
         onLogoutClick={handleLogout}
       />
       
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
-        {/* AI Assistant Card */}
-        <motion.div 
-          className="mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <AIAssistantCard
-            state={effectiveAiState}
-            audioLevel={audioLevel}
-            userName={userName}
-            onClick={handleAssistantClick}
-          />
-        </motion.div>
-        
-        {/* Card Grid */}
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <motion.div
+      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Mosaic Grid Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[140px]">
+          {/* AI Assistant - Spans 2 columns, compact */}
+          <motion.div 
+            className="md:col-span-2 row-span-1"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <AIAssistantCard
+              state={effectiveAiState}
+              audioLevel={audioLevel}
+              userName={userName}
+              isRecording={isRecording}
+              isProcessing={isVoiceProcessing || isLoading}
+              onVoicePress={handleVoicePress}
+              onVoiceRelease={handleVoiceRelease}
+              onClick={handleAssistantClick}
+            />
+          </motion.div>
+
+          {/* Weather - 2 rows */}
+          <motion.div 
+            className={`row-span-2 ${focusedCard === 'weather' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <WeatherCard />
+          </motion.div>
+
+          {/* Travel - 2 rows */}
+          <motion.div 
+            className={`row-span-2 ${focusedCard === 'travel' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <TravelCard />
+          </motion.div>
+
+          {/* Email - 3 rows tall */}
+          <motion.div 
+            className={`row-span-3 ${focusedCard === 'email' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <EmailCard />
+          </motion.div>
+
+          {/* Calendar - 3 rows tall */}
+          <motion.div 
+            className={`row-span-3 ${focusedCard === 'calendar' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <CalendarCard />
+          </motion.div>
+
+          {/* Stocks - Wide, 2 columns, 2 rows */}
+          <motion.div 
+            className={`md:col-span-2 row-span-2 ${focusedCard === 'stocks' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <EmailCard />
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <CalendarCard />
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <WeatherCard />
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-          >
             <StocksCard />
           </motion.div>
-          
-          <motion.div
+
+          {/* Documents - Wide, 2 columns, 2 rows */}
+          <motion.div 
+            className={`md:col-span-2 row-span-2 ${focusedCard === 'documents' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            <TravelCard />
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
+            transition={{ delay: 0.35 }}
           >
             <DocumentsCard />
           </motion.div>
-        </motion.div>
+        </div>
       </main>
-
-      {/* Floating Voice Button */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
-        <VoiceButton
-          isRecording={isRecording}
-          isProcessing={isVoiceProcessing}
-          onPress={handleVoicePress}
-          onRelease={handleVoiceRelease}
-        />
-      </div>
 
       {/* Conversation Drawer */}
       <AnimatePresence>
