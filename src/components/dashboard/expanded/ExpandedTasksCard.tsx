@@ -124,9 +124,9 @@ export const ExpandedTasksCard = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.02 }}
-        className={`group flex items-center gap-3 p-4 rounded-xl transition-all ${
-          task.completed ? 'bg-muted/20 opacity-60' : 'bg-card/50 hover:bg-card'
-        } ${overdue ? 'border border-destructive/30' : 'border border-border/30'}`}
+          className={`group flex items-center gap-3 p-4 rounded-xl transition-all ${
+            task.completed ? 'backdrop-blur-xl bg-background/20 opacity-60' : 'backdrop-blur-xl bg-background/30 hover:bg-background/40'
+          } ${overdue ? 'border border-destructive/30' : 'border border-border/30'}`}
       >
         <button 
           onClick={() => toggleTask(task.id)}
@@ -309,7 +309,7 @@ export const ExpandedTasksCard = () => {
             exit={{ opacity: 0, y: -20, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+            <div className="p-4 rounded-xl backdrop-blur-xl bg-blue-500/10 border border-blue-500/20">
               <input
                 type="text"
                 value={newTitle}
@@ -401,7 +401,7 @@ export const ExpandedTasksCard = () => {
         ) : (
           <div className="grid grid-cols-2 gap-6 h-full">
             {/* To Do column */}
-            <div className="flex flex-col bg-muted/10 rounded-2xl p-4">
+            <div className="flex flex-col backdrop-blur-xl bg-background/20 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Circle className="w-4 h-4 text-blue-400" />
                 <span className="text-sm font-medium text-foreground">To Do</span>
@@ -417,7 +417,7 @@ export const ExpandedTasksCard = () => {
             </div>
 
             {/* Done column */}
-            <div className="flex flex-col bg-muted/10 rounded-2xl p-4">
+            <div className="flex flex-col backdrop-blur-xl bg-background/20 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-4">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span className="text-sm font-medium text-foreground">Done</span>

@@ -98,7 +98,7 @@ export const ExpandedNotesCard = () => {
   return (
     <div className="flex h-[calc(100vh-140px)] gap-6">
       {/* Left sidebar - Notes list */}
-      <div className="w-80 lg:w-96 flex-shrink-0 flex flex-col bg-card/50 rounded-2xl border border-border/50 overflow-hidden">
+      <div className="w-80 lg:w-96 flex-shrink-0 flex flex-col backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 overflow-hidden">
         {/* Sidebar header */}
         <div className="p-4 border-b border-border/50 space-y-3">
           <div className="flex items-center justify-between">
@@ -194,7 +194,7 @@ export const ExpandedNotesCard = () => {
       </div>
 
       {/* Right panel - Note editor or add form */}
-      <div className="flex-1 flex flex-col bg-card/30 rounded-2xl border border-border/50 overflow-hidden">
+      <div className="flex-1 flex flex-col backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 overflow-hidden">
         <AnimatePresence mode="wait">
           {isAdding ? (
             <motion.div

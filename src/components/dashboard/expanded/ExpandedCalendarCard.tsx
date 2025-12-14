@@ -149,7 +149,7 @@ export const ExpandedCalendarCard = () => {
       {/* Left sidebar */}
       <div className="w-72 lg:w-80 flex-shrink-0 flex flex-col gap-4">
         {/* Mini calendar */}
-        <div className="bg-card/50 rounded-2xl border border-border/50 p-3">
+        <div className="backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 p-3">
           <CalendarWidget
             mode="single"
             selected={selectedDate}
@@ -165,7 +165,7 @@ export const ExpandedCalendarCard = () => {
         </div>
 
         {/* Upcoming events */}
-        <div className="flex-1 bg-card/50 rounded-2xl border border-border/50 p-4 overflow-hidden flex flex-col">
+        <div className="flex-1 backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 p-4 overflow-hidden flex flex-col">
           <h3 className="text-sm font-medium text-foreground mb-3">Upcoming Events</h3>
           <div className="flex-1 overflow-y-auto space-y-2">
             {upcomingEvents.length === 0 ? (
@@ -197,7 +197,7 @@ export const ExpandedCalendarCard = () => {
       </div>
 
       {/* Main calendar area */}
-      <div className="flex-1 flex flex-col bg-card/30 rounded-2xl border border-border/50 overflow-hidden">
+      <div className="flex-1 flex flex-col backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 overflow-hidden">
         {/* Calendar header */}
         <div className="flex items-center justify-between p-4 border-b border-border/50">
           <div className="flex items-center gap-4">
@@ -309,7 +309,7 @@ export const ExpandedCalendarCard = () => {
       </div>
 
       {/* Right panel - Selected day / Add form */}
-      <div className="w-80 lg:w-96 flex-shrink-0 flex flex-col bg-card/50 rounded-2xl border border-border/50 overflow-hidden">
+      <div className="w-80 lg:w-96 flex-shrink-0 flex flex-col backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 overflow-hidden">
         <AnimatePresence mode="wait">
           {isAdding ? (
             <motion.div

@@ -246,7 +246,7 @@ export const ExpandedTravelCard = () => {
               </div>
 
               {/* Day Activities */}
-              <div className="flex-1 bg-card/30 rounded-2xl border border-border/50 p-6 overflow-hidden">
+              <div className="flex-1 backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 p-6 overflow-hidden">
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h2 className="text-xl font-semibold text-foreground">{selectedDayData?.title}</h2>
@@ -311,7 +311,7 @@ export const ExpandedTravelCard = () => {
               </div>
 
               {/* Weather Sidebar */}
-              <div className="w-56 shrink-0 bg-card/30 rounded-2xl border border-border/50 p-4">
+              <div className="w-56 shrink-0 backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 p-4">
                 <h3 className="font-medium text-foreground mb-4">Weather Forecast</h3>
                 <div className="space-y-3">
                   {tripData.weather.map((day, index) => {
@@ -346,7 +346,7 @@ export const ExpandedTravelCard = () => {
               exit={{ opacity: 0, x: 20 }}
             >
               {/* Progress */}
-              <div className="p-4 bg-card/30 rounded-2xl border border-border/50">
+              <div className="p-4 backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <Luggage className="w-5 h-5 text-violet-400" />
