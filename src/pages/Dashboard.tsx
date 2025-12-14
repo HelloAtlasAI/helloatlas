@@ -1,24 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, Settings, LogOut, Mic, X } from 'lucide-react';
+import { MessageCircle, Settings, LogOut, X, Send } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useChatWithMemory } from '@/hooks/useChatWithMemory';
 import { useCardFocus, CardId } from '@/hooks/useCardFocus';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useProactiveAI } from '@/hooks/useProactiveAI';
 import { useVoice } from '@/hooks/useVoice';
-import { ParticleBackground } from '@/components/dashboard/ParticleBackground';
-import { NebulaOrb } from '@/components/dashboard/NebulaOrb';
-import {
-  DashboardLayoutSelector,
-  LayoutType,
-  CommandCenterLayout,
-  OrbitLayout,
-  SplitViewLayout,
-  AmbientLayout,
-  FocusModeLayout,
-} from '@/components/dashboard/layouts';
+import { AtlasSphere } from '@/components/dashboard/AtlasSphere';
+import { VoiceButton } from '@/components/dashboard/VoiceButton';
+import { CardGrid } from '@/components/dashboard/CardGrid';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
@@ -27,16 +18,11 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
   const { profile } = useUserProfile();
-  const { focusedCard, setFocusedCard } = useCardFocus();
-  const proactiveInsight = useProactiveAI();
+  const { focusedCard, setFocusedCard, clearFocus, hasFocusedCard } = useCardFocus();
   
   const [isConversationOpen, setIsConversationOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
-  const [activeLayout, setActiveLayout] = useState<LayoutType>(() => {
-    const saved = localStorage.getItem('dashboardLayout');
-    return (saved as LayoutType) || 'command';
-  });
   
   const { 
     isRecording, 
@@ -72,11 +58,7 @@ const Dashboard = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Save layout preference
-  useEffect(() => {
-    localStorage.setItem('dashboardLayout', activeLayout);
-  }, [activeLayout]);
-
+  // Determine effective AI state
   const effectiveAiState = isRecording ? 'listening' : isPlaying ? 'speaking' : aiState;
 
   const handleVoiceStart = useCallback(async () => {
@@ -89,6 +71,7 @@ const Dashboard = () => {
     const transcription = await stopRecording();
     setIsProcessingVoice(false);
     if (transcription) {
+      setIsConversationOpen(true);
       await sendMessage(transcription);
     }
   }, [stopRecording, sendMessage]);
@@ -105,19 +88,22 @@ const Dashboard = () => {
     await sendMessage(message);
   };
 
-  const handleOrbClick = () => setIsConversationOpen(true);
+  const handleSphereClick = () => {
+    setIsConversationOpen(true);
+  };
 
-  // Handle proactive AI speaking
-  useEffect(() => {
-    if (proactiveInsight && !isPlaying && !isRecording) {
-      speakText(proactiveInsight.content);
+  const handleCardClick = (cardId: CardId) => {
+    if (focusedCard === cardId) {
+      clearFocus();
+    } else {
+      setFocusedCard(cardId, false); // Don't auto-clear on manual click
     }
-  }, [proactiveInsight, speakText, isPlaying, isRecording]);
+  };
 
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <NebulaOrb state="thinking" audioLevel={0} size="lg" />
+        <AtlasSphere state="thinking" audioLevel={0} size="lg" />
       </div>
     );
   }
@@ -126,49 +112,20 @@ const Dashboard = () => {
     ? `Welcome back, ${profile.first_name}` 
     : 'Welcome back';
 
-  const layoutProps = {
-    aiState: effectiveAiState,
-    audioLevel,
-    focusedCard,
-    onOrbClick: handleOrbClick,
-  };
-
-  const renderLayout = () => {
-    switch (activeLayout) {
-      case 'command':
-        return <CommandCenterLayout {...layoutProps} />;
-      case 'orbit':
-        return <OrbitLayout {...layoutProps} />;
-      case 'split':
-        return <SplitViewLayout {...layoutProps} />;
-      case 'ambient':
-        return <AmbientLayout {...layoutProps} />;
-      case 'focus':
-        return <FocusModeLayout {...layoutProps} />;
-      default:
-        return <CommandCenterLayout {...layoutProps} />;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden">
-      <ParticleBackground />
+      {/* Subtle background gradient */}
+      <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-muted/20 pointer-events-none" />
       
-      {/* Layout Selector */}
-      <DashboardLayoutSelector 
-        activeLayout={activeLayout} 
-        onLayoutChange={setActiveLayout} 
-      />
-
       {/* Header */}
       <motion.header 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="fixed top-0 left-0 right-0 z-40 p-6"
+        className="fixed top-0 left-0 right-0 z-40 p-4 md:p-6"
       >
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <motion.h1 
-            className="text-2xl font-light tracking-wide text-foreground/90"
+            className="text-xl md:text-2xl font-light tracking-wide text-foreground/90"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
@@ -176,7 +133,7 @@ const Dashboard = () => {
             {greeting}
           </motion.h1>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button 
               variant="ghost" 
               size="icon"
@@ -196,10 +153,52 @@ const Dashboard = () => {
         </div>
       </motion.header>
 
-      {/* Main Content - Dynamic Layout */}
-      <main className="relative min-h-screen">
-        {renderLayout()}
+      {/* Main Content */}
+      <main className="relative min-h-screen pt-20 pb-28">
+        <div className="max-w-7xl mx-auto">
+          {/* Atlas Sphere - Central Focus */}
+          <motion.div 
+            className="flex flex-col items-center justify-center py-8"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
+          >
+            <AtlasSphere
+              state={effectiveAiState}
+              audioLevel={audioLevel}
+              size="xl"
+              onClick={handleSphereClick}
+            />
+            <motion.p 
+              className="mt-4 text-sm text-muted-foreground"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              {effectiveAiState === 'listening' ? 'Listening...' :
+               effectiveAiState === 'thinking' ? 'Thinking...' :
+               effectiveAiState === 'speaking' ? 'Speaking...' :
+               'Tap to chat with Atlas'}
+            </motion.p>
+          </motion.div>
+
+          {/* Card Grid */}
+          <CardGrid 
+            focusedCard={focusedCard} 
+            onCardClick={handleCardClick}
+          />
+        </div>
       </main>
+
+      {/* Floating Voice Button */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <VoiceButton
+          isRecording={isRecording}
+          isProcessing={isProcessingVoice}
+          onPress={handleVoiceStart}
+          onRelease={handleVoiceStop}
+        />
+      </div>
 
       {/* Conversation Panel */}
       <AnimatePresence>
@@ -213,9 +212,14 @@ const Dashboard = () => {
           >
             <div className="h-full bg-card/95 backdrop-blur-2xl border-l border-border flex flex-col">
               {/* Panel Header */}
-              <div className="flex items-center justify-between p-6 border-b border-border">
+              <div className="flex items-center justify-between p-4 md:p-6 border-b border-border">
                 <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+                  <div className={`w-3 h-3 rounded-full transition-colors ${
+                    effectiveAiState === 'idle' ? 'bg-muted-foreground' :
+                    effectiveAiState === 'listening' ? 'bg-yellow-500 animate-pulse' :
+                    effectiveAiState === 'thinking' ? 'bg-blue-500 animate-pulse' :
+                    'bg-green-500 animate-pulse'
+                  }`} />
                   <h2 className="text-lg font-medium text-foreground">Atlas</h2>
                 </div>
                 <Button
@@ -229,7 +233,7 @@ const Dashboard = () => {
               </div>
 
               {/* Messages */}
-              <ScrollArea className="flex-1 p-6">
+              <ScrollArea className="flex-1 p-4 md:p-6">
                 <div className="space-y-4">
                   {messages.length === 0 && (
                     <div className="text-center py-12">
@@ -271,24 +275,8 @@ const Dashboard = () => {
               </ScrollArea>
 
               {/* Input Area */}
-              <div className="p-6 border-t border-border">
+              <div className="p-4 md:p-6 border-t border-border">
                 <div className="flex gap-3">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onMouseDown={handleVoiceStart}
-                    onMouseUp={handleVoiceStop}
-                    onMouseLeave={isRecording ? handleVoiceStop : undefined}
-                    disabled={isProcessingVoice}
-                    className={`rounded-full transition-all ${
-                      isRecording 
-                        ? 'bg-primary/30 text-primary scale-110' 
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                    }`}
-                  >
-                    <Mic className="w-5 h-5" />
-                  </Button>
-                  
                   <Input
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
@@ -300,9 +288,10 @@ const Dashboard = () => {
                   <Button
                     onClick={handleSendMessage}
                     disabled={!inputValue.trim() || isLoading}
-                    className="bg-primary/20 hover:bg-primary/30 text-primary rounded-full px-6 border border-primary/30"
+                    size="icon"
+                    className="bg-primary/20 hover:bg-primary/30 text-primary rounded-full border border-primary/30"
                   >
-                    <MessageCircle className="w-5 h-5" />
+                    <Send className="w-5 h-5" />
                   </Button>
                 </div>
               </div>
@@ -319,7 +308,7 @@ const Dashboard = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsConversationOpen(false)}
-            className="fixed inset-0 bg-background/50 z-40"
+            className="fixed inset-0 bg-background/50 backdrop-blur-sm z-40"
           />
         )}
       </AnimatePresence>
