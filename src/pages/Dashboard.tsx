@@ -7,7 +7,12 @@ import { useVoice } from '@/hooks/useVoice';
 import { useChatWithMemory } from '@/hooks/useChatWithMemory';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { AIAssistantCard } from '@/components/dashboard/AIAssistantCard';
-import { SimpleCardGrid } from '@/components/dashboard/SimpleCardGrid';
+import { EmailCard } from '@/components/dashboard/EmailCard';
+import { CalendarCard } from '@/components/dashboard/CalendarCard';
+import { WeatherCard } from '@/components/dashboard/WeatherCard';
+import { StocksCard } from '@/components/dashboard/StocksCard';
+import { TravelCard } from '@/components/dashboard/TravelCard';
+import { DocumentsCard } from '@/components/dashboard/DocumentsCard';
 import { VoiceButton } from '@/components/dashboard/VoiceButton';
 import { ConversationDrawer } from '@/components/dashboard/ConversationDrawer';
 
@@ -112,7 +117,13 @@ const Dashboard = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+        <motion.div
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          className="text-muted-foreground text-xl"
+        >
+          Loading...
+        </motion.div>
       </div>
     );
   }
@@ -121,12 +132,38 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Ambient background effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <motion.div
+          className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-20"
+          style={{
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 70%)',
+          }}
+          animate={{
+            x: [0, 100, 0],
+            y: [0, 50, 0],
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-20"
+          style={{
+            background: 'radial-gradient(circle, hsl(var(--accent) / 0.3) 0%, transparent 70%)',
+          }}
+          animate={{
+            x: [0, -100, 0],
+            y: [0, -50, 0],
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+        />
+      </div>
+
       <DashboardHeader 
         userName={userName}
         onLogoutClick={handleLogout}
       />
       
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 pb-24">
+      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
         {/* AI Assistant Card */}
         <motion.div 
           className="mb-8"
@@ -142,8 +179,61 @@ const Dashboard = () => {
           />
         </motion.div>
         
-        {/* Info Cards Grid */}
-        <SimpleCardGrid />
+        {/* Card Grid */}
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <EmailCard />
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <CalendarCard />
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <WeatherCard />
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <StocksCard />
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+          >
+            <TravelCard />
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+          >
+            <DocumentsCard />
+          </motion.div>
+        </motion.div>
       </main>
 
       {/* Floating Voice Button */}
