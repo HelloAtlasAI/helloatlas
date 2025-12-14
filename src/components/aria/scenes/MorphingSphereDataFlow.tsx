@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AIState } from "../AIOrb";
 import { ParticlePool } from "../particles/useParticlePool";
+import { ParticleTrails } from "../particles/ParticleTrails";
 
 interface MorphingSphereDataFlowProps {
   state: AIState;
@@ -32,7 +33,8 @@ const coreVertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    gl_PointSize = (0.8 + uAudioLevel * 0.4) * (80.0 / -mvPosition.z);
+    // Ultra-dense: smaller particles
+    gl_PointSize = (0.3 + uAudioLevel * 0.15) * (250.0 / -mvPosition.z);
   }
 `;
 
@@ -50,7 +52,8 @@ const coreFragmentShader = `
     float t = vDisplacement * 5.0 + 0.5;
     vec3 color = mix(core, glow, smoothstep(0.3, 0.7, t));
     
-    float alpha = (1.0 - smoothstep(0.2, 0.5, dist)) * 0.4;
+    // Higher alpha for solid appearance
+    float alpha = (1.0 - smoothstep(0.1, 0.5, dist)) * 0.7;
     
     gl_FragColor = vec4(color, alpha);
   }
@@ -96,9 +99,10 @@ const ringVertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    gl_PointSize = (1.0 + uAudioLevel * 0.5) * (60.0 / -mvPosition.z);
+    // Smaller particles for dense rings
+    gl_PointSize = (0.5 + uAudioLevel * 0.3) * (150.0 / -mvPosition.z);
     
-    vAlpha = 0.3 + sin(angle * 2.0) * 0.1;
+    vAlpha = 0.5 + sin(angle * 2.0) * 0.15;
     
     // Color based on ring
     vec3 colors[3];
@@ -119,7 +123,7 @@ const ringFragmentShader = `
     float dist = length(gl_PointCoord - vec2(0.5));
     if (dist > 0.5) discard;
     
-    float alpha = (1.0 - smoothstep(0.2, 0.5, dist)) * vAlpha;
+    float alpha = (1.0 - smoothstep(0.1, 0.5, dist)) * vAlpha;
     
     gl_FragColor = vec4(vColor, alpha);
   }
@@ -130,7 +134,8 @@ const OrbitalRing = ({ ringIndex, audioLevel, state }: { ringIndex: number; audi
   const materialRef = useRef<THREE.ShaderMaterial>(null);
 
   const geometry = useMemo(() => {
-    const count = 800;
+    // Much denser orbital rings
+    const count = 2000;
     const positions = new Float32Array(count * 3);
     const angles = new Float32Array(count);
     const speeds = new Float32Array(count);
@@ -194,9 +199,11 @@ export const MorphingSphereDataFlow = ({ state, audioLevel, pool, hudVisible }: 
   const coreRef = useRef<THREE.Points>(null);
   const coreMaterialRef = useRef<THREE.ShaderMaterial>(null);
   const smoothAudioRef = useRef(0);
+  const rotationRef = useRef(new THREE.Euler());
 
   const coreGeometry = useMemo(() => {
-    const ico = new THREE.IcosahedronGeometry(0.5, 7);
+    // Detail level 9 for ultra-dense core
+    const ico = new THREE.IcosahedronGeometry(0.5, 9);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(ico.attributes.position.array), 3));
     geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(ico.attributes.normal.array), 3));
@@ -227,6 +234,7 @@ export const MorphingSphereDataFlow = ({ state, audioLevel, pool, hudVisible }: 
     coreMaterialRef.current.uniforms.uAudioLevel.value = smoothAudioRef.current;
 
     coreRef.current.rotation.y += 0.002;
+    rotationRef.current.copy(coreRef.current.rotation);
   });
 
   return (
@@ -235,6 +243,14 @@ export const MorphingSphereDataFlow = ({ state, audioLevel, pool, hudVisible }: 
       <points ref={coreRef} geometry={coreGeometry}>
         <primitive object={coreMaterial} ref={coreMaterialRef} attach="material" />
       </points>
+      
+      {/* Particle trails */}
+      <ParticleTrails 
+        state={state} 
+        audioLevel={smoothAudioRef.current} 
+        sphereGeometry={coreGeometry}
+        sphereRotation={rotationRef.current}
+      />
       
       {/* Orbital rings */}
       <OrbitalRing ringIndex={0} audioLevel={smoothAudioRef.current} state={state} />

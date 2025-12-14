@@ -2,6 +2,7 @@ import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AIState } from "../AIOrb";
+import { ParticleTrails } from "../particles/ParticleTrails";
 
 interface MorphingSphereNebulaProps {
   state: AIState;
@@ -38,13 +39,13 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Varied sizes for cloud effect
-    float size = 1.5 + aRandomness * 2.0;
-    gl_PointSize = size * (90.0 / -mvPosition.z);
+    // Ultra-dense: smaller particles
+    float size = 0.4 + aRandomness * 0.6;
+    gl_PointSize = size * (250.0 / -mvPosition.z);
     
     // Distance-based alpha
     float dist = length(pos);
-    vAlpha = 0.15 * (1.0 - smoothstep(0.5, 1.5, dist));
+    vAlpha = 0.5 * (1.0 - smoothstep(0.5, 1.5, dist));
     
     // Soft purple-blue nebula colors
     vColor = mix(
@@ -77,10 +78,13 @@ export const MorphingSphereNebula = ({ state, audioLevel }: MorphingSphereNebula
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const smoothAudioRef = useRef(0);
+  const rotationRef = useRef(new THREE.Euler());
 
   const geometry = useMemo(() => {
-    const count = 100000;
+    // Massive particle count for ultra-dense nebula
+    const count = 400000;
     const positions = new Float32Array(count * 3);
+    const normals = new Float32Array(count * 3);
     const randomness = new Float32Array(count);
     
     for (let i = 0; i < count; i++) {
@@ -91,15 +95,26 @@ export const MorphingSphereNebula = ({ state, audioLevel }: MorphingSphereNebula
       const phi = Math.acos(2 * Math.random() - 1);
       const r = 0.8 * Math.pow(Math.random(), 0.3);
       
-      positions[i3] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      positions[i3 + 2] = r * Math.cos(phi);
+      const x = r * Math.sin(phi) * Math.cos(theta);
+      const y = r * Math.sin(phi) * Math.sin(theta);
+      const z = r * Math.cos(phi);
+      
+      positions[i3] = x;
+      positions[i3 + 1] = y;
+      positions[i3 + 2] = z;
+      
+      // Normals pointing outward
+      const len = Math.sqrt(x * x + y * y + z * z) || 1;
+      normals[i3] = x / len;
+      normals[i3 + 1] = y / len;
+      normals[i3 + 2] = z / len;
       
       randomness[i] = Math.random();
     }
     
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
     geo.setAttribute("aRandomness", new THREE.BufferAttribute(randomness, 1));
     
     return geo;
@@ -139,11 +154,20 @@ export const MorphingSphereNebula = ({ state, audioLevel }: MorphingSphereNebula
     uniforms.uDispersion.value = THREE.MathUtils.lerp(uniforms.uDispersion.value, targetDispersion, 0.03);
 
     pointsRef.current.rotation.y += 0.0005;
+    rotationRef.current.copy(pointsRef.current.rotation);
   });
 
   return (
-    <points ref={pointsRef} geometry={geometry}>
-      <primitive object={material} ref={materialRef} attach="material" />
-    </points>
+    <group>
+      <points ref={pointsRef} geometry={geometry}>
+        <primitive object={material} ref={materialRef} attach="material" />
+      </points>
+      <ParticleTrails 
+        state={state} 
+        audioLevel={smoothAudioRef.current} 
+        sphereGeometry={geometry}
+        sphereRotation={rotationRef.current}
+      />
+    </group>
   );
 };

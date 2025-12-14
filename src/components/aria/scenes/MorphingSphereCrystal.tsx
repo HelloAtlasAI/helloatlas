@@ -2,6 +2,7 @@ import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AIState } from "../AIOrb";
+import { ParticleTrails } from "../particles/ParticleTrails";
 
 interface MorphingSphereCrystalProps {
   state: AIState;
@@ -45,8 +46,9 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    float baseSizeMultiplier = 0.8 + uAudioLevel * 0.4;
-    gl_PointSize = baseSizeMultiplier * (90.0 / -mvPosition.z);
+    // Ultra-dense: smaller particles
+    float baseSizeMultiplier = 0.3 + uAudioLevel * 0.15;
+    gl_PointSize = baseSizeMultiplier * (300.0 / -mvPosition.z);
   }
 `;
 
@@ -68,14 +70,14 @@ const fragmentShader = `
     vec3 color = mix(darkBlue, crystalBlue, smoothstep(0.0, 0.5, t));
     color = mix(color, highlight, smoothstep(0.7, 1.0, t) * 0.5);
     
-    // Sharp falloff for crystalline look
-    float alpha = 1.0 - smoothstep(0.3, 0.5, dist);
-    alpha *= 0.4;
+    // Higher alpha for solid crystalline look
+    float alpha = 1.0 - smoothstep(0.15, 0.5, dist);
+    alpha *= 0.65;
     
     // Edge highlighting
     float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 3.0);
-    alpha += fresnel * 0.08;
-    color += highlight * fresnel * 0.3;
+    alpha += fresnel * 0.12;
+    color += highlight * fresnel * 0.4;
     
     gl_FragColor = vec4(color, alpha);
   }
@@ -85,10 +87,11 @@ export const MorphingSphereCrystal = ({ state, audioLevel }: MorphingSphereCryst
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const smoothAudioRef = useRef(0);
+  const rotationRef = useRef(new THREE.Euler());
 
   const geometry = useMemo(() => {
-    // Higher subdivision for more detailed crystalline look
-    const ico = new THREE.IcosahedronGeometry(0.8, 7);
+    // Detail level 9 for ultra-dense sphere (~655k particles)
+    const ico = new THREE.IcosahedronGeometry(0.8, 9);
     const positions = ico.attributes.position.array;
     const normals = ico.attributes.normal.array;
     
@@ -135,11 +138,20 @@ export const MorphingSphereCrystal = ({ state, audioLevel }: MorphingSphereCryst
     // Slower, more deliberate rotation
     pointsRef.current.rotation.y += 0.002;
     pointsRef.current.rotation.x = Math.sin(time * 0.05) * 0.1;
+    rotationRef.current.copy(pointsRef.current.rotation);
   });
 
   return (
-    <points ref={pointsRef} geometry={geometry}>
-      <primitive object={material} ref={materialRef} attach="material" />
-    </points>
+    <group>
+      <points ref={pointsRef} geometry={geometry}>
+        <primitive object={material} ref={materialRef} attach="material" />
+      </points>
+      <ParticleTrails 
+        state={state} 
+        audioLevel={smoothAudioRef.current} 
+        sphereGeometry={geometry}
+        sphereRotation={rotationRef.current}
+      />
+    </group>
   );
 };
