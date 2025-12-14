@@ -1,8 +1,8 @@
-import { useRef, useMemo, useEffect, useState } from "react";
+import { useRef, useMemo, useEffect, useState, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { Mail, Plane, TrendingUp, Calendar, FileText, LucideIcon } from "lucide-react";
+import { Mail, Plane, TrendingUp, Calendar, FileText, LucideIcon, X } from "lucide-react";
 
 export interface CardData {
   id: string;
@@ -10,6 +10,7 @@ export interface CardData {
   title: string;
   subtitle: string;
   content: string;
+  expandedContent?: string;
 }
 
 interface ParticleCardProps {
@@ -19,6 +20,7 @@ interface ParticleCardProps {
   height: number;
   card: CardData;
   particleCount?: number;
+  onExpand?: (cardId: string) => void;
 }
 
 const iconMap: Record<string, LucideIcon> = {
@@ -29,13 +31,14 @@ const iconMap: Record<string, LucideIcon> = {
   document: FileText,
 };
 
-// Vertex shader for card particle formation
+// Vertex shader - particles lock perfectly when formed
 const cardVertexShader = `
   uniform float uTime;
   uniform float uFormationProgress;
   uniform vec3 uTargetPosition;
   uniform float uWidth;
   uniform float uHeight;
+  uniform float uScale;
   
   attribute vec3 aTargetLocal;
   attribute float aDelay;
@@ -52,49 +55,47 @@ const cardVertexShader = `
     vLocalPos = aTargetLocal.xy;
     
     vec3 targetPos = uTargetPosition + vec3(
-      aTargetLocal.x * uWidth,
-      aTargetLocal.y * uHeight,
+      aTargetLocal.x * uWidth * uScale,
+      aTargetLocal.y * uHeight * uScale,
       0.0
     );
     
-    float typeDelay = aParticleType * 0.08;
-    float delayedProgress = clamp((uFormationProgress - aDelay * 0.15 - typeDelay) / 0.7, 0.0, 1.0);
+    float typeDelay = aParticleType * 0.06;
+    float delayedProgress = clamp((uFormationProgress - aDelay * 0.12 - typeDelay) / 0.7, 0.0, 1.0);
     delayedProgress = smoothstep(0.0, 1.0, delayedProgress);
     delayedProgress = delayedProgress * delayedProgress * (3.0 - 2.0 * delayedProgress);
     
-    vec3 pos = mix(position, targetPos, delayedProgress);
+    vec3 pos;
     
-    if (delayedProgress > 0.95) {
-      float driftAmount = 0.002;
-      pos += vec3(
-        sin(uTime * 2.0 + aDelay * 10.0) * driftAmount,
-        cos(uTime * 1.5 + aDelay * 8.0) * driftAmount,
-        0.0
-      );
+    // PERFECT LOCK: When fully formed, particles snap to exact positions
+    if (delayedProgress >= 0.99) {
+      pos = targetPos;
+    } else {
+      pos = mix(position, targetPos, delayedProgress);
     }
     
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    float baseSize = 0.6;
-    if (aParticleType < 0.5) baseSize = 1.0;
-    else if (aParticleType > 1.5 && aParticleType < 2.5) baseSize = 1.2;
-    else if (aParticleType > 2.5) baseSize = 1.0;
+    float baseSize = 0.5;
+    if (aParticleType < 0.5) baseSize = 0.9;
+    else if (aParticleType > 1.5 && aParticleType < 2.5) baseSize = 1.0;
+    else if (aParticleType > 2.5) baseSize = 0.85;
     
-    gl_PointSize = (baseSize + delayedProgress * 0.2) * (100.0 / -mvPosition.z);
+    gl_PointSize = (baseSize + delayedProgress * 0.15) * uScale * (100.0 / -mvPosition.z);
     
     float borderDist = min(min(abs(aTargetLocal.x + 0.5), abs(aTargetLocal.x - 0.5)), 
                           min(abs(aTargetLocal.y + 0.5), abs(aTargetLocal.y - 0.5)));
     
     if (aParticleType < 0.5) {
-      vAlpha = 0.7 + delayedProgress * 0.2;
+      vAlpha = 0.65 + delayedProgress * 0.25;
     } else if (aParticleType < 1.5) {
       float edgeDist = 1.0 - borderDist * 2.0;
-      vAlpha = (0.2 + edgeDist * 0.3) * delayedProgress;
+      vAlpha = (0.15 + edgeDist * 0.25) * delayedProgress;
     } else if (aParticleType < 2.5) {
-      vAlpha = 0.8 + delayedProgress * 0.15;
+      vAlpha = 0.75 + delayedProgress * 0.2;
     } else {
-      vAlpha = 0.5 + delayedProgress * 0.2;
+      vAlpha = 0.45 + delayedProgress * 0.25;
     }
   }
 `;
@@ -118,22 +119,15 @@ const cardFragmentShader = `
     vec3 color = uColor;
     
     if (vParticleType < 0.5) {
-      color = uColor * 1.4 + vec3(0.1, 0.15, 0.2);
+      color = uColor * 1.3 + vec3(0.08, 0.12, 0.18);
     } else if (vParticleType < 1.5) {
       float gradientY = vLocalPos.y + 0.5;
-      color = mix(uColor * 0.5, uColor * 0.85, gradientY);
-      color += vec3(0.02, 0.03, 0.04);
+      color = mix(uColor * 0.45, uColor * 0.8, gradientY);
+      color += vec3(0.015, 0.025, 0.035);
     } else if (vParticleType < 2.5) {
-      color = vec3(0.35, 0.45, 0.55) + uColor * 0.25;
+      color = vec3(0.3, 0.4, 0.5) + uColor * 0.2;
     } else {
-      color = uColor * 0.75 + vec3(0.04, 0.06, 0.1);
-    }
-    
-    // Shimmer effect when fully formed
-    if (uFormationProgress > 0.9) {
-      float shimmer = sin(vLocalPos.x * 20.0 + uTime * 3.0) * 0.5 + 0.5;
-      shimmer *= sin(vLocalPos.y * 15.0 - uTime * 2.0) * 0.5 + 0.5;
-      color += vec3(0.03, 0.05, 0.08) * shimmer;
+      color = uColor * 0.7 + vec3(0.03, 0.05, 0.08);
     }
     
     gl_FragColor = vec4(color, alpha);
@@ -146,14 +140,14 @@ const createCardParticles = (count: number) => {
   const delays = new Float32Array(count);
   const particleTypes = new Float32Array(count);
   
-  const borderCount = Math.floor(count * 0.3);
-  const interiorCount = Math.floor(count * 0.5);
+  const borderCount = Math.floor(count * 0.35);
+  const interiorCount = Math.floor(count * 0.45);
   const highlightCount = Math.floor(count * 0.12);
   const glowCount = count - borderCount - interiorCount - highlightCount;
   
   let idx = 0;
   
-  // Border particles - dense outline
+  // Border particles - PERFECT aligned outline
   for (let i = 0; i < borderCount; i++) {
     const t = i / borderCount;
     let x, y;
@@ -171,43 +165,35 @@ const createCardParticles = (count: number) => {
       x = -0.5; y = -0.5 + (pos - 3);
     }
     
-    x += (Math.random() - 0.5) * 0.015;
-    y += (Math.random() - 0.5) * 0.015;
-    
+    // NO random offset for perfect alignment
     setParticle(idx, x, y, 0, positions, targetLocal, delays, particleTypes);
     idx++;
   }
   
-  // Interior particles - glassmorphic fill
+  // Interior particles - aligned grid pattern
+  const gridSize = Math.floor(Math.sqrt(interiorCount));
   for (let i = 0; i < interiorCount; i++) {
-    let x = (Math.random() - 0.5) * 0.92;
-    let y = (Math.random() - 0.5) * 0.92;
-    
-    // Bias toward edges
-    if (Math.random() < 0.35) {
-      if (Math.random() < 0.5) {
-        x = x > 0 ? 0.32 + Math.random() * 0.12 : -0.32 - Math.random() * 0.12;
-      } else {
-        y = y > 0 ? 0.32 + Math.random() * 0.12 : -0.32 - Math.random() * 0.12;
-      }
-    }
+    const gx = (i % gridSize) / gridSize;
+    const gy = Math.floor(i / gridSize) / gridSize;
+    const x = (gx - 0.5) * 0.88;
+    const y = (gy - 0.5) * 0.88;
     
     setParticle(idx, x, y, 1, positions, targetLocal, delays, particleTypes);
     idx++;
   }
   
-  // Top highlight
+  // Top highlight - aligned horizontal line
   for (let i = 0; i < highlightCount; i++) {
-    const x = (Math.random() - 0.5) * 0.88;
-    const y = 0.44 + Math.random() * 0.04;
+    const x = (i / highlightCount - 0.5) * 0.88;
+    const y = 0.44;
     setParticle(idx, x, y, 2, positions, targetLocal, delays, particleTypes);
     idx++;
   }
   
-  // Bottom glow
+  // Bottom glow - aligned horizontal line
   for (let i = 0; i < glowCount; i++) {
-    const x = (Math.random() - 0.5) * 0.85;
-    const y = -0.44 - Math.random() * 0.04;
+    const x = (i / glowCount - 0.5) * 0.85;
+    const y = -0.44;
     setParticle(idx, x, y, 3, positions, targetLocal, delays, particleTypes);
     idx++;
   }
@@ -224,7 +210,7 @@ const setParticle = (
   
   const theta = Math.random() * Math.PI * 2;
   const phi = Math.acos(2 * Math.random() - 1);
-  const r = 3 + Math.random() * 5;
+  const r = 2 + Math.random() * 4;
   
   positions[i3] = r * Math.sin(phi) * Math.cos(theta);
   positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
@@ -245,13 +231,21 @@ export const ParticleCard = ({
   height,
   card,
   particleCount = 8000,
+  onExpand,
 }: ParticleCardProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const [formationProgress, setFormationProgress] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
   const targetProgressRef = useRef(0);
+  const scaleRef = useRef(1);
   
   const Icon = iconMap[card.type] || FileText;
+
+  const handleClick = useCallback(() => {
+    setIsExpanded(prev => !prev);
+    onExpand?.(card.id);
+  }, [card.id, onExpand]);
 
   useEffect(() => {
     targetProgressRef.current = visible ? 1 : 0;
@@ -279,6 +273,7 @@ export const ParticleCard = ({
         uTargetPosition: { value: new THREE.Vector3(...position) },
         uWidth: { value: width },
         uHeight: { value: height },
+        uScale: { value: 1 },
         uColor: { value: new THREE.Vector3(0.08, 0.25, 0.4) },
       },
       transparent: true,
@@ -300,15 +295,20 @@ export const ParticleCard = ({
     );
     setFormationProgress(newProgress);
 
+    // Animate scale for expansion
+    const targetScale = isExpanded ? 1.4 : 1;
+    scaleRef.current = THREE.MathUtils.lerp(scaleRef.current, targetScale, delta * 5);
+
     materialRef.current.uniforms.uTime.value = time;
     materialRef.current.uniforms.uFormationProgress.value = newProgress;
+    materialRef.current.uniforms.uScale.value = scaleRef.current;
   });
 
   if (formationProgress < 0.01 && !visible) return null;
 
-  // Calculate screen position for HTML overlay
   const screenWidth = width * 100;
   const screenHeight = height * 100;
+  const currentScale = scaleRef.current;
 
   return (
     <group>
@@ -317,30 +317,31 @@ export const ParticleCard = ({
         <primitive object={material} ref={materialRef} attach="material" />
       </points>
       
-      {/* HTML content overlay - appears when formation is mostly complete */}
+      {/* HTML content overlay */}
       {formationProgress > 0.7 && (
         <Html
           position={position}
           center
           style={{
-            width: `${screenWidth}px`,
+            width: `${screenWidth * currentScale}px`,
             opacity: Math.pow((formationProgress - 0.7) / 0.3, 0.5),
             pointerEvents: formationProgress > 0.95 ? 'auto' : 'none',
-            transition: 'opacity 0.2s ease-out',
+            transition: 'width 0.3s ease-out, opacity 0.2s ease-out',
+            cursor: 'pointer',
           }}
         >
           <div 
-            className="rounded-2xl p-3 overflow-hidden border border-primary/30"
+            onClick={handleClick}
+            className="rounded-2xl p-3 overflow-hidden border border-primary/30 relative transition-all duration-300 hover:border-primary/50 hover:shadow-lg"
             style={{
-              width: `${screenWidth}px`,
-              minHeight: `${screenHeight}px`,
-              background: 'linear-gradient(135deg, hsl(var(--glass-bg) / 0.85) 0%, hsl(var(--glass-bg) / 0.6) 50%, hsl(var(--glass-bg) / 0.85) 100%)',
+              width: `${screenWidth * currentScale}px`,
+              minHeight: `${screenHeight * currentScale}px`,
+              background: 'linear-gradient(135deg, hsl(var(--glass-bg) / 0.9) 0%, hsl(var(--glass-bg) / 0.65) 50%, hsl(var(--glass-bg) / 0.9) 100%)',
               backdropFilter: 'blur(12px)',
-              boxShadow: `
-                0 0 30px hsl(var(--primary) / 0.15),
-                0 15px 30px hsl(var(--background) / 0.4),
-                inset 0 1px 0 hsl(var(--foreground) / 0.12)
-              `,
+              boxShadow: isExpanded 
+                ? `0 0 50px hsl(var(--primary) / 0.25), 0 20px 40px hsl(var(--background) / 0.5), inset 0 1px 0 hsl(var(--foreground) / 0.15)`
+                : `0 0 30px hsl(var(--primary) / 0.15), 0 15px 30px hsl(var(--background) / 0.4), inset 0 1px 0 hsl(var(--foreground) / 0.12)`,
+              transform: `scale(${isExpanded ? 1.02 : 1})`,
             }}
           >
             {/* Top highlight */}
@@ -353,19 +354,43 @@ export const ParticleCard = ({
             
             {/* Header */}
             <div className="flex items-center gap-2.5 mb-2">
-              <div className="w-7 h-7 rounded-lg bg-primary/25 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-primary/25 flex items-center justify-center shrink-0">
                 <Icon className="w-3.5 h-3.5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-xs font-medium text-foreground truncate">{card.title}</h3>
                 <p className="text-[10px] text-muted-foreground truncate">{card.subtitle}</p>
               </div>
+              {isExpanded && (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
+                  className="w-5 h-5 rounded-full bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors"
+                >
+                  <X className="w-3 h-3 text-muted-foreground" />
+                </button>
+              )}
             </div>
 
             {/* Content */}
-            <p className="text-[10px] text-muted-foreground/85 leading-relaxed line-clamp-2">
+            <p className={`text-[10px] text-muted-foreground/85 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
               {card.content}
             </p>
+
+            {/* Expanded content */}
+            {isExpanded && card.expandedContent && (
+              <div className="mt-2 pt-2 border-t border-border/30">
+                <p className="text-[10px] text-muted-foreground/75 leading-relaxed">
+                  {card.expandedContent}
+                </p>
+              </div>
+            )}
+
+            {/* Click hint when not expanded */}
+            {!isExpanded && formationProgress > 0.95 && (
+              <p className="text-[8px] text-muted-foreground/50 mt-1.5 text-center">
+                Click to expand
+              </p>
+            )}
 
             {/* Bottom glow */}
             <div 

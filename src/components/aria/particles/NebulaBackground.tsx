@@ -8,13 +8,12 @@ interface NebulaBackgroundProps {
   audioLevel: number;
 }
 
-// Cosmic gas stream shader - soft, flowing nebula wisps
+// Optimized cosmic gas stream shader
 const gasStreamVertexShader = `
   uniform float uTime;
   uniform float uAudioLevel;
   uniform float uDriftSpeed;
   
-  attribute float aStreamIndex;
   attribute float aProgress;
   attribute float aRandomness;
   attribute vec3 aCurveDirection;
@@ -25,41 +24,32 @@ const gasStreamVertexShader = `
   void main() {
     vec3 pos = position;
     
-    // Slow, organic drift along curve direction
-    float driftPhase = uTime * uDriftSpeed * (0.1 + aRandomness * 0.1);
-    float driftAmount = sin(driftPhase + aProgress * 6.28) * 0.5;
-    
+    // Simplified drift
+    float driftPhase = uTime * uDriftSpeed * 0.12;
+    float driftAmount = sin(driftPhase + aProgress * 6.28) * 0.4;
     pos += aCurveDirection * driftAmount;
     
-    // Perpendicular wave motion for gas cloud effect
-    vec3 perpendicular = cross(aCurveDirection, vec3(0.0, 1.0, 0.0));
-    if (length(perpendicular) < 0.1) {
-      perpendicular = cross(aCurveDirection, vec3(1.0, 0.0, 0.0));
-    }
-    perpendicular = normalize(perpendicular);
+    // Gentle wave
+    vec3 perp = normalize(cross(aCurveDirection, vec3(0.0, 1.0, 0.0)));
+    float wave = sin(aProgress * 6.0 + uTime * 0.4) * 0.15;
+    pos += perp * wave;
     
-    float wave = sin(aProgress * 8.0 + uTime * 0.5 + aRandomness * 6.28) * 0.2;
-    pos += perpendicular * wave;
-    
-    // Gentle expansion with audio
-    pos *= 1.0 + uAudioLevel * 0.03;
+    pos *= 1.0 + uAudioLevel * 0.025;
     
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Very soft, large particles for gas effect
-    float size = 0.8 + aRandomness * 1.2;
-    gl_PointSize = size * (120.0 / -mvPosition.z);
+    float size = 0.6 + aRandomness * 0.9;
+    gl_PointSize = size * (100.0 / -mvPosition.z);
     
-    // Fade based on distance and progress
-    float distFade = 1.0 - smoothstep(3.0, 7.0, length(pos));
-    float streamFade = sin(aProgress * 3.14159) * 0.8 + 0.2;
-    vAlpha = distFade * streamFade * 0.25;
+    float distFade = 1.0 - smoothstep(2.5, 6.0, length(pos));
+    float streamFade = sin(aProgress * 3.14159) * 0.7 + 0.3;
+    vAlpha = distFade * streamFade * 0.2;
     
-    // Deep purple/magenta nebula colors
-    vec3 colorDeep = vec3(0.08, 0.02, 0.15);
-    vec3 colorMid = vec3(0.2, 0.05, 0.25);
-    vec3 colorBright = vec3(0.35, 0.1, 0.4);
+    // Purple/magenta colors
+    vec3 colorDeep = vec3(0.06, 0.015, 0.12);
+    vec3 colorMid = vec3(0.18, 0.04, 0.22);
+    vec3 colorBright = vec3(0.3, 0.08, 0.35);
     
     float colorMix = aRandomness;
     if (colorMix < 0.33) {
@@ -70,8 +60,7 @@ const gasStreamVertexShader = `
       vColor = mix(colorBright, colorDeep, (colorMix - 0.66) * 3.0);
     }
     
-    // Subtle blue tint from audio
-    vColor += vec3(0.0, 0.02, 0.05) * uAudioLevel;
+    vColor += vec3(0.0, 0.015, 0.04) * uAudioLevel;
   }
 `;
 
@@ -83,14 +72,13 @@ const gasStreamFragmentShader = `
     float dist = length(gl_PointCoord - vec2(0.5));
     if (dist > 0.5) discard;
     
-    // Very soft falloff for cloud-like appearance
-    float alpha = pow(1.0 - dist * 2.0, 0.5) * vAlpha;
+    float alpha = pow(1.0 - dist * 2.0, 0.6) * vAlpha;
     
     gl_FragColor = vec4(vColor, alpha);
   }
 `;
 
-// Star field shader
+// Optimized star field shader
 const starVertexShader = `
   uniform float uTime;
   
@@ -104,12 +92,11 @@ const starVertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Twinkle effect
-    float twinkle = sin(uTime * 2.0 + aTwinklePhase * 6.28) * 0.3 + 0.7;
+    float twinkle = sin(uTime * 1.5 + aTwinklePhase * 6.28) * 0.25 + 0.75;
     
-    gl_PointSize = (aBrightness * 1.5 + 0.5) * twinkle * (80.0 / -mvPosition.z);
+    gl_PointSize = (aBrightness * 1.2 + 0.4) * twinkle * (70.0 / -mvPosition.z);
     
-    vAlpha = aBrightness * twinkle * 0.8;
+    vAlpha = aBrightness * twinkle * 0.7;
     vBrightness = aBrightness;
   }
 `;
@@ -122,19 +109,17 @@ const starFragmentShader = `
     float dist = length(gl_PointCoord - vec2(0.5));
     if (dist > 0.5) discard;
     
-    // Sharp core with soft glow
-    float core = 1.0 - smoothstep(0.0, 0.15, dist);
-    float glow = 1.0 - smoothstep(0.1, 0.5, dist);
-    float alpha = (core * 0.8 + glow * 0.2) * vAlpha;
+    float core = 1.0 - smoothstep(0.0, 0.12, dist);
+    float glow = 1.0 - smoothstep(0.08, 0.5, dist);
+    float alpha = (core * 0.75 + glow * 0.25) * vAlpha;
     
-    // White-ish blue stars
-    vec3 color = vec3(0.8, 0.85, 1.0) * vBrightness + vec3(0.2, 0.15, 0.3);
+    vec3 color = vec3(0.75, 0.8, 0.95) * vBrightness + vec3(0.18, 0.12, 0.25);
     
     gl_FragColor = vec4(color, alpha);
   }
 `;
 
-// Bright nebula cores shader
+// Optimized nebula cores shader
 const coreVertexShader = `
   uniform float uTime;
   uniform float uAudioLevel;
@@ -148,19 +133,17 @@ const coreVertexShader = `
   void main() {
     vec3 pos = position;
     
-    // Gentle pulsing
-    float pulse = sin(uTime * 0.8 + aPhase * 6.28) * 0.1 + 1.0;
+    float pulse = sin(uTime * 0.6 + aPhase * 6.28) * 0.08 + 1.0;
     pos *= pulse;
     
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    gl_PointSize = aSize * (1.0 + uAudioLevel * 0.3) * (150.0 / -mvPosition.z);
+    gl_PointSize = aSize * (1.0 + uAudioLevel * 0.25) * (120.0 / -mvPosition.z);
     
-    vAlpha = 0.5 + sin(uTime * 1.2 + aPhase * 3.14) * 0.2;
+    vAlpha = 0.45 + sin(uTime * 1.0 + aPhase * 3.14) * 0.18;
     
-    // Bright purple/pink cores
-    vColor = vec3(0.5, 0.2, 0.6) + vec3(0.2, 0.1, 0.2) * uAudioLevel;
+    vColor = vec3(0.45, 0.18, 0.55) + vec3(0.15, 0.08, 0.15) * uAudioLevel;
   }
 `;
 
@@ -172,13 +155,11 @@ const coreFragmentShader = `
     float dist = length(gl_PointCoord - vec2(0.5));
     if (dist > 0.5) discard;
     
-    // Soft glow falloff
-    float alpha = pow(1.0 - dist * 2.0, 1.2) * vAlpha;
+    float alpha = pow(1.0 - dist * 2.0, 1.1) * vAlpha;
     
-    // Brighter center
     vec3 color = vColor;
-    if (dist < 0.2) {
-      color += vec3(0.2, 0.15, 0.3);
+    if (dist < 0.18) {
+      color += vec3(0.18, 0.12, 0.25);
     }
     
     gl_FragColor = vec4(color, alpha);
@@ -195,24 +176,21 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
   
   const smoothAudioRef = useRef(0);
 
-  // Cosmic gas streams - organic flowing shapes
+  // OPTIMIZED: Reduced from 75k to 20k particles
   const gasGeometry = useMemo(() => {
-    const streamCount = 25;
-    const particlesPerStream = 3000;
+    const streamCount = 18;
+    const particlesPerStream = 1100;
     const totalParticles = streamCount * particlesPerStream;
     
     const positions = new Float32Array(totalParticles * 3);
-    const streamIndices = new Float32Array(totalParticles);
     const progresses = new Float32Array(totalParticles);
     const randomness = new Float32Array(totalParticles);
     const curveDirections = new Float32Array(totalParticles * 3);
     
     for (let s = 0; s < streamCount; s++) {
-      // Each stream is a curved wisp emanating outward
-      const baseTheta = (s / streamCount) * Math.PI * 2 + Math.random() * 0.5;
+      const baseTheta = (s / streamCount) * Math.PI * 2 + Math.random() * 0.4;
       const basePhi = Math.acos(2 * Math.random() - 1);
       
-      // Stream curve direction
       const dirX = Math.sin(basePhi) * Math.cos(baseTheta);
       const dirY = Math.sin(basePhi) * Math.sin(baseTheta);
       const dirZ = Math.cos(basePhi);
@@ -222,10 +200,9 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
         const i3 = idx * 3;
         
         const progress = p / particlesPerStream;
-        const radius = 1.2 + progress * 4.5; // Streams extend outward
+        const radius = 1.0 + progress * 4.0;
         
-        // Position along curved stream with spread
-        const spread = 0.3 + progress * 0.8;
+        const spread = 0.25 + progress * 0.7;
         const offsetTheta = (Math.random() - 0.5) * spread;
         const offsetPhi = (Math.random() - 0.5) * spread;
         
@@ -236,7 +213,6 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
         positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
         positions[i3 + 2] = radius * Math.cos(phi);
         
-        streamIndices[idx] = s;
         progresses[idx] = progress;
         randomness[idx] = Math.random();
         
@@ -248,7 +224,6 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
     
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute("aStreamIndex", new THREE.BufferAttribute(streamIndices, 1));
     geo.setAttribute("aProgress", new THREE.BufferAttribute(progresses, 1));
     geo.setAttribute("aRandomness", new THREE.BufferAttribute(randomness, 1));
     geo.setAttribute("aCurveDirection", new THREE.BufferAttribute(curveDirections, 3));
@@ -256,9 +231,9 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
     return geo;
   }, []);
 
-  // Background star field
+  // OPTIMIZED: Reduced from 3k to 1.5k stars
   const starsGeometry = useMemo(() => {
-    const count = 3000;
+    const count = 1500;
     const positions = new Float32Array(count * 3);
     const brightness = new Float32Array(count);
     const twinklePhases = new Float32Array(count);
@@ -266,16 +241,15 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
       
-      // Distant stars distributed in a shell
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 6 + Math.random() * 4;
+      const r = 5 + Math.random() * 4;
       
       positions[i3] = r * Math.sin(phi) * Math.cos(theta);
       positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       positions[i3 + 2] = r * Math.cos(phi);
       
-      brightness[i] = 0.3 + Math.random() * 0.7;
+      brightness[i] = 0.25 + Math.random() * 0.75;
       twinklePhases[i] = Math.random();
     }
     
@@ -287,9 +261,9 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
     return geo;
   }, []);
 
-  // Bright nebula cores
+  // OPTIMIZED: Reduced from 40 to 20 cores
   const coresGeometry = useMemo(() => {
-    const count = 40;
+    const count = 20;
     const positions = new Float32Array(count * 3);
     const phases = new Float32Array(count);
     const sizes = new Float32Array(count);
@@ -299,14 +273,14 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
       
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 1.5 + Math.random() * 3.5;
+      const r = 1.3 + Math.random() * 3.0;
       
       positions[i3] = r * Math.sin(phi) * Math.cos(theta);
       positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       positions[i3 + 2] = r * Math.cos(phi);
       
       phases[i] = Math.random();
-      sizes[i] = 2.0 + Math.random() * 3.0;
+      sizes[i] = 1.8 + Math.random() * 2.5;
     }
     
     const geo = new THREE.BufferGeometry();
@@ -324,7 +298,7 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
       uniforms: {
         uTime: { value: 0 },
         uAudioLevel: { value: 0 },
-        uDriftSpeed: { value: 0.3 },
+        uDriftSpeed: { value: 0.25 },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -361,14 +335,13 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
 
   useFrame((frameState) => {
     const time = frameState.clock.elapsedTime;
-    smoothAudioRef.current = THREE.MathUtils.lerp(smoothAudioRef.current, audioLevel, 0.1);
+    smoothAudioRef.current = THREE.MathUtils.lerp(smoothAudioRef.current, audioLevel, 0.08);
 
-    // State-based drift speed
-    let driftSpeed = 0.3;
+    let driftSpeed = 0.25;
     switch (state) {
-      case "listening": driftSpeed = 0.4; break;
-      case "thinking": driftSpeed = 0.6; break;
-      case "speaking": driftSpeed = 0.5; break;
+      case "listening": driftSpeed = 0.35; break;
+      case "thinking": driftSpeed = 0.5; break;
+      case "speaking": driftSpeed = 0.42; break;
     }
 
     if (gasMaterialRef.current) {
@@ -377,7 +350,7 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
       gasMaterialRef.current.uniforms.uDriftSpeed.value = THREE.MathUtils.lerp(
         gasMaterialRef.current.uniforms.uDriftSpeed.value,
         driftSpeed,
-        0.05
+        0.04
       );
     }
 
@@ -398,12 +371,12 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
         <primitive object={starsMaterial} ref={starsMaterialRef} attach="material" />
       </points>
       
-      {/* Flowing cosmic gas streams */}
+      {/* Cosmic gas streams */}
       <points ref={gasRef} geometry={gasGeometry}>
         <primitive object={gasMaterial} ref={gasMaterialRef} attach="material" />
       </points>
       
-      {/* Bright nebula cores */}
+      {/* Nebula cores */}
       <points ref={coresRef} geometry={coresGeometry}>
         <primitive object={coresMaterial} ref={coresMaterialRef} attach="material" />
       </points>

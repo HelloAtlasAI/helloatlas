@@ -26,7 +26,7 @@ interface VariantVisualizationProps {
   className?: string;
 }
 
-// Demo card data for particle cards
+// Demo card data for particle cards with expanded content
 const demoCards: CardData[] = [
   {
     id: "1",
@@ -34,6 +34,7 @@ const demoCards: CardData[] = [
     title: "3 Unread Emails",
     subtitle: "from today",
     content: "Meeting reminder from Sarah, Project update from Dev Team",
+    expandedContent: "• Sarah: Weekly sync meeting at 3pm\n• Dev Team: Sprint review completed\n• HR: Benefits enrollment deadline",
   },
   {
     id: "2",
@@ -41,6 +42,7 @@ const demoCards: CardData[] = [
     title: "Paris Flight",
     subtitle: "Dec 20, 2024",
     content: "Air France AF1234 departing at 10:30 AM. Gate B42.",
+    expandedContent: "Terminal 2E • Seat 14A • Check-in opens 24h before\nBaggage: 1x checked, 1x carry-on",
   },
   {
     id: "3",
@@ -48,6 +50,7 @@ const demoCards: CardData[] = [
     title: "AAPL Stock",
     subtitle: "+2.4% today",
     content: "Apple Inc. trading at $195.42. Market cap: $3.01T.",
+    expandedContent: "Day range: $192.15 - $196.80\n52-week: $164.08 - $199.62\nP/E Ratio: 31.2",
   },
   {
     id: "4",
@@ -55,6 +58,7 @@ const demoCards: CardData[] = [
     title: "Next Meeting",
     subtitle: "in 2 hours",
     content: "Product Review with Marketing Team. 3 attendees.",
+    expandedContent: "Attendees: Alex Chen, Maria Santos, Tom Wilson\nLocation: Conference Room B\nAgenda: Q4 campaign review",
   },
 ];
 

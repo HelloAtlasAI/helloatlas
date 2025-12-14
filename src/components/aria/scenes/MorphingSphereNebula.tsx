@@ -98,8 +98,8 @@ export const MorphingSphereNebula = ({
   const densityDivisor = 150 + (particleDensity / 100) * 200;
 
   const geometry = useMemo(() => {
-    // Massive particle count for ultra-dense nebula
-    const count = 400000;
+    // OPTIMIZED: Reduced from 400k to 80k particles
+    const count = 80000;
     const positions = new Float32Array(count * 3);
     const normals = new Float32Array(count * 3);
     const randomness = new Float32Array(count);
@@ -107,10 +107,10 @@ export const MorphingSphereNebula = ({
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
       
-      // Spherical distribution with gaussian falloff
+      // Spherical distribution - SMALLER sphere (0.55 vs 0.8)
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 0.8 * Math.pow(Math.random(), 0.3);
+      const r = 0.55 * Math.pow(Math.random(), 0.35);
       
       const x = r * Math.sin(phi) * Math.cos(theta);
       const y = r * Math.sin(phi) * Math.sin(theta);
