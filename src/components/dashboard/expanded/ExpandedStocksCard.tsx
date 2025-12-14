@@ -1,0 +1,271 @@
+import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { TrendingUp, TrendingDown, Search, Plus, Trash2, RefreshCw, Star, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { useStocks } from '@/hooks/useStocks';
+import { useWatchlist } from '@/hooks/useWatchlist';
+
+export const ExpandedStocksCard = () => {
+  const { stocks, isLoading, refetch } = useStocks();
+  const { watchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStock, setSelectedStock] = useState<string | null>(null);
+
+  const filteredStocks = useMemo(() => {
+    if (!searchQuery) return stocks;
+    return stocks.filter(s => 
+      s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [stocks, searchQuery]);
+
+  const watchlistSymbols = new Set(watchlist.map(w => w.symbol));
+
+  const formatChange = (change: number) => {
+    const sign = change >= 0 ? '+' : '';
+    return `${sign}${change.toFixed(2)}%`;
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(price);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const selected = selectedStock ? stocks.find(s => s.symbol === selectedStock) : null;
+
+  return (
+    <div className="flex h-[calc(100vh-140px)] gap-6">
+      {/* Left - Stock list */}
+      <div className="w-80 lg:w-96 flex-shrink-0 flex flex-col bg-card/50 rounded-2xl border border-border/50 overflow-hidden">
+        {/* Header */}
+        <div className="p-4 border-b border-border/50 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20">
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
+              </div>
+              <span className="text-sm font-medium text-foreground">Watchlist</span>
+            </div>
+            <button 
+              onClick={() => refetch()}
+              className="p-2 hover:bg-muted rounded-lg transition-colors"
+            >
+              <RefreshCw className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+          
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search stocks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm bg-muted/50 border border-border/50 rounded-lg text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-emerald-500/30"
+            />
+          </div>
+        </div>
+
+        {/* Stock list */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {filteredStocks.map((stock, i) => {
+            const isPositive = stock.change >= 0;
+            const isSelected = selectedStock === stock.symbol;
+            const isInWatchlist = watchlistSymbols.has(stock.symbol);
+            
+            return (
+              <motion.button
+                key={stock.symbol}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.03 }}
+                onClick={() => setSelectedStock(stock.symbol)}
+                className={`w-full text-left p-3 rounded-xl transition-all ${
+                  isSelected 
+                    ? 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30' 
+                    : 'hover:bg-muted/50 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${
+                      isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+                    }`}>
+                      {stock.symbol.slice(0, 2)}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm text-foreground">{stock.symbol}</div>
+                      <div className="text-xs text-muted-foreground truncate max-w-[120px]">
+                        {stock.name || 'Stock'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-foreground">
+                      {formatPrice(stock.price)}
+                    </div>
+                    <div className={`flex items-center gap-1 text-xs ${
+                      isPositive ? 'text-emerald-400' : 'text-red-400'
+                    }`}>
+                      {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                      {formatChange(stock.change)}
+                    </div>
+                  </div>
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Center - Chart & Details */}
+      <div className="flex-1 flex flex-col gap-6">
+        {selected ? (
+          <>
+            {/* Stock header */}
+            <div className="bg-card/50 rounded-2xl border border-border/50 p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-foreground">{selected.symbol}</h2>
+                    <button
+                      onClick={() => watchlistSymbols.has(selected.symbol) 
+                        ? removeFromWatchlist(selected.symbol) 
+                        : addToWatchlist(selected.symbol, selected.name || '')
+                      }
+                      className={`p-2 rounded-lg transition-colors ${
+                        watchlistSymbols.has(selected.symbol) 
+                          ? 'bg-amber-500/20 text-amber-400' 
+                          : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Star className={`w-4 h-4 ${watchlistSymbols.has(selected.symbol) ? 'fill-amber-400' : ''}`} />
+                    </button>
+                  </div>
+                  <p className="text-muted-foreground">{selected.name || 'Company Name'}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-foreground">
+                    {formatPrice(selected.price)}
+                  </div>
+                  <div className={`flex items-center justify-end gap-1 text-lg ${
+                    selected.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    {selected.change >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                    {formatChange(selected.change)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Chart placeholder */}
+            <div className="flex-1 bg-card/50 rounded-2xl border border-border/50 p-6">
+              <h3 className="text-sm font-medium text-muted-foreground mb-4">Price Chart</h3>
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center text-muted-foreground">
+                  <TrendingUp className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-sm">Interactive chart coming soon</p>
+                  <p className="text-xs mt-1">Connect a stock API to see real-time data</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { label: 'Open', value: formatPrice(selected.price * 0.99) },
+                { label: 'High', value: formatPrice(selected.price * 1.02) },
+                { label: 'Low', value: formatPrice(selected.price * 0.97) },
+                { label: 'Volume', value: '2.4M' },
+                { label: 'Mkt Cap', value: '$2.1T' },
+                { label: 'P/E Ratio', value: '28.5' },
+                { label: '52w High', value: formatPrice(selected.price * 1.15) },
+                { label: '52w Low', value: formatPrice(selected.price * 0.75) },
+              ].map((stat, i) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="bg-card/50 rounded-xl border border-border/50 p-4"
+                >
+                  <div className="text-xs text-muted-foreground mb-1">{stat.label}</div>
+                  <div className="text-sm font-medium text-foreground">{stat.value}</div>
+                </motion.div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-card/30 rounded-2xl border border-border/50">
+            <div className="text-center text-muted-foreground">
+              <TrendingUp className="w-16 h-16 mx-auto mb-4 opacity-30" />
+              <p className="text-lg">Select a stock to view details</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Right - Market overview */}
+      <div className="w-72 lg:w-80 flex-shrink-0 flex flex-col gap-4">
+        {/* Market indices */}
+        <div className="bg-card/50 rounded-2xl border border-border/50 p-4">
+          <h3 className="text-sm font-medium text-foreground mb-3">Market Indices</h3>
+          <div className="space-y-3">
+            {[
+              { name: 'S&P 500', value: '4,567.23', change: 0.45 },
+              { name: 'NASDAQ', value: '14,234.56', change: 0.82 },
+              { name: 'DOW', value: '35,123.45', change: -0.12 },
+            ].map((index) => (
+              <div key={index.name} className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                <div>
+                  <div className="text-sm font-medium text-foreground">{index.name}</div>
+                  <div className="text-xs text-muted-foreground">{index.value}</div>
+                </div>
+                <div className={`text-sm font-medium ${
+                  index.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                }`}>
+                  {formatChange(index.change)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Top movers */}
+        <div className="flex-1 bg-card/50 rounded-2xl border border-border/50 p-4 overflow-hidden flex flex-col">
+          <h3 className="text-sm font-medium text-foreground mb-3">Top Movers</h3>
+          <div className="flex-1 space-y-2 overflow-y-auto">
+            {stocks
+              .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+              .slice(0, 8)
+              .map((stock) => (
+                <button
+                  key={stock.symbol}
+                  onClick={() => setSelectedStock(stock.symbol)}
+                  className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors"
+                >
+                  <span className="text-sm font-medium text-foreground">{stock.symbol}</span>
+                  <span className={`text-sm ${
+                    stock.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    {formatChange(stock.change)}
+                  </span>
+                </button>
+              ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

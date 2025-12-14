@@ -1,272 +1,353 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { StickyNote, Plus, Trash2, Loader2, Check, X, Palette } from 'lucide-react';
+import { StickyNote, Plus, Trash2, Loader2, Check, X, Palette, Search, Clock, Pin, Archive, MoreVertical } from 'lucide-react';
 import { useNotes } from '@/hooks/useNotes';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 
-const colorMap: Record<string, { gradient: string; border: string; label: string }> = {
-  amber: { gradient: 'from-amber-500/20 to-orange-500/20', border: 'border-amber-500/30', label: 'Amber' },
-  blue: { gradient: 'from-blue-500/20 to-cyan-500/20', border: 'border-blue-500/30', label: 'Blue' },
-  violet: { gradient: 'from-violet-500/20 to-purple-500/20', border: 'border-violet-500/30', label: 'Violet' },
-  emerald: { gradient: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/30', label: 'Emerald' },
-  rose: { gradient: 'from-rose-500/20 to-pink-500/20', border: 'border-rose-500/30', label: 'Rose' },
+const colorMap: Record<string, { gradient: string; border: string; label: string; solid: string }> = {
+  amber: { gradient: 'from-amber-500/20 to-orange-500/20', border: 'border-amber-500/30', label: 'Amber', solid: 'bg-amber-500' },
+  blue: { gradient: 'from-blue-500/20 to-cyan-500/20', border: 'border-blue-500/30', label: 'Blue', solid: 'bg-blue-500' },
+  violet: { gradient: 'from-violet-500/20 to-purple-500/20', border: 'border-violet-500/30', label: 'Violet', solid: 'bg-violet-500' },
+  emerald: { gradient: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/30', label: 'Emerald', solid: 'bg-emerald-500' },
+  rose: { gradient: 'from-rose-500/20 to-pink-500/20', border: 'border-rose-500/30', label: 'Rose', solid: 'bg-rose-500' },
 };
+
+type SortOption = 'updated' | 'created' | 'title';
 
 export const ExpandedNotesCard = () => {
   const { notes, isLoading, addNote, updateNote, deleteNote } = useNotes();
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
   const [newColor, setNewColor] = useState('amber');
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
-  const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('updated');
+
+  const selectedNote = useMemo(() => 
+    notes.find(n => n.id === selectedNoteId),
+    [notes, selectedNoteId]
+  );
+
+  const filteredAndSortedNotes = useMemo(() => {
+    let filtered = notes.filter(note => 
+      note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (note.content && note.content.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+    
+    return filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'updated':
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+        case 'created':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'title':
+          return a.title.localeCompare(b.title);
+        default:
+          return 0;
+      }
+    });
+  }, [notes, searchQuery, sortBy]);
 
   const handleAddNote = async () => {
     if (!newTitle.trim()) return;
-    await addNote(newTitle, newContent, newColor);
+    const newNote = await addNote(newTitle, newContent, newColor);
     setNewTitle('');
     setNewContent('');
     setNewColor('amber');
     setIsAdding(false);
   };
 
-  const handleStartEdit = (note: any) => {
-    setEditingId(note.id);
-    setEditTitle(note.title);
-    setEditContent(note.content || '');
+  const handleSelectNote = (noteId: string) => {
+    const note = notes.find(n => n.id === noteId);
+    if (note) {
+      setSelectedNoteId(noteId);
+      setEditTitle(note.title);
+      setEditContent(note.content || '');
+    }
   };
 
-  const handleSaveEdit = async (id: string) => {
-    await updateNote(id, { title: editTitle, content: editContent });
-    setEditingId(null);
+  const handleSaveNote = async () => {
+    if (!selectedNoteId) return;
+    await updateNote(selectedNoteId, { title: editTitle, content: editContent });
   };
 
   const handleColorChange = async (id: string, color: string) => {
     await updateNote(id, { color });
-    setShowColorPicker(null);
   };
 
-  const getColorClasses = (color: string) => {
-    return colorMap[color] || colorMap.amber;
+  const handleDeleteNote = async (id: string) => {
+    await deleteNote(id);
+    if (selectedNoteId === id) {
+      setSelectedNoteId(null);
+    }
   };
 
-  const filteredNotes = notes.filter(note => 
-    note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (note.content && note.content.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const getColorClasses = (color: string) => colorMap[color] || colorMap.amber;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header with search and add */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20">
-            <StickyNote className="w-5 h-5 text-amber-400" />
+    <div className="flex h-[calc(100vh-140px)] gap-6">
+      {/* Left sidebar - Notes list */}
+      <div className="w-80 lg:w-96 flex-shrink-0 flex flex-col bg-card/50 rounded-2xl border border-border/50 overflow-hidden">
+        {/* Sidebar header */}
+        <div className="p-4 border-b border-border/50 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20">
+                <StickyNote className="w-4 h-4 text-amber-400" />
+              </div>
+              <span className="text-sm font-medium text-foreground">{notes.length} Notes</span>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsAdding(true)}
+              className="p-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+            </motion.button>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">All Notes</h2>
-            <p className="text-xs text-muted-foreground">{notes.length} notes total</p>
+          
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm bg-muted/50 border border-border/50 rounded-lg text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-amber-500/30"
+            />
+          </div>
+
+          {/* Sort options */}
+          <div className="flex items-center gap-1">
+            {(['updated', 'created', 'title'] as SortOption[]).map((option) => (
+              <button
+                key={option}
+                onClick={() => setSortBy(option)}
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                  sortBy === option 
+                    ? 'bg-amber-500/20 text-amber-400' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {option.charAt(0).toUpperCase() + option.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <input
-            type="text"
-            placeholder="Search notes..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-3 py-2 text-sm bg-muted/50 border border-border rounded-lg text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50"
-          />
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-400 bg-amber-500/10 rounded-lg hover:bg-amber-500/20 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Note
-          </motion.button>
+
+        {/* Notes list */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          <AnimatePresence>
+            {filteredAndSortedNotes.map((note) => {
+              const colors = getColorClasses(note.color);
+              const isSelected = selectedNoteId === note.id;
+              
+              return (
+                <motion.button
+                  key={note.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  onClick={() => handleSelectNote(note.id)}
+                  className={`w-full text-left p-3 rounded-xl transition-all ${
+                    isSelected 
+                      ? `bg-gradient-to-br ${colors.gradient} border ${colors.border}` 
+                      : 'hover:bg-muted/50 border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-2 h-2 rounded-full mt-1.5 ${colors.solid}`} />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-sm text-foreground truncate">{note.title}</h4>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                        {note.content || 'No content'}
+                      </p>
+                      <span className="text-xs text-muted-foreground/70 mt-2 block">
+                        {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true })}
+                      </span>
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </AnimatePresence>
+          
+          {filteredAndSortedNotes.length === 0 && !isAdding && (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              {searchQuery ? 'No notes match your search.' : 'No notes yet.'}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Add new note form */}
-      <AnimatePresence>
-        {isAdding && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -20, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className={`p-4 rounded-xl bg-gradient-to-br ${colorMap[newColor].gradient} border ${colorMap[newColor].border}`}>
-              <input
-                type="text"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Note title..."
-                className="w-full mb-3 bg-transparent text-foreground text-base font-medium placeholder:text-muted-foreground outline-none"
-                autoFocus
-              />
-              <textarea
-                value={newContent}
-                onChange={(e) => setNewContent(e.target.value)}
-                placeholder="Write your note..."
-                className="w-full h-24 bg-transparent text-foreground text-sm placeholder:text-muted-foreground outline-none resize-none"
-              />
-              
+      {/* Right panel - Note editor or add form */}
+      <div className="flex-1 flex flex-col bg-card/30 rounded-2xl border border-border/50 overflow-hidden">
+        <AnimatePresence mode="wait">
+          {isAdding ? (
+            <motion.div
+              key="add-form"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 flex flex-col p-6"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-foreground">New Note</h2>
+                <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-muted rounded-lg">
+                  <X className="w-5 h-5 text-muted-foreground" />
+                </button>
+              </div>
+
+              <div className={`flex-1 flex flex-col p-6 rounded-2xl bg-gradient-to-br ${colorMap[newColor].gradient} border ${colorMap[newColor].border}`}>
+                <input
+                  type="text"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="Note title..."
+                  className="w-full bg-transparent text-xl font-semibold text-foreground placeholder:text-muted-foreground outline-none mb-4"
+                  autoFocus
+                />
+                <textarea
+                  value={newContent}
+                  onChange={(e) => setNewContent(e.target.value)}
+                  placeholder="Start writing..."
+                  className="flex-1 w-full bg-transparent text-foreground placeholder:text-muted-foreground outline-none resize-none"
+                />
+              </div>
+
               {/* Color picker */}
-              <div className="flex items-center gap-2 mt-3 mb-4">
-                <span className="text-xs text-muted-foreground">Color:</span>
-                {Object.entries(colorMap).map(([color, styles]) => (
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Color:</span>
+                  {Object.entries(colorMap).map(([color, styles]) => (
+                    <button
+                      key={color}
+                      onClick={() => setNewColor(color)}
+                      className={`w-6 h-6 rounded-full ${styles.solid} border-2 ${
+                        newColor === color ? 'border-foreground scale-110' : 'border-transparent'
+                      } transition-all`}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-2">
                   <button
-                    key={color}
-                    onClick={() => setNewColor(color)}
-                    className={`w-6 h-6 rounded-full bg-gradient-to-br ${styles.gradient} border-2 ${
-                      newColor === color ? 'border-foreground' : 'border-transparent'
-                    } transition-all`}
-                  />
-                ))}
+                    onClick={() => setIsAdding(false)}
+                    className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleAddNote}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/30"
+                  >
+                    <Check className="w-4 h-4" />
+                    Create Note
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          ) : selectedNote ? (
+            <motion.div
+              key={`note-${selectedNote.id}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 flex flex-col"
+            >
+              {/* Editor header */}
+              <div className="flex items-center justify-between p-4 border-b border-border/50">
+                <div className="flex items-center gap-3">
+                  {Object.entries(colorMap).map(([color, styles]) => (
+                    <button
+                      key={color}
+                      onClick={() => handleColorChange(selectedNote.id, color)}
+                      className={`w-5 h-5 rounded-full ${styles.solid} border-2 ${
+                        selectedNote.color === color ? 'border-foreground scale-110' : 'border-transparent'
+                      } transition-all hover:scale-110`}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    Last edited {formatDistanceToNow(new Date(selectedNote.updated_at), { addSuffix: true })}
+                  </span>
+                  <button
+                    onClick={() => handleDeleteNote(selectedNote.id)}
+                    className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={handleAddNote}
-                  className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-foreground bg-primary/20 rounded-lg hover:bg-primary/30"
-                >
-                  <Check className="w-4 h-4" />
-                  Save
-                </button>
-                <button
-                  onClick={() => setIsAdding(false)}
-                  className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
+              {/* Editor body */}
+              <div className="flex-1 p-6 overflow-y-auto">
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onBlur={handleSaveNote}
+                  placeholder="Note title..."
+                  className="w-full bg-transparent text-2xl font-bold text-foreground placeholder:text-muted-foreground outline-none mb-4"
+                />
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  onBlur={handleSaveNote}
+                  placeholder="Start writing your note..."
+                  className="w-full min-h-[60vh] bg-transparent text-foreground placeholder:text-muted-foreground outline-none resize-none leading-relaxed"
+                />
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* Notes grid */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
-        </div>
-      ) : filteredNotes.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          {searchQuery ? 'No notes match your search.' : 'No notes yet. Click "New Note" to create one.'}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredNotes.map((note, i) => {
-            const colors = getColorClasses(note.color);
-            const isEditing = editingId === note.id;
-            
-            return (
-              <motion.div
-                key={note.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className={`group relative p-4 rounded-xl bg-gradient-to-br ${colors.gradient} border ${colors.border} transition-all hover:shadow-lg`}
+              {/* Editor footer */}
+              <div className="p-4 border-t border-border/50 flex items-center justify-between">
+                <div className="text-xs text-muted-foreground">
+                  Created {format(new Date(selectedNote.created_at), 'MMM d, yyyy')}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {editContent.length} characters
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 flex flex-col items-center justify-center text-muted-foreground"
+            >
+              <StickyNote className="w-16 h-16 mb-4 opacity-30" />
+              <p className="text-lg mb-2">Select a note to view</p>
+              <p className="text-sm">or create a new one</p>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setIsAdding(true)}
+                className="mt-4 flex items-center gap-2 px-4 py-2 text-sm font-medium bg-amber-500/10 text-amber-400 rounded-lg hover:bg-amber-500/20"
               >
-                {isEditing ? (
-                  <>
-                    <input
-                      type="text"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      className="w-full mb-2 bg-transparent text-foreground text-sm font-medium outline-none"
-                      autoFocus
-                    />
-                    <textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      className="w-full h-20 bg-transparent text-foreground text-sm outline-none resize-none"
-                    />
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => handleSaveEdit(note.id)}
-                        className="px-3 py-1 text-xs font-medium text-emerald-400 bg-emerald-500/20 rounded-lg"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="px-3 py-1 text-xs font-medium text-muted-foreground"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 
-                        className="font-medium text-foreground text-sm cursor-pointer hover:text-primary transition-colors"
-                        onClick={() => handleStartEdit(note)}
-                      >
-                        {note.title}
-                      </h4>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => setShowColorPicker(showColorPicker === note.id ? null : note.id)}
-                          className="p-1 hover:bg-foreground/10 rounded"
-                        >
-                          <Palette className="w-3 h-3 text-muted-foreground" />
-                        </button>
-                        <button
-                          onClick={() => deleteNote(note.id)}
-                          className="p-1 hover:bg-foreground/10 rounded"
-                        >
-                          <Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {/* Color picker dropdown */}
-                    <AnimatePresence>
-                      {showColorPicker === note.id && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          className="absolute top-12 right-4 flex gap-1 p-2 bg-card rounded-lg shadow-lg border border-border z-10"
-                        >
-                          {Object.keys(colorMap).map((color) => (
-                            <button
-                              key={color}
-                              onClick={() => handleColorChange(note.id, color)}
-                              className={`w-5 h-5 rounded-full bg-gradient-to-br ${colorMap[color].gradient} border ${
-                                note.color === color ? 'border-foreground' : 'border-transparent'
-                              }`}
-                            />
-                          ))}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                    
-                    <p 
-                      className="text-xs text-muted-foreground line-clamp-3 mb-3 cursor-pointer"
-                      onClick={() => handleStartEdit(note)}
-                    >
-                      {note.content || 'Click to add content...'}
-                    </p>
-                    <span className="text-xs text-muted-foreground/70">
-                      {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true })}
-                    </span>
-                  </>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
+                <Plus className="w-4 h-4" />
+                New Note
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };

@@ -20,7 +20,14 @@ import { NotesCard } from '@/components/dashboard/NotesCard';
 import { TasksCard } from '@/components/dashboard/TasksCard';
 import { NewsCard } from '@/components/dashboard/NewsCard';
 import { ConversationDrawer } from '@/components/dashboard/ConversationDrawer';
-import { ExpandedNotesCard, ExpandedTasksCard, ExpandedCalendarCard } from '@/components/dashboard/expanded';
+import { 
+  ExpandedNotesCard, 
+  ExpandedTasksCard, 
+  ExpandedCalendarCard,
+  ExpandedWeatherCard,
+  ExpandedStocksCard,
+  ExpandedNewsCard
+} from '@/components/dashboard/expanded';
 
 type AIState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -44,6 +51,22 @@ const cardVariants = {
 const getFocusedClasses = (cardName: string, focusedCard: string | null) => {
   if (focusedCard !== cardName) return '';
   return 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background rounded-2xl shadow-[0_0_30px_rgba(99,102,241,0.4)]';
+};
+
+// Get glow color for each card type
+const getGlowColor = (cardName: string) => {
+  const colors: Record<string, string> = {
+    notes: 'hsl(45, 93%, 47%, 0.2)',
+    tasks: 'hsl(217, 91%, 60%, 0.2)',
+    calendar: 'hsl(217, 91%, 60%, 0.2)',
+    weather: 'hsl(38, 92%, 50%, 0.2)',
+    stocks: 'hsl(160, 84%, 39%, 0.2)',
+    news: 'hsl(263, 70%, 50%, 0.2)',
+    email: 'hsl(220, 70%, 50%, 0.2)',
+    documents: 'hsl(200, 70%, 50%, 0.2)',
+    travel: 'hsl(280, 70%, 50%, 0.2)',
+  };
+  return colors[cardName] || 'hsl(var(--primary) / 0.15)';
 };
 
 const Dashboard = () => {
@@ -164,6 +187,22 @@ const Dashboard = () => {
 
   const userName = profile?.first_name || profile?.display_name;
 
+  // Render expanded card content
+  const renderExpandedContent = () => {
+    switch (expandedCard) {
+      case 'notes': return <ExpandedNotesCard />;
+      case 'tasks': return <ExpandedTasksCard />;
+      case 'calendar': return <ExpandedCalendarCard />;
+      case 'weather': return <ExpandedWeatherCard />;
+      case 'stocks': return <ExpandedStocksCard />;
+      case 'news': return <ExpandedNewsCard />;
+      case 'email': return <EmailCard />;
+      case 'documents': return <DocumentsCard />;
+      case 'travel': return <TravelCard />;
+      default: return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Ambient background effects */}
@@ -230,7 +269,7 @@ const Dashboard = () => {
             animate="visible"
             custom={1}
           >
-            <MorphableCard notch="bottom-right" notchSize={20}>
+            <MorphableCard notch="bottom-right" notchSize={20} enabled={false}>
               <WeatherCard onExpand={() => setExpandedCard('weather')} />
             </MorphableCard>
           </motion.div>
@@ -243,7 +282,7 @@ const Dashboard = () => {
             animate="visible"
             custom={2}
           >
-            <MorphableCard notch="bottom-left" notchSize={20}>
+            <MorphableCard notch="bottom-left" notchSize={20} enabled={false}>
               <TravelCard onExpand={() => setExpandedCard('travel')} />
             </MorphableCard>
           </motion.div>
@@ -270,7 +309,7 @@ const Dashboard = () => {
             <CalendarCard onExpand={() => setExpandedCard('calendar')} />
           </motion.div>
 
-          {/* Stocks - Wide, 2 columns, 2 rows with morphable corners */}
+          {/* Stocks - Wide, 2 columns, 2 rows */}
           <motion.div 
             className={`md:col-span-2 row-span-2 ${getFocusedClasses('stocks', focusedCard)}`}
             variants={cardVariants}
@@ -278,7 +317,7 @@ const Dashboard = () => {
             animate="visible"
             custom={5}
           >
-            <MorphableCard notch="top-left" notchSize={12}>
+            <MorphableCard notch="top-left" notchSize={12} enabled={false}>
               <StocksCard onExpand={() => setExpandedCard('stocks')} />
             </MorphableCard>
           </motion.div>
@@ -316,7 +355,7 @@ const Dashboard = () => {
             <NewsCard onExpand={() => setExpandedCard('news')} />
           </motion.div>
 
-          {/* Documents - Wide, 2 columns, 2 rows with morphable corner */}
+          {/* Documents - Wide, 2 columns, 2 rows */}
           <motion.div 
             className={`md:col-span-2 row-span-2 ${getFocusedClasses('documents', focusedCard)}`}
             variants={cardVariants}
@@ -324,7 +363,7 @@ const Dashboard = () => {
             animate="visible"
             custom={9}
           >
-            <MorphableCard notch="top-right" notchSize={10}>
+            <MorphableCard notch="top-right" notchSize={10} enabled={false}>
               <DocumentsCard onExpand={() => setExpandedCard('documents')} />
             </MorphableCard>
           </motion.div>
@@ -334,25 +373,9 @@ const Dashboard = () => {
               layoutId={`card-${expandedCard}`}
               onClose={() => setExpandedCard(null)}
               title={expandedCard.charAt(0).toUpperCase() + expandedCard.slice(1)}
-              size={['notes', 'tasks', 'calendar'].includes(expandedCard) ? 'large' : 'default'}
-              glowColor={
-                expandedCard === 'notes' ? 'rgba(245, 158, 11, 0.2)' :
-                expandedCard === 'tasks' ? 'rgba(59, 130, 246, 0.2)' :
-                expandedCard === 'calendar' ? 'rgba(59, 130, 246, 0.2)' :
-                'rgba(99, 102, 241, 0.15)'
-              }
+              glowColor={getGlowColor(expandedCard)}
             >
-              {/* Use expanded variants for notes, tasks, calendar */}
-              {expandedCard === 'notes' && <ExpandedNotesCard />}
-              {expandedCard === 'tasks' && <ExpandedTasksCard />}
-              {expandedCard === 'calendar' && <ExpandedCalendarCard />}
-              {/* Use regular cards for others */}
-              {expandedCard === 'weather' && <WeatherCard />}
-              {expandedCard === 'email' && <EmailCard />}
-              {expandedCard === 'stocks' && <StocksCard />}
-              {expandedCard === 'news' && <NewsCard />}
-              {expandedCard === 'documents' && <DocumentsCard />}
-              {expandedCard === 'travel' && <TravelCard />}
+              {renderExpandedContent()}
             </ExpandedCardView>
           )}
         </AnimatePresence>
