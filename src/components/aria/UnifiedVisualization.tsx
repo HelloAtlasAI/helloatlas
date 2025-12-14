@@ -34,12 +34,12 @@ export const UnifiedVisualization = ({
   const cameraConfig = useMemo(() => {
     switch (mode) {
       case "face":
-        // Camera closer to see larger face
-        return { position: [0, 0, 1.4] as [number, number, number], fov: 48 };
+        // Camera positioned for fullscreen face view
+        return { position: [0, 0, 2.2] as [number, number, number], fov: 55 };
       case "hybrid":
-        return { position: [0, 0, 1.8] as [number, number, number], fov: 50 };
+        return { position: [0, 0, 2.5] as [number, number, number], fov: 52 };
       default:
-        return { position: [0, 0, 2.4] as [number, number, number], fov: 52 };
+        return { position: [0, 0, 3] as [number, number, number], fov: 55 };
     }
   }, [mode]);
 
@@ -47,7 +47,7 @@ export const UnifiedVisualization = ({
     <div className={`w-full h-full ${className}`}>
       <Canvas
         camera={{ position: cameraConfig.position, fov: cameraConfig.fov }}
-        dpr={[1, 1.5]}
+        dpr={[1, 2]}
         gl={{
           antialias: true,
           alpha: true,
@@ -55,19 +55,49 @@ export const UnifiedVisualization = ({
           stencil: false,
           depth: true,
         }}
-        style={{ background: "transparent" }}
+        style={{ background: "linear-gradient(180deg, #050510 0%, #0a0a1a 50%, #0f0f25 100%)" }}
         performance={{ min: 0.5 }}
       >
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
         
-        {/* Shared lighting setup */}
-        <ambientLight intensity={0.15} />
-        <pointLight position={[0, 0, 3]} intensity={1.2} color="#00d4ff" distance={8} />
-        <pointLight position={[-2, 2, 2]} intensity={0.6} color="#00ff88" />
-        <pointLight position={[2, -1, 2]} intensity={0.4} color="#a855f7" />
+        {/* Enhanced lighting rig */}
+        {/* Key light - main illumination from front-top */}
+        <spotLight 
+          position={[0, 3, 4]} 
+          intensity={1.5} 
+          color="#ffffff"
+          angle={0.6}
+          penumbra={0.5}
+          distance={15}
+        />
+        
+        {/* Fill light - softer, from side */}
+        <pointLight position={[-3, 1, 3]} intensity={0.6} color="#00d4ff" distance={10} />
+        
+        {/* Rim light - dramatic backlight for edge definition */}
+        <pointLight position={[0, 0, -3]} intensity={1.2} color="#00ffaa" distance={8} />
+        
+        {/* Accent lights */}
+        <pointLight position={[3, 2, 2]} intensity={0.5} color="#a855f7" distance={8} />
+        <pointLight position={[-2, -2, 2]} intensity={0.4} color="#ec4899" distance={6} />
+        
+        {/* Subtle ambient */}
+        <ambientLight intensity={0.08} color="#001122" />
+        
+        {/* Face-specific spotlight */}
+        {mode === "face" && (
+          <spotLight 
+            position={[0, 0.5, 3]} 
+            intensity={2} 
+            color="#00d4ff"
+            angle={0.5}
+            penumbra={0.8}
+            distance={6}
+          />
+        )}
 
-        {/* Background layer - always visible, low opacity */}
+        {/* Background layer - always visible, immersive cosmic environment */}
         <Suspense fallback={<SceneLoader />}>
           <BackgroundScene state={state} />
         </Suspense>
