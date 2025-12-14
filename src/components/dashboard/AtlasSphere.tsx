@@ -34,9 +34,12 @@ const vertexShader = `
     float time = uTime * 0.4;
     vec3 pos = position;
     
+    // Normal calculation for morphing
+    vec3 norm = normalize(position);
+    
     // Gentle organic morphing
     float wave = sin(pos.x * 3.0 + time) * cos(pos.y * 3.0 + time * 0.7) * sin(pos.z * 3.0 + time * 0.5);
-    pos += normal * wave * uMorph * 0.15;
+    pos += norm * wave * uMorph * 0.15;
     
     // Audio reactivity - subtle pulse
     float audioEffect = 1.0 + uAudioLevel * 0.15;
@@ -92,9 +95,8 @@ interface SphereParticlesProps {
   scale: number;
 }
 
-const SphereParticles = memo(({ state, audioLevel, scale }: SphereParticlesProps) => {
+function SphereParticles({ state, audioLevel, scale }: SphereParticlesProps) {
   const pointsRef = useRef<THREE.Points>(null);
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
   const smoothAudioRef = useRef(0);
 
   const { geometry, material } = useMemo(() => {
@@ -138,7 +140,7 @@ const SphereParticles = memo(({ state, audioLevel, scale }: SphereParticlesProps
   }, []);
 
   useFrame((frameState) => {
-    if (!materialRef.current || !pointsRef.current) return;
+    if (!pointsRef.current) return;
 
     const time = frameState.clock.elapsedTime;
     smoothAudioRef.current = THREE.MathUtils.lerp(smoothAudioRef.current, audioLevel, 0.12);
@@ -162,23 +164,22 @@ const SphereParticles = memo(({ state, audioLevel, scale }: SphereParticlesProps
         break;
     }
 
-    const uniforms = materialRef.current.uniforms;
-    uniforms.uTime.value = time;
-    uniforms.uAudioLevel.value = smoothAudioRef.current;
-    uniforms.uMorph.value = THREE.MathUtils.lerp(uniforms.uMorph.value, morphTarget, 0.05);
+    material.uniforms.uTime.value = time;
+    material.uniforms.uAudioLevel.value = smoothAudioRef.current;
+    material.uniforms.uMorph.value = THREE.MathUtils.lerp(
+      material.uniforms.uMorph.value, 
+      morphTarget, 
+      0.05
+    );
 
     pointsRef.current.rotation.y += rotationSpeed;
     pointsRef.current.rotation.x = Math.sin(time * 0.2) * 0.1;
   });
 
   return (
-    <points ref={pointsRef} geometry={geometry} scale={scale}>
-      <primitive object={material} ref={materialRef} attach="material" />
-    </points>
+    <points ref={pointsRef} geometry={geometry} material={material} scale={scale} />
   );
-});
-
-SphereParticles.displayName = 'SphereParticles';
+}
 
 const AtlasSphereComponent = ({ 
   state, 
