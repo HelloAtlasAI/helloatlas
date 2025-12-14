@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NebulaOrb } from '@/components/dashboard/NebulaOrb';
 import { GlassmorphicCard } from '@/components/dashboard/GlassmorphicCard';
@@ -29,7 +29,7 @@ const miniCards = [
   { id: 'weather' as CardId, Component: WeatherCard, color: 'cyan', icon: Cloud, label: 'Weather' },
 ];
 
-export const AmbientLayout = ({
+const AmbientLayoutComponent = ({
   aiState,
   audioLevel,
   focusedCard,
@@ -140,3 +140,5 @@ export const AmbientLayout = ({
     </div>
   );
 };
+
+export const AmbientLayout = memo(AmbientLayoutComponent);

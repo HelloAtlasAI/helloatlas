@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { NebulaOrb } from '@/components/dashboard/NebulaOrb';
 import { GlassmorphicCard } from '@/components/dashboard/GlassmorphicCard';
@@ -27,7 +28,7 @@ const cards = [
   { id: 'weather' as CardId, Component: WeatherCard, color: 'cyan' },
 ];
 
-export const CommandCenterLayout = ({
+const CommandCenterLayoutComponent = ({
   aiState,
   audioLevel,
   focusedCard,
@@ -97,3 +98,5 @@ export const CommandCenterLayout = ({
     </div>
   );
 };
+
+export const CommandCenterLayout = memo(CommandCenterLayoutComponent);

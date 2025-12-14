@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { NebulaOrb } from '@/components/dashboard/NebulaOrb';
 import { GlassmorphicCard } from '@/components/dashboard/GlassmorphicCard';
@@ -30,7 +31,7 @@ const rightCards = [
   { id: 'weather' as CardId, Component: WeatherCard, color: 'cyan' },
 ];
 
-export const SplitViewLayout = ({
+const SplitViewLayoutComponent = ({
   aiState,
   audioLevel,
   focusedCard,
@@ -110,3 +111,5 @@ export const SplitViewLayout = ({
     </div>
   );
 };
+
+export const SplitViewLayout = memo(SplitViewLayoutComponent);
