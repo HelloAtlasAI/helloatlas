@@ -169,7 +169,7 @@ const Dashboard = () => {
       
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Mosaic Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[140px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 auto-rows-[140px]">
           {/* AI Assistant - Spans 2 columns, compact */}
           <motion.div 
             className="md:col-span-2 row-span-1"
