@@ -5,8 +5,8 @@ import { useStocks } from '@/hooks/useStocks';
 import { useWatchlist } from '@/hooks/useWatchlist';
 
 export const ExpandedStocksCard = () => {
-  const { stocks, isLoading, refetch } = useStocks();
-  const { watchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
+  const { watchlist, symbols, addSymbol, removeSymbol } = useWatchlist();
+  const { stocks, isLoading, refetch } = useStocks(symbols);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
 
@@ -82,7 +82,6 @@ export const ExpandedStocksCard = () => {
           {filteredStocks.map((stock, i) => {
             const isPositive = stock.change >= 0;
             const isSelected = selectedStock === stock.symbol;
-            const isInWatchlist = watchlistSymbols.has(stock.symbol);
             
             return (
               <motion.button
@@ -119,7 +118,7 @@ export const ExpandedStocksCard = () => {
                       isPositive ? 'text-emerald-400' : 'text-red-400'
                     }`}>
                       {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                      {formatChange(stock.change)}
+                      {formatChange(stock.changePercent)}
                     </div>
                   </div>
                 </div>
@@ -141,8 +140,8 @@ export const ExpandedStocksCard = () => {
                     <h2 className="text-2xl font-bold text-foreground">{selected.symbol}</h2>
                     <button
                       onClick={() => watchlistSymbols.has(selected.symbol) 
-                        ? removeFromWatchlist(selected.symbol) 
-                        : addToWatchlist(selected.symbol, selected.name || '')
+                        ? removeSymbol(selected.symbol) 
+                        : addSymbol(selected.symbol, selected.name || '')
                       }
                       className={`p-2 rounded-lg transition-colors ${
                         watchlistSymbols.has(selected.symbol) 
@@ -163,7 +162,7 @@ export const ExpandedStocksCard = () => {
                     selected.change >= 0 ? 'text-emerald-400' : 'text-red-400'
                   }`}>
                     {selected.change >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                    {formatChange(selected.change)}
+                    {formatChange(selected.changePercent)}
                   </div>
                 </div>
               </div>
@@ -247,7 +246,7 @@ export const ExpandedStocksCard = () => {
           <h3 className="text-sm font-medium text-foreground mb-3">Top Movers</h3>
           <div className="flex-1 space-y-2 overflow-y-auto">
             {stocks
-              .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+              .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
               .slice(0, 8)
               .map((stock) => (
                 <button
@@ -257,9 +256,9 @@ export const ExpandedStocksCard = () => {
                 >
                   <span className="text-sm font-medium text-foreground">{stock.symbol}</span>
                   <span className={`text-sm ${
-                    stock.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    stock.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'
                   }`}>
-                    {formatChange(stock.change)}
+                    {formatChange(stock.changePercent)}
                   </span>
                 </button>
               ))}
