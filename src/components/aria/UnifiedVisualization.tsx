@@ -8,11 +8,14 @@ import { AIState } from "./AIOrb";
 const CyberGridScene = lazy(() => import("./scenes/CyberGridScene").then(m => ({ default: m.CyberGridScene })));
 const DigitalFaceScene = lazy(() => import("./scenes/DigitalFaceScene").then(m => ({ default: m.DigitalFaceScene })));
 const HybridScene = lazy(() => import("./scenes/HybridScene").then(m => ({ default: m.HybridScene })));
-const NeuralBlobScene = lazy(() => import("./scenes/NeuralBlobScene").then(m => ({ default: m.NeuralBlobScene })));
 const BackgroundScene = lazy(() => import("./scenes/BackgroundScene").then(m => ({ default: m.BackgroundScene })));
 const HUDScene = lazy(() => import("./scenes/HUDScene").then(m => ({ default: m.HUDScene })));
+const NebulaCoreScene = lazy(() => import("./scenes/NebulaCoreScene").then(m => ({ default: m.NebulaCoreScene })));
+const OceanDepthScene = lazy(() => import("./scenes/OceanDepthScene").then(m => ({ default: m.OceanDepthScene })));
+const PlasmaStormScene = lazy(() => import("./scenes/PlasmaStormScene").then(m => ({ default: m.PlasmaStormScene })));
+const QuantumFieldScene = lazy(() => import("./scenes/QuantumFieldScene").then(m => ({ default: m.QuantumFieldScene })));
 
-export type VisualizationMode = "cyber" | "face" | "hybrid" | "neural";
+export type VisualizationMode = "cyber" | "face" | "hybrid" | "nebula" | "ocean" | "plasma" | "quantum";
 
 interface UnifiedVisualizationProps {
   mode: VisualizationMode;
@@ -38,7 +41,10 @@ export const UnifiedVisualization = ({
         return { position: [0, 0, 1.8] as [number, number, number], fov: 38 };
       case "hybrid":
         return { position: [0, 0, 2.2] as [number, number, number], fov: 42 };
-      case "neural":
+      case "nebula":
+      case "ocean":
+      case "plasma":
+      case "quantum":
         return { position: [0, 0, 6] as [number, number, number], fov: 55 };
       default:
         return { position: [0, 0, 2.8] as [number, number, number], fov: 50 };
@@ -155,13 +161,20 @@ export const UnifiedVisualization = ({
               isSpeaking={isSpeaking}
             />
           )}
-          {mode === "neural" && (
-            <NeuralBlobScene 
-              state={state} 
-              audioLevel={audioLevel}
-              isSpeaking={isSpeaking}
-            />
+          {mode === "nebula" && (
+            <NebulaCoreScene state={state} audioLevel={audioLevel} />
           )}
+          {mode === "ocean" && (
+            <OceanDepthScene state={state} audioLevel={audioLevel} />
+          )}
+          {mode === "plasma" && (
+            <PlasmaStormScene state={state} audioLevel={audioLevel} />
+          )}
+          {mode === "quantum" && (
+            <QuantumFieldScene state={state}
+            audioLevel={audioLevel}
+          />
+        )}
         </Suspense>
 
         {/* HUD overlay layer */}
