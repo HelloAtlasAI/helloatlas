@@ -20,6 +20,7 @@ import { NotesCard } from '@/components/dashboard/NotesCard';
 import { TasksCard } from '@/components/dashboard/TasksCard';
 import { NewsCard } from '@/components/dashboard/NewsCard';
 import { ConversationDrawer } from '@/components/dashboard/ConversationDrawer';
+import { ExpandedNotesCard, ExpandedTasksCard, ExpandedCalendarCard } from '@/components/dashboard/expanded';
 
 type AIState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -333,13 +334,22 @@ const Dashboard = () => {
               layoutId={`card-${expandedCard}`}
               onClose={() => setExpandedCard(null)}
               title={expandedCard.charAt(0).toUpperCase() + expandedCard.slice(1)}
+              size={['notes', 'tasks', 'calendar'].includes(expandedCard) ? 'large' : 'default'}
+              glowColor={
+                expandedCard === 'notes' ? 'rgba(245, 158, 11, 0.2)' :
+                expandedCard === 'tasks' ? 'rgba(59, 130, 246, 0.2)' :
+                expandedCard === 'calendar' ? 'rgba(59, 130, 246, 0.2)' :
+                'rgba(99, 102, 241, 0.15)'
+              }
             >
+              {/* Use expanded variants for notes, tasks, calendar */}
+              {expandedCard === 'notes' && <ExpandedNotesCard />}
+              {expandedCard === 'tasks' && <ExpandedTasksCard />}
+              {expandedCard === 'calendar' && <ExpandedCalendarCard />}
+              {/* Use regular cards for others */}
               {expandedCard === 'weather' && <WeatherCard />}
-              {expandedCard === 'calendar' && <CalendarCard />}
               {expandedCard === 'email' && <EmailCard />}
               {expandedCard === 'stocks' && <StocksCard />}
-              {expandedCard === 'tasks' && <TasksCard />}
-              {expandedCard === 'notes' && <NotesCard />}
               {expandedCard === 'news' && <NewsCard />}
               {expandedCard === 'documents' && <DocumentsCard />}
               {expandedCard === 'travel' && <TravelCard />}
