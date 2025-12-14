@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -100,9 +100,11 @@ export const useWatchlist = () => {
     fetchWatchlist();
   }, [fetchWatchlist]);
 
+  const symbols = useMemo(() => watchlist.map(w => w.symbol), [watchlist]);
+
   return {
     watchlist,
-    symbols: watchlist.map(w => w.symbol),
+    symbols,
     isLoading,
     error,
     addSymbol,

@@ -9,103 +9,169 @@ interface RainParticlesProps {
   color?: string;
 }
 
-export const RainParticles = ({
-  count = 2000,
-  intensity = 1,
-  speed = 0.5,
-  color = '#88ccff',
+export const RainParticles = ({ 
+  count = 800, 
+  intensity = 1, 
+  speed = 1,
+  color = '#a8c8e8'
 }: RainParticlesProps) => {
-  const meshRef = useRef<THREE.Points>(null);
+  const pointsRef = useRef<THREE.Points>(null);
 
-  const particles = useMemo(() => {
+  // Generate particle data
+  const { positions, velocities, sizes, phases } = useMemo(() => {
     const positions = new Float32Array(count * 3);
     const velocities = new Float32Array(count);
     const sizes = new Float32Array(count);
+    const phases = new Float32Array(count);
 
     for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 20;
-      positions[i * 3 + 1] = Math.random() * 15 - 5;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 10;
-      velocities[i] = 0.1 + Math.random() * 0.3;
-      sizes[i] = 0.02 + Math.random() * 0.03;
+      // Spread across viewport
+      positions[i * 3] = (Math.random() - 0.5) * 25;
+      positions[i * 3 + 1] = Math.random() * 15 - 2;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 15 - 5;
+
+      // Varied fall speeds for depth
+      velocities[i] = 8 + Math.random() * 6;
+      
+      // Larger drops in foreground, smaller in back
+      const depth = (positions[i * 3 + 2] + 10) / 20;
+      sizes[i] = (0.02 + Math.random() * 0.03) * (0.5 + depth * 0.5);
+      
+      phases[i] = Math.random() * Math.PI * 2;
     }
 
-    return { positions, velocities, sizes };
+    return { positions, velocities, sizes, phases };
   }, [count]);
 
-  useFrame((state, delta) => {
-    if (!meshRef.current) return;
-
-    const positions = meshRef.current.geometry.attributes.position.array as Float32Array;
-
-    for (let i = 0; i < count; i++) {
-      positions[i * 3 + 1] -= particles.velocities[i] * speed * intensity * 60 * delta;
-
-      if (positions[i * 3 + 1] < -5) {
-        positions[i * 3 + 1] = 10;
-        positions[i * 3] = (Math.random() - 0.5) * 20;
-        positions[i * 3 + 2] = (Math.random() - 0.5) * 10;
-      }
-    }
-
-    meshRef.current.geometry.attributes.position.needsUpdate = true;
-  });
-
+  // Shader material for realistic raindrops
   const shaderMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
       uniforms: {
         uColor: { value: new THREE.Color(color) },
-        uOpacity: { value: 0.6 * intensity },
+        uOpacity: { value: intensity * 0.4 },
+        uTime: { value: 0 }
       },
       vertexShader: `
         attribute float size;
-        varying float vAlpha;
+        attribute float velocity;
+        attribute float phase;
+        
+        varying float vVelocity;
+        varying float vDepth;
+        varying float vPhase;
         
         void main() {
-          vAlpha = size * 20.0;
+          vVelocity = velocity;
+          vPhase = phase;
+          
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = size * 100.0 * (300.0 / -mvPosition.z);
+          vDepth = -mvPosition.z;
+          
+          // Size attenuation with depth
+          float depthScale = 300.0 / -mvPosition.z;
+          gl_PointSize = size * depthScale * 100.0;
+          
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
       fragmentShader: `
         uniform vec3 uColor;
         uniform float uOpacity;
-        varying float vAlpha;
+        uniform float uTime;
+        
+        varying float vVelocity;
+        varying float vDepth;
+        varying float vPhase;
         
         void main() {
           vec2 center = gl_PointCoord - vec2(0.5);
+          
+          // Elongated raindrop shape with motion blur
+          float stretchFactor = 2.5 + vVelocity * 0.1;
+          center.y *= stretchFactor;
+          
           float dist = length(center);
           
-          // Elongated raindrop shape
-          float alpha = smoothstep(0.5, 0.0, dist) * uOpacity * vAlpha;
+          // Soft edges with Gaussian-like falloff
+          float alpha = exp(-dist * dist * 8.0);
           
-          gl_FragColor = vec4(uColor, alpha);
+          // Motion blur fade at edges
+          float motionBlur = 1.0 - abs(center.y) * 0.5;
+          alpha *= motionBlur;
+          
+          // Depth-based atmospheric fade
+          float atmosphericFade = clamp(1.0 - vDepth * 0.03, 0.3, 1.0);
+          alpha *= atmosphericFade;
+          
+          // Subtle shimmer
+          float shimmer = 0.9 + sin(uTime * 10.0 + vPhase) * 0.1;
+          
+          // Color with slight blue tint variation
+          vec3 finalColor = uColor * (0.9 + vDepth * 0.01);
+          
+          gl_FragColor = vec4(finalColor, alpha * uOpacity * shimmer);
         }
-      `,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
+      `
     });
   }, [color, intensity]);
 
+  useFrame((state, delta) => {
+    if (!pointsRef.current) return;
+
+    const time = state.clock.elapsedTime;
+    shaderMaterial.uniforms.uTime.value = time;
+
+    const positionArray = pointsRef.current.geometry.attributes.position.array as Float32Array;
+
+    for (let i = 0; i < count; i++) {
+      // Fall with velocity and speed multiplier
+      positionArray[i * 3 + 1] -= velocities[i] * delta * speed * intensity;
+
+      // Slight horizontal drift for realism
+      positionArray[i * 3] += Math.sin(time + phases[i]) * 0.01;
+
+      // Reset when below ground
+      if (positionArray[i * 3 + 1] < -3) {
+        positionArray[i * 3] = (Math.random() - 0.5) * 25;
+        positionArray[i * 3 + 1] = 12 + Math.random() * 3;
+        positionArray[i * 3 + 2] = (Math.random() - 0.5) * 15 - 5;
+      }
+    }
+
+    pointsRef.current.geometry.attributes.position.needsUpdate = true;
+  });
+
   return (
-    <points ref={meshRef}>
+    <points ref={pointsRef} material={shaderMaterial}>
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
           count={count}
-          array={particles.positions}
+          array={positions}
           itemSize={3}
         />
         <bufferAttribute
           attach="attributes-size"
           count={count}
-          array={particles.sizes}
+          array={sizes}
+          itemSize={1}
+        />
+        <bufferAttribute
+          attach="attributes-velocity"
+          count={count}
+          array={velocities}
+          itemSize={1}
+        />
+        <bufferAttribute
+          attach="attributes-phase"
+          count={count}
+          array={phases}
           itemSize={1}
         />
       </bufferGeometry>
-      <primitive object={shaderMaterial} attach="material" />
     </points>
   );
 };

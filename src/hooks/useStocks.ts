@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface StockData {
@@ -21,9 +21,14 @@ export const useStocks = (symbols: string[]) => {
   const [stocks, setStocks] = useState<StockData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Stabilize symbols array reference using JSON comparison
+  const symbolsKey = useMemo(() => JSON.stringify(symbols.slice().sort()), [symbols]);
+  const stableSymbols = useMemo(() => symbols, [symbolsKey]);
+  const hasInitialized = useRef(false);
 
   const fetchStocks = useCallback(async () => {
-    if (symbols.length === 0) {
+    if (stableSymbols.length === 0) {
       setStocks([]);
       setIsLoading(false);
       return;
@@ -32,7 +37,7 @@ export const useStocks = (symbols: string[]) => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('get-stocks', {
-        body: { symbols }
+        body: { symbols: stableSymbols }
       });
 
       if (error) throw error;
@@ -41,11 +46,11 @@ export const useStocks = (symbols: string[]) => {
     } catch (err: any) {
       setError(err.message);
       // Use mock data as fallback
-      setStocks(MOCK_STOCKS.filter(s => symbols.includes(s.symbol)));
+      setStocks(MOCK_STOCKS.filter(s => stableSymbols.includes(s.symbol)));
     } finally {
       setIsLoading(false);
     }
-  }, [symbols]);
+  }, [stableSymbols]);
 
   useEffect(() => {
     fetchStocks();
