@@ -1,6 +1,6 @@
-import { useState, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { NebulaOrb } from '@/components/dashboard/NebulaOrb';
+import { memo } from 'react';
+import { motion } from 'framer-motion';
+import { PureNebulaSphere } from '@/components/dashboard/PureNebulaSphere';
 import { GlassmorphicCard } from '@/components/dashboard/GlassmorphicCard';
 import { EmailCard } from '@/components/dashboard/EmailCard';
 import { CalendarCard } from '@/components/dashboard/CalendarCard';
@@ -10,8 +10,7 @@ import { DocumentsCard } from '@/components/dashboard/DocumentsCard';
 import { WeatherCard } from '@/components/dashboard/WeatherCard';
 import { AIState } from '@/components/aria/AIOrb';
 import { CardId } from '@/hooks/useCardFocus';
-import { X, Mail, Calendar, TrendingUp, Plane, FileText, Cloud } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface AmbientLayoutProps {
   aiState: AIState;
@@ -20,13 +19,13 @@ interface AmbientLayoutProps {
   onOrbClick: () => void;
 }
 
-const miniCards = [
-  { id: 'email' as CardId, Component: EmailCard, color: 'cyan', icon: Mail, label: 'Email' },
-  { id: 'calendar' as CardId, Component: CalendarCard, color: 'purple', icon: Calendar, label: 'Calendar' },
-  { id: 'stocks' as CardId, Component: StocksCard, color: 'green', icon: TrendingUp, label: 'Stocks' },
-  { id: 'travel' as CardId, Component: TravelCard, color: 'orange', icon: Plane, label: 'Travel' },
-  { id: 'documents' as CardId, Component: DocumentsCard, color: 'blue', icon: FileText, label: 'Docs' },
-  { id: 'weather' as CardId, Component: WeatherCard, color: 'cyan', icon: Cloud, label: 'Weather' },
+const cards = [
+  { id: 'email' as CardId, Component: EmailCard, color: 'cyan' },
+  { id: 'calendar' as CardId, Component: CalendarCard, color: 'purple' },
+  { id: 'stocks' as CardId, Component: StocksCard, color: 'green' },
+  { id: 'travel' as CardId, Component: TravelCard, color: 'orange' },
+  { id: 'documents' as CardId, Component: DocumentsCard, color: 'blue' },
+  { id: 'weather' as CardId, Component: WeatherCard, color: 'cyan' },
 ];
 
 const AmbientLayoutComponent = ({
@@ -35,108 +34,55 @@ const AmbientLayoutComponent = ({
   focusedCard,
   onOrbClick,
 }: AmbientLayoutProps) => {
-  const [expandedCard, setExpandedCard] = useState<CardId | null>(null);
-
   return (
-    <div className="h-full relative overflow-hidden">
-      {/* Massive background sphere */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 0.6 }}
-          transition={{ duration: 1, type: 'spring' }}
-          className="w-[150vh] h-[150vh] blur-sm"
-        >
-          <NebulaOrb
+    <div className="h-full flex flex-col p-6 pt-20">
+      {/* Header with large sphere */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex items-center justify-center py-8"
+      >
+        <div className="relative">
+          {/* Background glow */}
+          <div 
+            className="absolute inset-[-50%] rounded-full opacity-20 blur-3xl pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, hsl(210 70% 50% / 0.4) 0%, transparent 50%)',
+            }}
+          />
+          <PureNebulaSphere
             state={aiState}
             audioLevel={audioLevel}
-            size="full"
+            size="xl"
+            onClick={onOrbClick}
           />
-        </motion.div>
-      </div>
-
-      {/* Clickable orb overlay in center */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.5 }}
-          className="cursor-pointer"
-          onClick={onOrbClick}
-        >
-          <div className="w-32 h-32 rounded-full bg-primary/10 backdrop-blur-xl border border-primary/30 flex items-center justify-center hover:bg-primary/20 transition-colors">
-            <p className="text-sm text-primary font-medium">Chat</p>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Mini cards dock at bottom */}
-      <motion.div
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.8, type: 'spring' }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2"
-      >
-        <div className="flex gap-3 p-3 rounded-2xl bg-card/60 backdrop-blur-xl border border-border/50">
-          {miniCards.map((card, index) => {
-            const Icon = card.icon;
-            return (
-              <motion.button
-                key={card.id}
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.9 + index * 0.05 }}
-                onClick={() => setExpandedCard(card.id)}
-                className={`flex flex-col items-center gap-2 px-4 py-3 rounded-xl transition-all hover:bg-primary/10 ${
-                  focusedCard === card.id ? 'bg-primary/20 ring-1 ring-primary/50' : ''
-                }`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Icon className="w-5 h-5 text-foreground/80" />
-                <span className="text-xs text-muted-foreground">{card.label}</span>
-              </motion.button>
-            );
-          })}
         </div>
       </motion.div>
 
-      {/* Expanded Card Modal */}
-      <AnimatePresence>
-        {expandedCard && (
-          <>
+      {/* Cards in masonry-like grid */}
+      <ScrollArea className="flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-6">
+          {cards.map((card, index) => (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-background/60 backdrop-blur-md z-40"
-              onClick={() => setExpandedCard(null)}
-            />
-            <motion.div
-              initial={{ y: 100, opacity: 0, scale: 0.9 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 100, opacity: 0, scale: 0.9 }}
-              className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-4"
+              key={card.id}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ 
+                delay: 0.3 + index * 0.1,
+                duration: 0.5,
+              }}
             >
-              <GlassmorphicCard glowColor={miniCards.find(c => c.id === expandedCard)?.color}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setExpandedCard(null)}
-                  className="absolute top-2 right-2 z-10"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-                {miniCards.map(card => 
-                  card.id === expandedCard && (
-                    <card.Component key={card.id} isFocused={true} />
-                  )
-                )}
+              <GlassmorphicCard
+                isFocused={focusedCard === card.id}
+                glowColor={card.color}
+                delay={index}
+              >
+                <card.Component isFocused={focusedCard === card.id} />
               </GlassmorphicCard>
             </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   );
 };

@@ -1,6 +1,6 @@
-import { useState, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { NebulaOrb } from '@/components/dashboard/NebulaOrb';
+import { memo } from 'react';
+import { motion } from 'framer-motion';
+import { PureNebulaSphere } from '@/components/dashboard/PureNebulaSphere';
 import { GlassmorphicCard } from '@/components/dashboard/GlassmorphicCard';
 import { EmailCard } from '@/components/dashboard/EmailCard';
 import { CalendarCard } from '@/components/dashboard/CalendarCard';
@@ -10,8 +10,7 @@ import { DocumentsCard } from '@/components/dashboard/DocumentsCard';
 import { WeatherCard } from '@/components/dashboard/WeatherCard';
 import { AIState } from '@/components/aria/AIOrb';
 import { CardId } from '@/hooks/useCardFocus';
-import { X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface OrbitLayoutProps {
   aiState: AIState;
@@ -20,13 +19,13 @@ interface OrbitLayoutProps {
   onOrbClick: () => void;
 }
 
-const orbitCards = [
-  { id: 'email' as CardId, Component: EmailCard, color: 'cyan', angle: 0 },
-  { id: 'calendar' as CardId, Component: CalendarCard, color: 'purple', angle: 60 },
-  { id: 'stocks' as CardId, Component: StocksCard, color: 'green', angle: 120 },
-  { id: 'travel' as CardId, Component: TravelCard, color: 'orange', angle: 180 },
-  { id: 'documents' as CardId, Component: DocumentsCard, color: 'blue', angle: 240 },
-  { id: 'weather' as CardId, Component: WeatherCard, color: 'cyan', angle: 300 },
+const cards = [
+  { id: 'email' as CardId, Component: EmailCard, color: 'cyan' },
+  { id: 'calendar' as CardId, Component: CalendarCard, color: 'purple' },
+  { id: 'stocks' as CardId, Component: StocksCard, color: 'green' },
+  { id: 'travel' as CardId, Component: TravelCard, color: 'orange' },
+  { id: 'documents' as CardId, Component: DocumentsCard, color: 'blue' },
+  { id: 'weather' as CardId, Component: WeatherCard, color: 'cyan' },
 ];
 
 const OrbitLayoutComponent = ({
@@ -35,108 +34,101 @@ const OrbitLayoutComponent = ({
   focusedCard,
   onOrbClick,
 }: OrbitLayoutProps) => {
-  const [expandedCard, setExpandedCard] = useState<CardId | null>(null);
-  const orbitRadius = 280;
-
   return (
-    <div className="h-full flex items-center justify-center relative">
-      {/* Central Nebula Sphere */}
+    <div className="h-full grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 pt-20">
+      {/* Left column - first 2 cards */}
       <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', damping: 20 }}
-        className="relative z-10"
+        initial={{ opacity: 0, x: -30 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex flex-col gap-4"
       >
-        <NebulaOrb
+        {cards.slice(0, 2).map((card, index) => (
+          <GlassmorphicCard
+            key={card.id}
+            isFocused={focusedCard === card.id}
+            glowColor={card.color}
+            delay={index}
+          >
+            <card.Component isFocused={focusedCard === card.id} />
+          </GlassmorphicCard>
+        ))}
+      </motion.div>
+
+      {/* Center - Sphere */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="flex flex-col items-center justify-center"
+      >
+        <PureNebulaSphere
           state={aiState}
           audioLevel={audioLevel}
           size="xl"
           onClick={onOrbClick}
         />
-      </motion.div>
-
-      {/* Orbiting Cards */}
-      {orbitCards.map((card, index) => {
-        const angleRad = (card.angle * Math.PI) / 180;
-        const x = Math.cos(angleRad) * orbitRadius;
-        const y = Math.sin(angleRad) * orbitRadius * 0.6; // Elliptical orbit
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="mt-6 text-sm text-muted-foreground text-center"
+        >
+          Click to chat with Atlas
+        </motion.p>
         
-        return (
-          <motion.div
-            key={card.id}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ 
-              opacity: 1, 
-              scale: 1,
-              x,
-              y,
-            }}
-            transition={{ 
-              delay: 0.5 + index * 0.1,
-              type: 'spring',
-              damping: 20 
-            }}
-            whileHover={{ scale: 1.05, zIndex: 20 }}
-            className="absolute w-56 cursor-pointer"
-            onClick={() => setExpandedCard(card.id)}
-          >
+        {/* Middle cards below sphere on mobile */}
+        <div className="lg:hidden mt-8 w-full space-y-4">
+          {cards.slice(2, 4).map((card, index) => (
             <GlassmorphicCard
+              key={card.id}
               isFocused={focusedCard === card.id}
               glowColor={card.color}
+              delay={index + 2}
             >
-              <div className="max-h-32 overflow-hidden">
-                <card.Component isFocused={focusedCard === card.id} />
-              </div>
+              <card.Component isFocused={focusedCard === card.id} />
             </GlassmorphicCard>
-          </motion.div>
-        );
-      })}
+          ))}
+        </div>
+      </motion.div>
 
-      {/* Orbit path visualization */}
-      <div 
-        className="absolute border border-border/20 rounded-full pointer-events-none"
-        style={{ 
-          width: orbitRadius * 2, 
-          height: orbitRadius * 1.2,
-        }}
-      />
-
-      {/* Expanded Card Modal */}
-      <AnimatePresence>
-        {expandedCard && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
-              onClick={() => setExpandedCard(null)}
-            />
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md"
-            >
-              <GlassmorphicCard glowColor={orbitCards.find(c => c.id === expandedCard)?.color}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setExpandedCard(null)}
-                  className="absolute top-2 right-2 z-10"
+      {/* Right column - last 2 cards (or 4 on desktop) */}
+      <motion.div
+        initial={{ opacity: 0, x: 30 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
+        <ScrollArea className="h-full">
+          <div className="flex flex-col gap-4 pb-4">
+            {/* On desktop, show cards 2-5 (middle two + last two) */}
+            <div className="hidden lg:flex flex-col gap-4">
+              {cards.slice(2).map((card, index) => (
+                <GlassmorphicCard
+                  key={card.id}
+                  isFocused={focusedCard === card.id}
+                  glowColor={card.color}
+                  delay={index + 2}
                 >
-                  <X className="w-4 h-4" />
-                </Button>
-                {orbitCards.map(card => 
-                  card.id === expandedCard && (
-                    <card.Component key={card.id} isFocused={true} />
-                  )
-                )}
-              </GlassmorphicCard>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+                  <card.Component isFocused={focusedCard === card.id} />
+                </GlassmorphicCard>
+              ))}
+            </div>
+            {/* On mobile, show last 2 cards */}
+            <div className="lg:hidden flex flex-col gap-4">
+              {cards.slice(4).map((card, index) => (
+                <GlassmorphicCard
+                  key={card.id}
+                  isFocused={focusedCard === card.id}
+                  glowColor={card.color}
+                  delay={index + 4}
+                >
+                  <card.Component isFocused={focusedCard === card.id} />
+                </GlassmorphicCard>
+              ))}
+            </div>
+          </div>
+        </ScrollArea>
+      </motion.div>
     </div>
   );
 };

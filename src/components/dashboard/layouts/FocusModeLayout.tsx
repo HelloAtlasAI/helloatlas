@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { NebulaOrb } from '@/components/dashboard/NebulaOrb';
+import { PureNebulaSphere } from '@/components/dashboard/PureNebulaSphere';
 import { GlassmorphicCard } from '@/components/dashboard/GlassmorphicCard';
 import { EmailCard } from '@/components/dashboard/EmailCard';
 import { CalendarCard } from '@/components/dashboard/CalendarCard';
@@ -73,7 +73,7 @@ const FocusModeLayoutComponent = ({
 
   const slideVariants = {
     enter: (direction: number) => ({
-      x: direction > 0 ? 300 : -300,
+      x: direction > 0 ? 200 : -200,
       opacity: 0,
     }),
     center: {
@@ -81,74 +81,79 @@ const FocusModeLayoutComponent = ({
       opacity: 1,
     },
     exit: (direction: number) => ({
-      x: direction < 0 ? 300 : -300,
+      x: direction < 0 ? 200 : -200,
       opacity: 0,
     }),
   };
 
   return (
     <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 pt-20">
-      {/* Left - AI Sphere with controls */}
+      {/* Left - Sphere with controls */}
       <motion.div
-        initial={{ x: -50, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
+        initial={{ opacity: 0, x: -30 }}
+        animate={{ opacity: 1, x: 0 }}
         className="flex flex-col items-center justify-center"
       >
-        <NebulaOrb
+        <PureNebulaSphere
           state={aiState}
           audioLevel={audioLevel}
           size="lg"
           onClick={onOrbClick}
         />
         
-        {/* Navigation */}
+        {/* Navigation controls */}
         <div className="mt-8 flex items-center gap-4">
           <Button
             variant="ghost"
             size="icon"
             onClick={goPrev}
-            className="rounded-full bg-card/50 hover:bg-card"
+            className="rounded-full bg-card/50 hover:bg-card border border-border/50"
           >
             <ChevronLeft className="w-5 h-5" />
           </Button>
           
-          {/* Dot indicators */}
-          <div className="flex gap-2">
-            {focusCards.map((card, index) => (
-              <button
-                key={card.id}
-                onClick={() => {
-                  setDirection(index > activeIndex ? 1 : -1);
-                  setActiveIndex(index);
-                }}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  index === activeIndex 
-                    ? 'bg-primary w-6' 
-                    : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                }`}
-              />
-            ))}
+          {/* Card title */}
+          <div className="min-w-24 text-center">
+            <span className="text-sm font-medium">{activeCard.title}</span>
           </div>
           
           <Button
             variant="ghost"
             size="icon"
             onClick={goNext}
-            className="rounded-full bg-card/50 hover:bg-card"
+            className="rounded-full bg-card/50 hover:bg-card border border-border/50"
           >
             <ChevronRight className="w-5 h-5" />
           </Button>
         </div>
 
+        {/* Dot indicators */}
+        <div className="mt-4 flex gap-2">
+          {focusCards.map((card, index) => (
+            <button
+              key={card.id}
+              onClick={() => {
+                setDirection(index > activeIndex ? 1 : -1);
+                setActiveIndex(index);
+              }}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                index === activeIndex 
+                  ? 'bg-primary w-6' 
+                  : 'bg-muted-foreground/30 hover:bg-muted-foreground/50 w-2'
+              }`}
+            />
+          ))}
+        </div>
+
         <p className="mt-4 text-xs text-muted-foreground">
-          Use arrow keys to navigate
+          Use ← → arrow keys to navigate
         </p>
       </motion.div>
 
       {/* Right - Spotlight card */}
       <motion.div
-        initial={{ x: 50, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
+        initial={{ opacity: 0, x: 30 }}
+        animate={{ opacity: 1, x: 0 }}
         className="flex items-center justify-center relative overflow-hidden"
       >
         <AnimatePresence mode="wait" custom={direction}>
@@ -159,7 +164,12 @@ const FocusModeLayoutComponent = ({
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            transition={{ 
+              type: 'spring', 
+              damping: 30, 
+              stiffness: 300,
+              duration: 0.3,
+            }}
             className="w-full max-w-md"
           >
             <GlassmorphicCard

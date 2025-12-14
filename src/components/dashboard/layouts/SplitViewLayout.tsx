@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { NebulaOrb } from '@/components/dashboard/NebulaOrb';
+import { PureNebulaSphere } from '@/components/dashboard/PureNebulaSphere';
 import { GlassmorphicCard } from '@/components/dashboard/GlassmorphicCard';
 import { EmailCard } from '@/components/dashboard/EmailCard';
 import { CalendarCard } from '@/components/dashboard/CalendarCard';
@@ -19,13 +19,10 @@ interface SplitViewLayoutProps {
   onOrbClick: () => void;
 }
 
-const leftCards = [
+const allCards = [
   { id: 'email' as CardId, Component: EmailCard, color: 'cyan' },
   { id: 'calendar' as CardId, Component: CalendarCard, color: 'purple' },
   { id: 'stocks' as CardId, Component: StocksCard, color: 'green' },
-];
-
-const rightCards = [
   { id: 'travel' as CardId, Component: TravelCard, color: 'orange' },
   { id: 'documents' as CardId, Component: DocumentsCard, color: 'blue' },
   { id: 'weather' as CardId, Component: WeatherCard, color: 'cyan' },
@@ -39,67 +36,52 @@ const SplitViewLayoutComponent = ({
 }: SplitViewLayoutProps) => {
   return (
     <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 pt-20">
-      {/* Left Side - AI Sphere */}
+      {/* Left Side - Sphere and greeting */}
       <motion.div
-        initial={{ x: -50, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ type: 'spring', damping: 25 }}
+        initial={{ opacity: 0, x: -30 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
         className="flex flex-col items-center justify-center"
       >
-        <NebulaOrb
+        <PureNebulaSphere
           state={aiState}
           audioLevel={audioLevel}
           size="xl"
           onClick={onOrbClick}
         />
-        <motion.p
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-6 text-sm text-muted-foreground"
+          transition={{ delay: 0.4 }}
+          className="mt-8 text-center"
         >
-          Click to chat with Atlas
-        </motion.p>
-        
-        {/* Quick cards under sphere */}
-        <div className="mt-8 w-full max-w-sm space-y-4">
-          {leftCards.map((card, index) => (
-            <motion.div
-              key={card.id}
-              initial={{ x: -30, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.6 + index * 0.1 }}
-            >
-              <GlassmorphicCard
-                isFocused={focusedCard === card.id}
-                glowColor={card.color}
-              >
-                <card.Component isFocused={focusedCard === card.id} />
-              </GlassmorphicCard>
-            </motion.div>
-          ))}
-        </div>
+          <h2 className="text-xl font-medium text-foreground mb-2">Good afternoon</h2>
+          <p className="text-sm text-muted-foreground">
+            Click the sphere to start a conversation
+          </p>
+        </motion.div>
       </motion.div>
 
-      {/* Right Side - Cards Grid */}
+      {/* Right Side - Cards list */}
       <motion.div
-        initial={{ x: 50, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ type: 'spring', damping: 25 }}
+        initial={{ opacity: 0, x: 30 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
         className="h-full"
       >
-        <ScrollArea className="h-full pr-4">
-          <div className="space-y-4 pb-8">
-            {rightCards.map((card, index) => (
+        <ScrollArea className="h-full pr-2">
+          <div className="space-y-4 pb-6">
+            {allCards.map((card, index) => (
               <motion.div
                 key={card.id}
-                initial={{ x: 30, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.4 + index * 0.1 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + index * 0.08 }}
               >
                 <GlassmorphicCard
                   isFocused={focusedCard === card.id}
                   glowColor={card.color}
+                  delay={index}
                 >
                   <card.Component isFocused={focusedCard === card.id} />
                 </GlassmorphicCard>
