@@ -8,7 +8,7 @@ import { useChatWithMemory } from '@/hooks/useChatWithMemory';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { AIAssistantCard } from '@/components/dashboard/AIAssistantCard';
 import { MiniAICard } from '@/components/dashboard/MiniAICard';
-import { ExpandedCardView } from '@/components/dashboard/ExpandedCardView';
+import { ImmersiveCardShell } from '@/components/dashboard/ImmersiveCardShell';
 import { MorphableCard } from '@/components/dashboard/MorphableCard';
 import { EmailCard } from '@/components/dashboard/EmailCard';
 import { CalendarCard } from '@/components/dashboard/CalendarCard';
@@ -31,6 +31,16 @@ import {
   ExpandedTravelCard,
   ExpandedDocumentsCard
 } from '@/components/dashboard/expanded';
+import {
+  EmailAtmosphere,
+  StocksAtmosphere,
+  CalendarAtmosphere,
+  TasksAtmosphere,
+  NotesAtmosphere,
+  NewsAtmosphere,
+  DocumentsAtmosphere,
+  TravelAtmosphere,
+} from '@/components/dashboard/effects/CardAtmospheres';
 
 type AIState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -65,11 +75,43 @@ const getGlowColor = (cardName: string) => {
     weather: 'hsl(38, 92%, 50%, 0.2)',
     stocks: 'hsl(160, 84%, 39%, 0.2)',
     news: 'hsl(263, 70%, 50%, 0.2)',
-    email: 'hsl(220, 70%, 50%, 0.2)',
+    email: 'hsl(350, 70%, 55%, 0.2)',
     documents: 'hsl(200, 70%, 50%, 0.2)',
     travel: 'hsl(280, 70%, 50%, 0.2)',
   };
   return colors[cardName] || 'hsl(var(--primary) / 0.15)';
+};
+
+// Get accent color for each card type
+const getAccentColor = (cardName: string) => {
+  const colors: Record<string, string> = {
+    notes: 'hsl(45, 93%, 47%)',
+    tasks: 'hsl(217, 91%, 60%)',
+    calendar: 'hsl(217, 91%, 60%)',
+    weather: 'hsl(38, 92%, 50%)',
+    stocks: 'hsl(160, 84%, 39%)',
+    news: 'hsl(263, 70%, 50%)',
+    email: 'hsl(350, 70%, 55%)',
+    documents: 'hsl(200, 70%, 50%)',
+    travel: 'hsl(280, 70%, 50%)',
+  };
+  return colors[cardName] || 'hsl(var(--primary))';
+};
+
+// Get atmospheric background for each card type
+const getCardAtmosphere = (cardName: string) => {
+  switch (cardName) {
+    case 'email': return <EmailAtmosphere />;
+    case 'stocks': return <StocksAtmosphere />;
+    case 'calendar': return <CalendarAtmosphere />;
+    case 'tasks': return <TasksAtmosphere />;
+    case 'notes': return <NotesAtmosphere />;
+    case 'news': return <NewsAtmosphere />;
+    case 'documents': return <DocumentsAtmosphere />;
+    case 'travel': return <TravelAtmosphere />;
+    // Weather has its own 3D environment built into its card
+    default: return null;
+  }
 };
 
 const Dashboard = () => {
@@ -372,14 +414,18 @@ const Dashboard = () => {
           </motion.div>
         </div>
           ) : (
-            <ExpandedCardView 
+            <ImmersiveCardShell 
               layoutId={`card-${expandedCard}`}
               onClose={() => setExpandedCard(null)}
               title={expandedCard.charAt(0).toUpperCase() + expandedCard.slice(1)}
               glowColor={getGlowColor(expandedCard)}
+              accentColor={getAccentColor(expandedCard)}
+              backgroundElement={getCardAtmosphere(expandedCard)}
+              enableParallax={true}
+              showHUD={true}
             >
               {renderExpandedContent()}
-            </ExpandedCardView>
+            </ImmersiveCardShell>
           )}
         </AnimatePresence>
 

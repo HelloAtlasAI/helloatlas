@@ -40,7 +40,7 @@ export const ExpandedNewsCard = () => {
   return (
     <div className="flex h-[calc(100vh-140px)] gap-6">
       {/* Left - Article list */}
-      <div className="w-96 lg:w-[450px] flex-shrink-0 flex flex-col bg-card/50 rounded-2xl border border-border/50 overflow-hidden">
+      <div className="w-96 lg:w-[450px] flex-shrink-0 flex flex-col backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b border-border/50 space-y-3">
           <div className="flex items-center justify-between">
@@ -131,7 +131,7 @@ export const ExpandedNewsCard = () => {
       </div>
 
       {/* Right - Article view */}
-      <div className="flex-1 flex flex-col bg-card/30 rounded-2xl border border-border/50 overflow-hidden">
+      <div className="flex-1 flex flex-col backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 overflow-hidden">
         {selectedArticle ? (
           <motion.div
             key={selectedArticle.id}

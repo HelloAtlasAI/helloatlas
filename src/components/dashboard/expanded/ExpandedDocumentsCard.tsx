@@ -169,7 +169,7 @@ export const ExpandedDocumentsCard = () => {
         </div>
 
         {/* Storage Usage */}
-        <div className="mt-auto p-4 bg-card/30 rounded-xl border border-border/50">
+        <div className="mt-auto p-4 backdrop-blur-xl bg-background/30 rounded-xl border border-border/30">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-foreground">Storage</span>
             <span className="text-xs text-muted-foreground">{storagData.used}GB / {storagData.total}GB</span>
@@ -200,7 +200,7 @@ export const ExpandedDocumentsCard = () => {
 
       {/* Main Content */}
       <motion.div 
-        className="flex-1 flex flex-col bg-card/30 rounded-2xl border border-border/50 overflow-hidden"
+        className="flex-1 flex flex-col backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 overflow-hidden"
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2 }}
@@ -374,7 +374,7 @@ export const ExpandedDocumentsCard = () => {
       <AnimatePresence>
         {selectedFileData && (
           <motion.div 
-            className="w-72 shrink-0 bg-card/30 rounded-2xl border border-border/50 p-4 flex flex-col"
+            className="w-72 shrink-0 backdrop-blur-xl bg-background/30 rounded-2xl border border-border/30 p-4 flex flex-col"
             initial={{ x: 20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 20, opacity: 0 }}
