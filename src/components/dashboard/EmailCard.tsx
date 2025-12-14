@@ -2,7 +2,11 @@ import { Mail, Star, ChevronRight } from 'lucide-react';
 import { DashboardCard } from './DashboardCard';
 import { motion } from 'framer-motion';
 
-interface EmailCardProps { isFocused?: boolean; streamingData?: any[]; }
+interface EmailCardProps { 
+  isFocused?: boolean; 
+  streamingData?: any[];
+  onExpand?: () => void;
+}
 
 const mockEmails = [
   { id: 1, sender: 'Sarah Chen', subject: 'Q4 Budget Review', preview: 'Hi, I need your input on the Q4 budget...', time: '10:32 AM', read: false, starred: true, avatar: 'SC', avatarColor: 'bg-gradient-to-br from-pink-500 to-rose-500' },
@@ -11,10 +15,10 @@ const mockEmails = [
   { id: 4, sender: 'Alex Rivera', subject: 'Meeting Notes', preview: 'Key takeaways from our meeting yesterday...', time: 'Yesterday', read: true, starred: true, avatar: 'AR', avatarColor: 'bg-gradient-to-br from-emerald-500 to-teal-500' },
 ];
 
-export const EmailCard = ({ isFocused }: EmailCardProps) => {
+export const EmailCard = ({ isFocused, onExpand }: EmailCardProps) => {
   const unreadCount = mockEmails.filter(e => !e.read).length;
   return (
-    <DashboardCard glowColor="rgba(236, 72, 153, 0.15)" header={
+    <DashboardCard glowColor="rgba(236, 72, 153, 0.15)" onClick={onExpand} header={
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 border border-pink-500/20"><Mail className="w-5 h-5 text-pink-400" /></div>

@@ -9,6 +9,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { AIAssistantCard } from '@/components/dashboard/AIAssistantCard';
 import { MiniAICard } from '@/components/dashboard/MiniAICard';
 import { ExpandedCardView } from '@/components/dashboard/ExpandedCardView';
+import { MorphableCard } from '@/components/dashboard/MorphableCard';
 import { EmailCard } from '@/components/dashboard/EmailCard';
 import { CalendarCard } from '@/components/dashboard/CalendarCard';
 import { WeatherCard } from '@/components/dashboard/WeatherCard';
@@ -220,7 +221,7 @@ const Dashboard = () => {
             />
           </motion.div>
 
-          {/* Weather - 2 rows */}
+          {/* Weather - 2 rows with morphable shape */}
           <motion.div 
             className={`row-span-2 ${getFocusedClasses('weather', focusedCard)}`}
             variants={cardVariants}
@@ -228,10 +229,12 @@ const Dashboard = () => {
             animate="visible"
             custom={1}
           >
-            <WeatherCard />
+            <MorphableCard notch="bottom-right" notchSize={20}>
+              <WeatherCard onExpand={() => setExpandedCard('weather')} />
+            </MorphableCard>
           </motion.div>
 
-          {/* Travel - 2 rows */}
+          {/* Travel - 2 rows with morphable shape */}
           <motion.div 
             className={`row-span-2 ${getFocusedClasses('travel', focusedCard)}`}
             variants={cardVariants}
@@ -239,7 +242,9 @@ const Dashboard = () => {
             animate="visible"
             custom={2}
           >
-            <TravelCard />
+            <MorphableCard notch="bottom-left" notchSize={20}>
+              <TravelCard onExpand={() => setExpandedCard('travel')} />
+            </MorphableCard>
           </motion.div>
 
           {/* Email - 3 rows tall */}
@@ -250,7 +255,7 @@ const Dashboard = () => {
             animate="visible"
             custom={3}
           >
-            <EmailCard />
+            <EmailCard onExpand={() => setExpandedCard('email')} />
           </motion.div>
 
           {/* Calendar - 3 rows tall */}
@@ -264,7 +269,7 @@ const Dashboard = () => {
             <CalendarCard onExpand={() => setExpandedCard('calendar')} />
           </motion.div>
 
-          {/* Stocks - Wide, 2 columns, 2 rows */}
+          {/* Stocks - Wide, 2 columns, 2 rows with morphable corners */}
           <motion.div 
             className={`md:col-span-2 row-span-2 ${getFocusedClasses('stocks', focusedCard)}`}
             variants={cardVariants}
@@ -272,7 +277,9 @@ const Dashboard = () => {
             animate="visible"
             custom={5}
           >
-            <StocksCard />
+            <MorphableCard notch="top-left" notchSize={12}>
+              <StocksCard onExpand={() => setExpandedCard('stocks')} />
+            </MorphableCard>
           </motion.div>
 
           {/* Tasks - 2 rows */}
@@ -305,10 +312,10 @@ const Dashboard = () => {
             animate="visible"
             custom={8}
           >
-            <NewsCard />
+            <NewsCard onExpand={() => setExpandedCard('news')} />
           </motion.div>
 
-          {/* Documents - Wide, 2 columns, 2 rows */}
+          {/* Documents - Wide, 2 columns, 2 rows with morphable corner */}
           <motion.div 
             className={`md:col-span-2 row-span-2 ${getFocusedClasses('documents', focusedCard)}`}
             variants={cardVariants}
@@ -316,7 +323,9 @@ const Dashboard = () => {
             animate="visible"
             custom={9}
           >
-            <DocumentsCard />
+            <MorphableCard notch="top-right" notchSize={10}>
+              <DocumentsCard onExpand={() => setExpandedCard('documents')} />
+            </MorphableCard>
           </motion.div>
         </div>
           ) : (
