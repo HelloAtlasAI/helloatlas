@@ -7,6 +7,8 @@ import { useVoice } from '@/hooks/useVoice';
 import { useChatWithMemory } from '@/hooks/useChatWithMemory';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { AIAssistantCard } from '@/components/dashboard/AIAssistantCard';
+import { MiniAICard } from '@/components/dashboard/MiniAICard';
+import { ExpandedCardView } from '@/components/dashboard/ExpandedCardView';
 import { EmailCard } from '@/components/dashboard/EmailCard';
 import { CalendarCard } from '@/components/dashboard/CalendarCard';
 import { WeatherCard } from '@/components/dashboard/WeatherCard';
@@ -33,6 +35,7 @@ const cardVariants = {
       ease: [0.25, 0.46, 0.45, 0.94],
     },
   }),
+  exit: { opacity: 0, scale: 0.9, transition: { duration: 0.2 } },
 };
 
 // Glow effect for focused cards
@@ -49,6 +52,7 @@ const Dashboard = () => {
   const [inputValue, setInputValue] = useState('');
   const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
   const [focusedCard, setFocusedCard] = useState<string | null>(null);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   const {
     isRecording,
@@ -192,8 +196,10 @@ const Dashboard = () => {
       />
       
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Mosaic Grid Layout - Full width with proper gaps */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 auto-rows-[140px] w-full">
+        {/* Mosaic Grid Layout - Dynamic sizing with minmax */}
+        <AnimatePresence mode="wait">
+          {!expandedCard ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 auto-rows-[minmax(140px,auto)] w-full">
           {/* AI Assistant - Spans 2 columns, compact */}
           <motion.div 
             className={`md:col-span-2 row-span-1 ${getFocusedClasses('assistant', focusedCard)}`}
@@ -313,6 +319,39 @@ const Dashboard = () => {
             <DocumentsCard />
           </motion.div>
         </div>
+          ) : (
+            <ExpandedCardView 
+              layoutId={`card-${expandedCard}`}
+              onClose={() => setExpandedCard(null)}
+              title={expandedCard.charAt(0).toUpperCase() + expandedCard.slice(1)}
+            >
+              {expandedCard === 'weather' && <WeatherCard />}
+              {expandedCard === 'calendar' && <CalendarCard />}
+              {expandedCard === 'email' && <EmailCard />}
+              {expandedCard === 'stocks' && <StocksCard />}
+              {expandedCard === 'tasks' && <TasksCard />}
+              {expandedCard === 'notes' && <NotesCard />}
+              {expandedCard === 'news' && <NewsCard />}
+              {expandedCard === 'documents' && <DocumentsCard />}
+              {expandedCard === 'travel' && <TravelCard />}
+            </ExpandedCardView>
+          )}
+        </AnimatePresence>
+
+        {/* Mini AI Card when a card is expanded */}
+        <AnimatePresence>
+          {expandedCard && (
+            <MiniAICard
+              state={effectiveAiState}
+              audioLevel={audioLevel}
+              isRecording={isRecording}
+              isProcessing={isVoiceProcessing || isLoading}
+              onVoicePress={handleVoicePress}
+              onVoiceRelease={handleVoiceRelease}
+              onClick={handleAssistantClick}
+            />
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Conversation Drawer */}
