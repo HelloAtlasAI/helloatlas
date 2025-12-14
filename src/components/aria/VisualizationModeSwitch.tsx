@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cpu, User, Sparkles } from "lucide-react";
+import { Cpu, User, Sparkles, Orbit } from "lucide-react";
 
-export type VisualizationMode = "cyber" | "face" | "hybrid";
+export type VisualizationMode = "cyber" | "face" | "hybrid" | "neural";
 
 interface VisualizationModeSwitchProps {
   mode: VisualizationMode;
@@ -13,6 +13,7 @@ const modes = [
   { id: "cyber" as const, label: "Cyber Nexus", icon: Cpu, description: "Digital core visualization" },
   { id: "face" as const, label: "Neural Persona", icon: User, description: "AI face avatar" },
   { id: "hybrid" as const, label: "Hybrid", icon: Sparkles, description: "Combined experience" },
+  { id: "neural" as const, label: "Neural Bubble", icon: Orbit, description: "Abstract morphing visualization" },
 ];
 
 export const VisualizationModeSwitch = ({ mode, onModeChange }: VisualizationModeSwitchProps) => {
