@@ -180,34 +180,46 @@ const RealisticEye = ({
 
       {/* Eye tracking group - iris and pupil */}
       <group ref={eyeRef}>
-        {/* Iris base - vibrant with depth */}
+        {/* Iris glow halo - behind iris */}
+        <mesh position={[0, 0, 0.04]} renderOrder={9}>
+          <circleGeometry args={[0.055, 64]} />
+          <meshBasicMaterial 
+            color="#00d4ff" 
+            transparent 
+            opacity={0.4} 
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+        
+        {/* Iris base - BRIGHTER, more vibrant */}
         <mesh position={[0, 0, 0.045]} renderOrder={10}>
-          <circleGeometry args={[0.042, 128]} />
+          <circleGeometry args={[0.045, 128]} />
           <meshPhysicalMaterial
-            color="#00a8cc"
-            emissive="#00d4ff"
-            emissiveIntensity={0.6}
-            metalness={0.5}
-            roughness={0.2}
-            clearcoat={0.5}
+            color="#00ccee"
+            emissive="#00ffff"
+            emissiveIntensity={1.2}
+            metalness={0.6}
+            roughness={0.15}
+            clearcoat={0.6}
           />
         </mesh>
 
         {/* Limbal ring - dark outer edge */}
         <mesh position={[0, 0, 0.048]} renderOrder={11}>
-          <ringGeometry args={[0.035, 0.042, 128]} />
-          <meshBasicMaterial color="#004466" transparent opacity={0.7} depthWrite={false} />
+          <ringGeometry args={[0.038, 0.045, 128]} />
+          <meshBasicMaterial color="#005588" transparent opacity={0.8} depthWrite={false} />
         </mesh>
 
-        {/* Collarette - inner iris ring */}
+        {/* Collarette - inner iris ring - BRIGHTER */}
         <mesh position={[0, 0, 0.052]} renderOrder={12}>
-          <ringGeometry args={[0.018, 0.024, 128]} />
-          <meshBasicMaterial color="#00ccee" transparent opacity={0.5} depthWrite={false} />
+          <ringGeometry args={[0.02, 0.028, 128]} />
+          <meshBasicMaterial color="#00ffff" transparent opacity={0.7} depthWrite={false} />
         </mesh>
 
-        {/* Radial fibers for iris texture */}
-        {Array.from({ length: 20 }).map((_, i) => {
-          const angle = (i / 20) * Math.PI * 2;
+        {/* Radial fibers for iris texture - BRIGHTER */}
+        {Array.from({ length: 24 }).map((_, i) => {
+          const angle = (i / 24) * Math.PI * 2;
           return (
             <mesh
               key={i}
@@ -215,39 +227,51 @@ const RealisticEye = ({
               rotation={[0, 0, angle]}
               renderOrder={13}
             >
-              <planeGeometry args={[0.0015, 0.022]} />
+              <planeGeometry args={[0.002, 0.025]} />
               <meshBasicMaterial
-                color={i % 2 === 0 ? "#00ddff" : "#008899"}
+                color={i % 2 === 0 ? "#00ffff" : "#00aacc"}
                 transparent
-                opacity={0.4}
+                opacity={0.6}
                 depthWrite={false}
               />
             </mesh>
           );
         })}
 
-        {/* Pupil - deep black with subtle glow edge */}
+        {/* Pupil - deep black with glow edge */}
         <mesh position={[0, 0, 0.058]} renderOrder={14}>
-          <circleGeometry args={[0.014, 64]} />
+          <circleGeometry args={[0.016, 64]} />
           <meshBasicMaterial color="#000000" />
         </mesh>
 
-        {/* Pupil glow ring */}
+        {/* Pupil glow ring - BRIGHTER */}
         <mesh position={[0, 0, 0.059]} renderOrder={15}>
-          <ringGeometry args={[0.013, 0.016, 64]} />
-          <meshBasicMaterial color="#00d4ff" transparent opacity={0.3} depthWrite={false} />
+          <ringGeometry args={[0.015, 0.02, 64]} />
+          <meshBasicMaterial 
+            color="#00ffff" 
+            transparent 
+            opacity={0.6} 
+            blending={THREE.AdditiveBlending}
+            depthWrite={false} 
+          />
         </mesh>
 
-        {/* Primary specular highlight */}
-        <mesh position={[0.015, 0.015, 0.065]} renderOrder={20}>
-          <circleGeometry args={[0.008, 32]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.9} depthWrite={false} />
+        {/* Primary specular highlight - BIGGER, BRIGHTER */}
+        <mesh position={[0.018, 0.018, 0.065]} renderOrder={20}>
+          <circleGeometry args={[0.012, 32]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.95} depthWrite={false} />
         </mesh>
 
         {/* Secondary highlight */}
-        <mesh position={[-0.01, 0.018, 0.063]} renderOrder={20}>
-          <circleGeometry args={[0.004, 24]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.6} depthWrite={false} />
+        <mesh position={[-0.012, 0.02, 0.063]} renderOrder={20}>
+          <circleGeometry args={[0.006, 24]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.7} depthWrite={false} />
+        </mesh>
+        
+        {/* Third highlight for extra sparkle */}
+        <mesh position={[-0.008, -0.01, 0.064]} renderOrder={20}>
+          <circleGeometry args={[0.004, 16]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.5} depthWrite={false} />
         </mesh>
       </group>
 
@@ -314,7 +338,7 @@ const RealisticEye = ({
   );
 };
 
-// Anatomically detailed nose
+// Anatomically detailed nose - BRIGHTER
 const DetailedNose = () => {
   return (
     <group position={[0, 0.01, 0.32]}>
@@ -322,9 +346,11 @@ const DetailedNose = () => {
       <mesh position={[0, 0.1, 0]}>
         <sphereGeometry args={[0.022, 32, 32]} />
         <meshPhysicalMaterial 
-          color="#2a2a4a" 
-          metalness={0.2} 
-          roughness={0.5}
+          color="#4a5a8a" 
+          emissive="#1a2a5a"
+          emissiveIntensity={0.2}
+          metalness={0.4} 
+          roughness={0.45}
           clearcoat={0.1}
         />
       </mesh>
@@ -333,9 +359,11 @@ const DetailedNose = () => {
       <mesh position={[0, 0.05, 0.02]} rotation={[0.12, 0, 0]}>
         <capsuleGeometry args={[0.016, 0.07, 24, 48]} />
         <meshPhysicalMaterial 
-          color="#2a2a4a" 
-          metalness={0.2} 
-          roughness={0.5}
+          color="#4a5a8a" 
+          emissive="#1a2a5a"
+          emissiveIntensity={0.2}
+          metalness={0.4} 
+          roughness={0.45}
           clearcoat={0.1}
         />
       </mesh>
@@ -343,40 +371,66 @@ const DetailedNose = () => {
       {/* Dorsum (main ridge body) */}
       <mesh position={[0, 0.02, 0.025]}>
         <boxGeometry args={[0.022, 0.05, 0.018]} />
-        <meshPhysicalMaterial color="#2a2a4a" metalness={0.2} roughness={0.5} />
+        <meshPhysicalMaterial 
+          color="#4a5a8a" 
+          emissive="#1a2a5a"
+          emissiveIntensity={0.2}
+          metalness={0.4} 
+          roughness={0.45} 
+        />
       </mesh>
 
       {/* Nose tip - bulbous, prominent */}
       <mesh position={[0, -0.025, 0.04]}>
         <sphereGeometry args={[0.028, 48, 48]} />
         <meshPhysicalMaterial
-          color="#2a2a4a"
-          metalness={0.25}
-          roughness={0.4}
-          clearcoat={0.15}
+          color="#5a6a9e"
+          emissive="#2a3a6a"
+          emissiveIntensity={0.25}
+          metalness={0.45}
+          roughness={0.35}
+          clearcoat={0.2}
         />
       </mesh>
 
       {/* Tip definition - bifurcated hint */}
       <mesh position={[-0.007, -0.028, 0.05]}>
         <sphereGeometry args={[0.013, 24, 24]} />
-        <meshPhysicalMaterial color="#2a2a4a" metalness={0.25} roughness={0.4} />
+        <meshPhysicalMaterial 
+          color="#5a6a9e" 
+          emissive="#2a3a6a"
+          emissiveIntensity={0.2}
+          metalness={0.45} 
+          roughness={0.35} 
+        />
       </mesh>
       <mesh position={[0.007, -0.028, 0.05]}>
         <sphereGeometry args={[0.013, 24, 24]} />
-        <meshPhysicalMaterial color="#2a2a4a" metalness={0.25} roughness={0.4} />
+        <meshPhysicalMaterial 
+          color="#5a6a9e" 
+          emissive="#2a3a6a"
+          emissiveIntensity={0.2}
+          metalness={0.45} 
+          roughness={0.35} 
+        />
       </mesh>
 
       {/* Left nostril */}
       <group position={[-0.018, -0.04, 0.02]}>
         <mesh rotation={[0.2, 0.35, 0]}>
           <torusGeometry args={[0.01, 0.005, 16, 24, Math.PI]} />
-          <meshBasicMaterial color="#08080f" />
+          <meshBasicMaterial color="#0a0a1a" />
         </mesh>
         {/* Ala (nostril wing) */}
         <mesh position={[-0.008, 0, 0.008]}>
           <sphereGeometry args={[0.016, 24, 24]} />
-          <meshPhysicalMaterial color="#2a2a4a" metalness={0.2} roughness={0.5} />
+          <meshPhysicalMaterial 
+            color="#4a5a8a" 
+            emissive="#1a2a5a"
+            emissiveIntensity={0.2}
+            metalness={0.4} 
+            roughness={0.45} 
+          />
         </mesh>
       </group>
 
@@ -384,24 +438,48 @@ const DetailedNose = () => {
       <group position={[0.018, -0.04, 0.02]}>
         <mesh rotation={[0.2, -0.35, 0]}>
           <torusGeometry args={[0.01, 0.005, 16, 24, Math.PI]} />
-          <meshBasicMaterial color="#08080f" />
+          <meshBasicMaterial color="#0a0a1a" />
         </mesh>
         <mesh position={[0.008, 0, 0.008]}>
           <sphereGeometry args={[0.016, 24, 24]} />
-          <meshPhysicalMaterial color="#2a2a4a" metalness={0.2} roughness={0.5} />
+          <meshPhysicalMaterial 
+            color="#4a5a8a" 
+            emissive="#1a2a5a"
+            emissiveIntensity={0.2}
+            metalness={0.4} 
+            roughness={0.45} 
+          />
         </mesh>
       </group>
 
       {/* Columella (between nostrils) */}
       <mesh position={[0, -0.042, 0.03]}>
         <boxGeometry args={[0.01, 0.012, 0.008]} />
-        <meshPhysicalMaterial color="#2a2a4a" metalness={0.2} roughness={0.5} />
+        <meshPhysicalMaterial 
+          color="#4a5a8a" 
+          emissive="#1a2a5a"
+          emissiveIntensity={0.2}
+          metalness={0.4} 
+          roughness={0.45} 
+        />
       </mesh>
 
-      {/* Digital accent line */}
+      {/* Digital accent line - BRIGHTER */}
       <mesh position={[0, 0.015, 0.05]}>
-        <boxGeometry args={[0.002, 0.1, 0.002]} />
-        <meshBasicMaterial color="#00d4ff" transparent opacity={0.4} />
+        <boxGeometry args={[0.003, 0.1, 0.003]} />
+        <meshBasicMaterial color="#00ffff" transparent opacity={0.7} />
+      </mesh>
+      
+      {/* Nose highlight glow */}
+      <mesh position={[0, -0.02, 0.06]}>
+        <sphereGeometry args={[0.02, 16, 16]} />
+        <meshBasicMaterial 
+          color="#00d4ff" 
+          transparent 
+          opacity={0.15} 
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
       </mesh>
     </group>
   );
@@ -609,29 +687,33 @@ const RealisticFace = ({
   });
 
   return (
-    <group ref={faceRef} scale={0.85} position={[0, 0, 0]}>
-      {/* Head base - forward-facing half-sphere with visible surface */}
+    <group ref={faceRef} scale={0.65} position={[0, 0, 0]}>
+      {/* Head base - BRIGHTER visible surface */}
       <mesh renderOrder={0}>
         <sphereGeometry args={[0.38, 128, 128, 0, Math.PI * 2, 0, Math.PI * 0.6]} />
         <meshPhysicalMaterial
-          color="#2a2a4a"
-          metalness={0.25}
-          roughness={0.45}
-          clearcoat={0.15}
-          clearcoatRoughness={0.3}
+          color="#4a5a8a"
+          emissive="#1a2a5a"
+          emissiveIntensity={0.25}
+          metalness={0.5}
+          roughness={0.35}
+          clearcoat={0.2}
+          clearcoatRoughness={0.2}
           side={THREE.FrontSide}
           depthWrite={true}
         />
       </mesh>
 
-      {/* Face plate - gives frontal depth and lighter tone */}
+      {/* Face plate - lighter, more visible */}
       <mesh position={[0, 0.02, 0.28]} renderOrder={1}>
         <sphereGeometry args={[0.2, 96, 96, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
         <meshPhysicalMaterial
-          color="#3a3a5e"
-          metalness={0.2}
-          roughness={0.5}
-          clearcoat={0.1}
+          color="#5a6a9e"
+          emissive="#2a3a6a"
+          emissiveIntensity={0.2}
+          metalness={0.4}
+          roughness={0.4}
+          clearcoat={0.15}
           side={THREE.FrontSide}
         />
       </mesh>
@@ -640,40 +722,48 @@ const RealisticFace = ({
       <mesh position={[0, 0.18, 0.22]} renderOrder={2}>
         <sphereGeometry args={[0.16, 64, 64]} />
         <meshPhysicalMaterial
-          color="#2a2a4a"
-          metalness={0.2}
-          roughness={0.5}
+          color="#4a5a8a"
+          emissive="#1a2a5a"
+          emissiveIntensity={0.2}
+          metalness={0.4}
+          roughness={0.45}
           side={THREE.FrontSide}
         />
       </mesh>
 
-      {/* Brow ridge - prominent */}
+      {/* Brow ridge - prominent with glow */}
       <mesh position={[0, 0.1, 0.3]} renderOrder={3}>
         <capsuleGeometry args={[0.025, 0.18, 24, 48]} />
         <meshPhysicalMaterial
-          color="#252545"
-          metalness={0.2}
-          roughness={0.55}
+          color="#3a4a7a"
+          emissive="#1a3a6a"
+          emissiveIntensity={0.15}
+          metalness={0.35}
+          roughness={0.5}
         />
       </mesh>
 
-      {/* Cheekbones - prominent */}
+      {/* Cheekbones - prominent with highlights */}
       <mesh position={[-0.18, 0, 0.22]} rotation={[0, -0.3, 0]} renderOrder={4}>
         <sphereGeometry args={[0.09, 48, 48]} />
         <meshPhysicalMaterial
-          color="#2a2a4a"
-          metalness={0.2}
-          roughness={0.5}
-          clearcoat={0.1}
+          color="#4a5a8a"
+          emissive="#1a2a5a"
+          emissiveIntensity={0.2}
+          metalness={0.45}
+          roughness={0.4}
+          clearcoat={0.15}
         />
       </mesh>
       <mesh position={[0.18, 0, 0.22]} rotation={[0, 0.3, 0]} renderOrder={4}>
         <sphereGeometry args={[0.09, 48, 48]} />
         <meshPhysicalMaterial
-          color="#2a2a4a"
-          metalness={0.2}
-          roughness={0.5}
-          clearcoat={0.1}
+          color="#4a5a8a"
+          emissive="#1a2a5a"
+          emissiveIntensity={0.2}
+          metalness={0.45}
+          roughness={0.4}
+          clearcoat={0.15}
         />
       </mesh>
 
@@ -681,9 +771,11 @@ const RealisticFace = ({
       <mesh position={[0, -0.18, 0.18]} renderOrder={5}>
         <sphereGeometry args={[0.15, 64, 64]} />
         <meshPhysicalMaterial
-          color="#2a2a4a"
-          metalness={0.2}
-          roughness={0.5}
+          color="#4a5a8a"
+          emissive="#1a2a5a"
+          emissiveIntensity={0.2}
+          metalness={0.4}
+          roughness={0.45}
         />
       </mesh>
 
@@ -691,10 +783,12 @@ const RealisticFace = ({
       <mesh position={[0, -0.25, 0.24]} renderOrder={6}>
         <sphereGeometry args={[0.06, 48, 48]} />
         <meshPhysicalMaterial
-          color="#2a2a4a"
-          metalness={0.25}
-          roughness={0.45}
-          clearcoat={0.1}
+          color="#4a5a8a"
+          emissive="#1a2a5a"
+          emissiveIntensity={0.2}
+          metalness={0.45}
+          roughness={0.4}
+          clearcoat={0.15}
         />
       </mesh>
 
@@ -712,14 +806,36 @@ const RealisticFace = ({
         isLeft={false}
       />
 
-      {/* Eyebrows - digital accent */}
+      {/* Eyebrows - brighter digital accent */}
       <mesh ref={leftBrowRef} position={[-0.1, 0.19, 0.32]} rotation={[0, 0, 0.06]}>
-        <capsuleGeometry args={[0.008, 0.06, 24, 48]} />
-        <meshBasicMaterial color="#00d4ff" />
+        <capsuleGeometry args={[0.01, 0.07, 24, 48]} />
+        <meshBasicMaterial color="#00ffff" />
       </mesh>
       <mesh ref={rightBrowRef} position={[0.1, 0.19, 0.32]} rotation={[0, 0, -0.06]}>
-        <capsuleGeometry args={[0.008, 0.06, 24, 48]} />
-        <meshBasicMaterial color="#00d4ff" />
+        <capsuleGeometry args={[0.01, 0.07, 24, 48]} />
+        <meshBasicMaterial color="#00ffff" />
+      </mesh>
+      
+      {/* Eyebrow glow halos */}
+      <mesh position={[-0.1, 0.19, 0.31]} rotation={[0, 0, 0.06]}>
+        <capsuleGeometry args={[0.025, 0.08, 16, 32]} />
+        <meshBasicMaterial 
+          color="#00d4ff" 
+          transparent 
+          opacity={0.25} 
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+      <mesh position={[0.1, 0.19, 0.31]} rotation={[0, 0, -0.06]}>
+        <capsuleGeometry args={[0.025, 0.08, 16, 32]} />
+        <meshBasicMaterial 
+          color="#00d4ff" 
+          transparent 
+          opacity={0.25} 
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
       </mesh>
 
       {/* Nose */}
@@ -732,67 +848,149 @@ const RealisticFace = ({
         audioLevel={audioLevel}
       />
 
-      {/* Forehead circuit lines */}
+      {/* Forehead circuit lines - BRIGHTER */}
       {[0, 1, 2].map((i) => (
         <mesh key={i} position={[0, 0.28 + i * 0.025, 0.22 - i * 0.02]} renderOrder={30}>
-          <boxGeometry args={[0.16 - i * 0.03, 0.003, 0.003]} />
-          <meshBasicMaterial color="#00d4ff" transparent opacity={0.4 - i * 0.1} />
+          <boxGeometry args={[0.16 - i * 0.03, 0.004, 0.004]} />
+          <meshBasicMaterial color="#00ffff" transparent opacity={0.7 - i * 0.15} />
+        </mesh>
+      ))}
+      
+      {/* Forehead circuit glow */}
+      {[0, 1, 2].map((i) => (
+        <mesh key={`glow-${i}`} position={[0, 0.28 + i * 0.025, 0.21 - i * 0.02]} renderOrder={29}>
+          <boxGeometry args={[0.18 - i * 0.03, 0.015, 0.008]} />
+          <meshBasicMaterial 
+            color="#00d4ff" 
+            transparent 
+            opacity={0.2 - i * 0.05} 
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
         </mesh>
       ))}
 
-      {/* Temple circuits */}
+      {/* Temple circuits - BRIGHTER */}
       {[-1, 1].map((side) => (
         <group key={side} position={[side * 0.3, 0.06, 0.15]} renderOrder={30}>
           {[0, 1, 2].map((i) => (
             <mesh key={i} position={[0, i * 0.04, 0]} rotation={[0, side * 0.4, 0]}>
-              <boxGeometry args={[0.04, 0.002, 0.002]} />
-              <meshBasicMaterial color="#00d4ff" transparent opacity={0.35 - i * 0.1} />
+              <boxGeometry args={[0.05, 0.003, 0.003]} />
+              <meshBasicMaterial color="#00ffff" transparent opacity={0.6 - i * 0.15} />
             </mesh>
           ))}
         </group>
       ))}
 
-      {/* Chin circuit accent */}
+      {/* Chin circuit accent - BRIGHTER */}
       <mesh position={[0, -0.22, 0.32]} renderOrder={30}>
-        <boxGeometry args={[0.06, 0.002, 0.002]} />
-        <meshBasicMaterial color="#00ff88" transparent opacity={0.35} />
+        <boxGeometry args={[0.08, 0.003, 0.003]} />
+        <meshBasicMaterial color="#00ff88" transparent opacity={0.7} />
+      </mesh>
+      
+      {/* Chin glow */}
+      <mesh position={[0, -0.22, 0.31]} renderOrder={29}>
+        <boxGeometry args={[0.1, 0.012, 0.008]} />
+        <meshBasicMaterial 
+          color="#00ff88" 
+          transparent 
+          opacity={0.25} 
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
       </mesh>
 
-      {/* Outer rim glow */}
+      {/* Cheekbone accent lines */}
+      <mesh position={[-0.22, 0.02, 0.2]} rotation={[0, 0.5, 0.3]} renderOrder={30}>
+        <boxGeometry args={[0.06, 0.003, 0.003]} />
+        <meshBasicMaterial color="#a855f7" transparent opacity={0.6} />
+      </mesh>
+      <mesh position={[0.22, 0.02, 0.2]} rotation={[0, -0.5, -0.3]} renderOrder={30}>
+        <boxGeometry args={[0.06, 0.003, 0.003]} />
+        <meshBasicMaterial color="#a855f7" transparent opacity={0.6} />
+      </mesh>
+
+      {/* Outer rim glow - STRONGER */}
       <mesh scale={0.52} renderOrder={-5}>
         <sphereGeometry args={[1, 48, 48]} />
         <meshBasicMaterial
           color="#00d4ff"
           transparent
-          opacity={0.04}
+          opacity={0.12}
           depthWrite={false}
           side={THREE.BackSide}
+          blending={THREE.AdditiveBlending}
         />
       </mesh>
 
-      {/* Fresnel rim light */}
+      {/* Fresnel rim light - STRONGER */}
       <mesh scale={0.55} renderOrder={-6}>
         <sphereGeometry args={[1, 64, 64]} />
         <meshBasicMaterial
           color="#00ffaa"
           transparent
-          opacity={0.1}
+          opacity={0.2}
           side={THREE.BackSide}
           depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+      
+      {/* Secondary rim for depth */}
+      <mesh scale={0.58} renderOrder={-7}>
+        <sphereGeometry args={[1, 48, 48]} />
+        <meshBasicMaterial
+          color="#a855f7"
+          transparent
+          opacity={0.08}
+          side={THREE.BackSide}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
         />
       </mesh>
 
-      {/* Digital wireframe subtle overlay */}
+      {/* Digital wireframe - MORE VISIBLE */}
       <mesh scale={0.42} renderOrder={35}>
         <icosahedronGeometry args={[1, 3]} />
         <meshBasicMaterial
-          color="#00d4ff"
+          color="#00ffff"
           wireframe
           transparent
-          opacity={0.06}
+          opacity={0.15}
           depthWrite={false}
         />
       </mesh>
+      
+      {/* Secondary wireframe for depth */}
+      <mesh scale={0.45} renderOrder={34}>
+        <icosahedronGeometry args={[1, 2]} />
+        <meshBasicMaterial
+          color="#a855f7"
+          wireframe
+          transparent
+          opacity={0.08}
+          depthWrite={false}
+        />
+      </mesh>
+      
+      {/* Pulsing glow nodes at key facial points */}
+      {[
+        [0, 0.28, 0.25],      // Forehead center
+        [-0.1, 0.19, 0.33],   // Left brow
+        [0.1, 0.19, 0.33],    // Right brow
+        [-0.2, 0.02, 0.23],   // Left cheek
+        [0.2, 0.02, 0.23],    // Right cheek
+        [0, -0.22, 0.33],     // Chin
+      ].map((pos, i) => (
+        <mesh key={`node-${i}`} position={pos as [number, number, number]} renderOrder={36}>
+          <sphereGeometry args={[0.012, 16, 16]} />
+          <meshBasicMaterial 
+            color={i % 2 === 0 ? "#00ffff" : "#00ff88"} 
+            transparent 
+            opacity={0.8}
+          />
+        </mesh>
+      ))}
     </group>
   );
 };
