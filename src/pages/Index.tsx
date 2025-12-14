@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { UnifiedVisualization } from "@/components/aria/UnifiedVisualization";
+import { VariantVisualization, SphereVariant } from "@/components/aria/VariantVisualization";
 import { HolographicCards, demoHolographicCards } from "@/components/aria/HolographicCard";
 import { StateIndicator } from "@/components/aria/StateIndicator";
 import { ChatInput } from "@/components/aria/ChatInput";
@@ -9,13 +9,23 @@ import { useChat } from "@/hooks/useChat";
 import { useVoice } from "@/hooks/useVoice";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Loader2, Volume2, VolumeX } from "lucide-react";
+import { LogOut, User, Loader2, Volume2, VolumeX, Sparkles } from "lucide-react";
+
+const VARIANTS: { id: SphereVariant; label: string }[] = [
+  { id: "classic", label: "Classic" },
+  { id: "nebula", label: "Nebula" },
+  { id: "crystal", label: "Crystal" },
+  { id: "pulse", label: "Pulse" },
+  { id: "dataflow", label: "Data Flow" },
+];
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [cards, setCards] = useState(demoHolographicCards);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [sphereVariant, setSphereVariant] = useState<SphereVariant>("classic");
+  const [showHUD, setShowHUD] = useState(false);
   const APP_NAME = "Atlas";
 
   const {
@@ -74,10 +84,42 @@ const Index = () => {
     <div className="relative min-h-screen w-full overflow-hidden bg-background">
       {/* FULLSCREEN 3D Canvas - covers entire viewport */}
       <div className="fixed inset-0 z-0">
-        <UnifiedVisualization
+        <VariantVisualization
           state={effectiveAiState}
           audioLevel={audioLevel}
+          variant={sphereVariant}
+          showHUD={showHUD}
         />
+      </div>
+
+      {/* Variant selector */}
+      <div className="fixed top-20 left-4 z-30 flex flex-col gap-2">
+        {VARIANTS.map((v) => (
+          <button
+            key={v.id}
+            onClick={() => setSphereVariant(v.id)}
+            className={`px-3 py-1.5 text-xs rounded-lg backdrop-blur-sm transition-all border ${
+              sphereVariant === v.id
+                ? "bg-primary/30 text-primary border-primary/50"
+                : "bg-muted/20 text-muted-foreground border-border/20 hover:bg-muted/40"
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+        {(sphereVariant === "pulse" || sphereVariant === "dataflow") && (
+          <button
+            onClick={() => setShowHUD(!showHUD)}
+            className={`px-3 py-1.5 text-xs rounded-lg backdrop-blur-sm transition-all border flex items-center gap-1.5 ${
+              showHUD
+                ? "bg-accent/30 text-accent border-accent/50"
+                : "bg-muted/20 text-muted-foreground border-border/20 hover:bg-muted/40"
+            }`}
+          >
+            <Sparkles className="w-3 h-3" />
+            HUD
+          </button>
+        )}
       </div>
 
       {/* Header - on top of 3D */}
