@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { NebulaOrb } from '@/components/dashboard/NebulaOrb';
+import { PureNebulaSphere } from '@/components/dashboard/PureNebulaSphere';
 import { GlassmorphicCard } from '@/components/dashboard/GlassmorphicCard';
 import { EmailCard } from '@/components/dashboard/EmailCard';
 import { CalendarCard } from '@/components/dashboard/CalendarCard';
@@ -10,7 +10,7 @@ import { DocumentsCard } from '@/components/dashboard/DocumentsCard';
 import { WeatherCard } from '@/components/dashboard/WeatherCard';
 import { AIState } from '@/components/aria/AIOrb';
 import { CardId } from '@/hooks/useCardFocus';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface CommandCenterLayoutProps {
   aiState: AIState;
@@ -35,16 +35,15 @@ const CommandCenterLayoutComponent = ({
   onOrbClick,
 }: CommandCenterLayoutProps) => {
   return (
-    <div className="h-full flex flex-col">
-      {/* Central AI Sphere */}
-      <div className="flex-1 flex items-center justify-center">
-        <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-          className="relative"
-        >
-          <NebulaOrb
+    <div className="h-full flex flex-col p-6 pt-20">
+      {/* Header with Sphere */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-center pb-8"
+      >
+        <div className="flex flex-col items-center">
+          <PureNebulaSphere
             state={aiState}
             audioLevel={audioLevel}
             size="lg"
@@ -53,48 +52,35 @@ const CommandCenterLayoutComponent = ({
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
-            className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-sm text-muted-foreground whitespace-nowrap"
+            transition={{ delay: 0.5 }}
+            className="mt-4 text-sm text-muted-foreground"
           >
             Click to chat with Atlas
           </motion.p>
-        </motion.div>
-      </div>
-
-      {/* Bottom Dock */}
-      <motion.div
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3, type: 'spring', damping: 25 }}
-        className="pb-8"
-      >
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="glass-card p-3 rounded-2xl">
-            <ScrollArea className="w-full">
-              <div className="flex gap-4 pb-2">
-                {cards.map((card, index) => (
-                  <motion.div
-                    key={card.id}
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.4 + index * 0.1 }}
-                    whileHover={{ y: -8, scale: 1.02 }}
-                    className="flex-shrink-0 w-64"
-                  >
-                    <GlassmorphicCard
-                      isFocused={focusedCard === card.id}
-                      glowColor={card.color}
-                    >
-                      <card.Component isFocused={focusedCard === card.id} />
-                    </GlassmorphicCard>
-                  </motion.div>
-                ))}
-              </div>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
-          </div>
         </div>
       </motion.div>
+
+      {/* Cards Grid */}
+      <ScrollArea className="flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-6">
+          {cards.map((card, index) => (
+            <motion.div
+              key={card.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 + index * 0.08 }}
+            >
+              <GlassmorphicCard
+                isFocused={focusedCard === card.id}
+                glowColor={card.color}
+                delay={index}
+              >
+                <card.Component isFocused={focusedCard === card.id} />
+              </GlassmorphicCard>
+            </motion.div>
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   );
 };
