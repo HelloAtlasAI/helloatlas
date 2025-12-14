@@ -2,7 +2,11 @@ import { Cloud, Sun, Droplets, Wind, Sunrise, Sunset } from 'lucide-react';
 import { DashboardCard } from './DashboardCard';
 import { motion } from 'framer-motion';
 
-interface WeatherCardProps { isFocused?: boolean; streamingData?: any[]; }
+interface WeatherCardProps { 
+  isFocused?: boolean; 
+  streamingData?: any[];
+  onExpand?: () => void;
+}
 
 const hourlyForecast = [
   { time: 'Now', temp: 68, icon: 'partly-cloudy' },
@@ -12,8 +16,8 @@ const hourlyForecast = [
   { time: '9PM', temp: 64, icon: 'cloudy' },
 ];
 
-export const WeatherCard = ({ isFocused }: WeatherCardProps) => (
-  <DashboardCard glowColor="rgba(251, 191, 36, 0.15)">
+export const WeatherCard = ({ isFocused, onExpand }: WeatherCardProps) => (
+  <DashboardCard glowColor="rgba(251, 191, 36, 0.15)" onClick={onExpand}>
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>

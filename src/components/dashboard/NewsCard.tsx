@@ -3,7 +3,8 @@ import { DashboardCard } from './DashboardCard';
 import { motion } from 'framer-motion';
 
 interface NewsCardProps { 
-  isFocused?: boolean; 
+  isFocused?: boolean;
+  onExpand?: () => void;
 }
 
 const mockNews = [
@@ -12,10 +13,11 @@ const mockNews = [
   { id: 3, title: 'Space Agency Announces New Moon Mission Timeline', source: 'Reuters', time: '6h ago', trending: false, category: 'Science' },
 ];
 
-export const NewsCard = ({ isFocused }: NewsCardProps) => {
+export const NewsCard = ({ isFocused, onExpand }: NewsCardProps) => {
   return (
     <DashboardCard 
-      glowColor="rgba(168, 85, 247, 0.15)" 
+      glowColor="rgba(168, 85, 247, 0.15)"
+      onClick={onExpand}
       header={
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

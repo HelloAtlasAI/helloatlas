@@ -28,14 +28,19 @@ export const MorphableCard = ({
     const n = notchSize;
     const full = 100;
     
+    // Create polygon clip-paths for non-rectangular shapes
     switch (notch) {
       case 'top-left':
+        // Cut out top-left corner
         return `polygon(${n}% 0%, ${full}% 0%, ${full}% ${full}%, 0% ${full}%, 0% ${n}%, ${n}% ${n}%)`;
       case 'top-right':
+        // Cut out top-right corner
         return `polygon(0% 0%, ${full - n}% 0%, ${full - n}% ${n}%, ${full}% ${n}%, ${full}% ${full}%, 0% ${full}%)`;
       case 'bottom-left':
+        // Cut out bottom-left corner
         return `polygon(0% 0%, ${full}% 0%, ${full}% ${full}%, ${n}% ${full}%, ${n}% ${full - n}%, 0% ${full - n}%)`;
       case 'bottom-right':
+        // Cut out bottom-right corner
         return `polygon(0% 0%, ${full}% 0%, ${full}% ${full - n}%, ${full - n}% ${full - n}%, ${full - n}% ${full}%, 0% ${full}%)`;
       default:
         return 'none';
@@ -45,23 +50,13 @@ export const MorphableCard = ({
   return (
     <motion.div
       layoutId={layoutId}
-      className={`relative overflow-hidden rounded-2xl h-full bg-gradient-to-br from-slate-900/90 via-slate-800/80 to-slate-900/90 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 ${onClick ? 'cursor-pointer' : ''} ${className}`}
-      onClick={onClick}
+      className={`relative h-full ${className}`}
       style={{ clipPath: clipPath !== 'none' ? clipPath : undefined }}
-      whileHover={{ scale: 1.01, borderColor: 'rgba(255,255,255,0.2)' }}
+      whileHover={{ scale: 1.01 }}
       transition={{ duration: 0.2 }}
     >
-      {/* Glow effect */}
-      <div 
-        className="absolute inset-0 opacity-30 pointer-events-none" 
-        style={{ background: `radial-gradient(ellipse at top, ${glowColor} 0%, transparent 60%)` }} 
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none" />
-      
-      {/* Content */}
-      <div className="relative z-10 h-full">
-        {children}
-      </div>
+      {/* Content - renders the child card with its own styling */}
+      {children}
     </motion.div>
   );
 };

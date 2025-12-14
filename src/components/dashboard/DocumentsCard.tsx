@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 interface DocumentsCardProps {
   isFocused?: boolean;
   streamingData?: any[];
+  onExpand?: () => void;
 }
 
 const recentDocuments = [
@@ -60,10 +61,11 @@ const recentDocuments = [
 
 const storageUsed = 67;
 
-export const DocumentsCard = ({ isFocused }: DocumentsCardProps) => {
+export const DocumentsCard = ({ isFocused, onExpand }: DocumentsCardProps) => {
   return (
     <DashboardCard
       glowColor="rgba(59, 130, 246, 0.15)"
+      onClick={onExpand}
       header={
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
