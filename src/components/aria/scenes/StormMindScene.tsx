@@ -218,10 +218,10 @@ const LightningArcs = ({ state, audioLevel = 0 }: { state: AIState; audioLevel: 
     }));
   }, []);
 
-  useFrame((clock) => {
+  useFrame((rootState) => {
     if (!groupRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = rootState.clock.getElapsedTime();
     const intensity = state === "speaking" ? 1.5 : state === "thinking" ? 1.2 : 0.8;
 
     groupRef.current.children.forEach((line, i) => {
@@ -279,10 +279,10 @@ const EnergyShockwaves = ({ audioLevel = 0 }: { audioLevel: number }) => {
   const groupRef = useRef<THREE.Group>(null);
   const waveCount = 3;
 
-  useFrame((clock) => {
+  useFrame((state) => {
     if (!groupRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = state.clock.getElapsedTime();
     
     groupRef.current.children.forEach((ring, i) => {
       const mesh = ring as THREE.Mesh;
@@ -339,10 +339,10 @@ const ChargedParticles = ({ state, audioLevel = 0 }: { state: AIState; audioLeve
     return { positions, velocities, charges };
   }, []);
 
-  useFrame((clock, delta) => {
+  useFrame((rootState, delta) => {
     if (!meshRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = rootState.clock.getElapsedTime();
     const matrix = new THREE.Matrix4();
     const position = new THREE.Vector3();
     const rotation = new THREE.Quaternion();
@@ -414,10 +414,10 @@ const MagneticFieldLines = ({ audioLevel = 0 }: { audioLevel: number }) => {
   const groupRef = useRef<THREE.Group>(null);
   const lineCount = 16;
 
-  useFrame((clock) => {
+  useFrame((state) => {
     if (!groupRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = state.clock.getElapsedTime();
     
     groupRef.current.children.forEach((line, i) => {
       const mesh = line as THREE.Line;

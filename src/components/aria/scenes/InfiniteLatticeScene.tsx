@@ -42,10 +42,10 @@ const TesseractCore = ({ state, audioLevel = 0 }: { state: AIState; audioLevel: 
     return { vertices4D, edges };
   }, []);
 
-  useFrame((clock) => {
+  useFrame((rootState) => {
     if (!linesRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = rootState.clock.getElapsedTime();
     const rotationSpeed = state === "speaking" ? 0.5 : state === "thinking" ? 0.3 : 0.15;
     
     // 4D rotation matrices
@@ -101,10 +101,10 @@ const InnerTesseracts = ({ state, audioLevel = 0 }: { state: AIState; audioLevel
   const groupRef = useRef<THREE.Group>(null);
   const layerCount = 3;
 
-  useFrame((clock) => {
+  useFrame((rootState) => {
     if (!groupRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = rootState.clock.getElapsedTime();
     const speed = state === "speaking" ? 1.5 : 1;
     
     groupRef.current.children.forEach((child, i) => {
@@ -244,10 +244,10 @@ const DataNodes = ({ state, audioLevel = 0 }: { state: AIState; audioLevel: numb
     return { positions, phases, baseScales };
   }, []);
 
-  useFrame((clock) => {
+  useFrame((rootState) => {
     if (!meshRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = rootState.clock.getElapsedTime();
     const matrix = new THREE.Matrix4();
     const position = new THREE.Vector3();
     const rotation = new THREE.Quaternion();
@@ -314,10 +314,10 @@ const EnergyPulses = ({ audioLevel = 0 }: { audioLevel: number }) => {
     return { positions, directions, speeds, phases };
   }, []);
 
-  useFrame((clock, delta) => {
+  useFrame((state, delta) => {
     if (!meshRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = state.clock.getElapsedTime();
     const matrix = new THREE.Matrix4();
     const position = new THREE.Vector3();
     const rotation = new THREE.Quaternion();
@@ -371,10 +371,10 @@ const CrystallineShards = ({ state, audioLevel = 0 }: { state: AIState; audioLev
     }));
   }, []);
 
-  useFrame((clock) => {
+  useFrame((rootState) => {
     if (!groupRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = rootState.clock.getElapsedTime();
     const speed = state === "speaking" ? 2 : 1;
     
     groupRef.current.children.forEach((mesh, i) => {

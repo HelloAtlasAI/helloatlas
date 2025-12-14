@@ -284,10 +284,10 @@ const BioluminescentCells = ({ state, audioLevel = 0 }: { state: AIState; audioL
     return { positions, velocities, phases };
   }, []);
 
-  useFrame((clock, delta) => {
+  useFrame((rootState, delta) => {
     if (!meshRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = rootState.clock.getElapsedTime();
     const matrix = new THREE.Matrix4();
     const position = new THREE.Vector3();
     const rotation = new THREE.Quaternion();
@@ -355,10 +355,10 @@ const PressureWaves = ({ audioLevel = 0 }: { audioLevel: number }) => {
   const groupRef = useRef<THREE.Group>(null);
   const waveCount = 4;
 
-  useFrame((clock) => {
+  useFrame((state) => {
     if (!groupRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = state.clock.getElapsedTime();
     
     groupRef.current.children.forEach((ring, i) => {
       const mesh = ring as THREE.Mesh;
