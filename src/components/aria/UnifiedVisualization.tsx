@@ -13,13 +13,13 @@ const HybridScene = lazy(() => import("./scenes/HybridScene").then(m => ({ defau
 const BackgroundScene = lazy(() => import("./scenes/BackgroundScene").then(m => ({ default: m.BackgroundScene })));
 const HUDScene = lazy(() => import("./scenes/HUDScene").then(m => ({ default: m.HUDScene })));
 
-// New immersive universe scenes
-const InfiniteVoidScene = lazy(() => import("./scenes/InfiniteVoidScene").then(m => ({ default: m.InfiniteVoidScene })));
-const LivingOceanScene = lazy(() => import("./scenes/LivingOceanScene").then(m => ({ default: m.LivingOceanScene })));
-const StormMindScene = lazy(() => import("./scenes/StormMindScene").then(m => ({ default: m.StormMindScene })));
-const InfiniteLatticeScene = lazy(() => import("./scenes/InfiniteLatticeScene").then(m => ({ default: m.InfiniteLatticeScene })));
+// Data network visualization scenes
+const NeuralPathwaysScene = lazy(() => import("./scenes/NeuralPathwaysScene").then(m => ({ default: m.NeuralPathwaysScene })));
+const DigitalCircuitScene = lazy(() => import("./scenes/DigitalCircuitScene").then(m => ({ default: m.DigitalCircuitScene })));
+const OrganicGrowthScene = lazy(() => import("./scenes/OrganicGrowthScene").then(m => ({ default: m.OrganicGrowthScene })));
+const CosmicWebScene = lazy(() => import("./scenes/CosmicWebScene").then(m => ({ default: m.CosmicWebScene })));
 
-export type VisualizationMode = "cyber" | "face" | "hybrid" | "void" | "ocean" | "storm" | "lattice";
+export type VisualizationMode = "cyber" | "face" | "hybrid" | "neural" | "circuit" | "organic" | "cosmic";
 
 interface UnifiedVisualizationProps {
   mode: VisualizationMode;
@@ -45,14 +45,14 @@ export const UnifiedVisualization = ({
         return { position: [0, 0, 1.8] as [number, number, number], fov: 38 };
       case "hybrid":
         return { position: [0, 0, 2.2] as [number, number, number], fov: 42 };
-      case "void":
+      case "neural":
         return { position: [0, 0, 7] as [number, number, number], fov: 60 };
-      case "ocean":
-        return { position: [0, 0, 5] as [number, number, number], fov: 55 };
-      case "storm":
-        return { position: [0, 0, 6] as [number, number, number], fov: 55 };
-      case "lattice":
-        return { position: [0, 0, 8] as [number, number, number], fov: 65 };
+      case "circuit":
+        return { position: [0, 0, 8] as [number, number, number], fov: 55 };
+      case "organic":
+        return { position: [0, 0, 7] as [number, number, number], fov: 55 };
+      case "cosmic":
+        return { position: [0, 0, 10] as [number, number, number], fov: 65 };
       default:
         return { position: [0, 0, 2.8] as [number, number, number], fov: 50 };
     }
@@ -168,17 +168,17 @@ export const UnifiedVisualization = ({
               isSpeaking={isSpeaking}
             />
           )}
-          {mode === "void" && (
-            <InfiniteVoidScene state={state} audioLevel={audioLevel} />
+          {mode === "neural" && (
+            <NeuralPathwaysScene state={state} audioLevel={audioLevel} />
           )}
-          {mode === "ocean" && (
-            <LivingOceanScene state={state} audioLevel={audioLevel} />
+          {mode === "circuit" && (
+            <DigitalCircuitScene state={state} audioLevel={audioLevel} />
           )}
-          {mode === "storm" && (
-            <StormMindScene state={state} audioLevel={audioLevel} />
+          {mode === "organic" && (
+            <OrganicGrowthScene state={state} audioLevel={audioLevel} />
           )}
-          {mode === "lattice" && (
-            <InfiniteLatticeScene state={state} audioLevel={audioLevel} />
+          {mode === "cosmic" && (
+            <CosmicWebScene state={state} audioLevel={audioLevel} />
           )}
         </Suspense>
 
