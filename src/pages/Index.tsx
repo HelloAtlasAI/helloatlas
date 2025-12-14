@@ -1,9 +1,8 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { UnifiedVisualization, VisualizationMode } from "@/components/aria/UnifiedVisualization";
+import { UnifiedVisualization } from "@/components/aria/UnifiedVisualization";
 import { HolographicCards, demoHolographicCards } from "@/components/aria/HolographicCard";
 import { StateIndicator } from "@/components/aria/StateIndicator";
-import { VisualizationModeSwitch } from "@/components/aria/VisualizationModeSwitch";
 import { ChatInput } from "@/components/aria/ChatInput";
 import { ConversationPanel } from "@/components/aria/ConversationPanel";
 import { useChat } from "@/hooks/useChat";
@@ -16,7 +15,6 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [cards, setCards] = useState(demoHolographicCards);
-  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>("face");
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const APP_NAME = "Atlas";
 
@@ -77,10 +75,8 @@ const Index = () => {
       {/* FULLSCREEN 3D Canvas - covers entire viewport */}
       <div className="fixed inset-0 z-0">
         <UnifiedVisualization
-          mode={visualizationMode}
           state={effectiveAiState}
           audioLevel={audioLevel}
-          isSpeaking={isPlaying}
         />
       </div>
 
@@ -105,12 +101,6 @@ const Index = () => {
 
         <nav className="flex items-center gap-3">
           <StateIndicator state={effectiveAiState} />
-          
-          {/* Visualization mode switch */}
-          <VisualizationModeSwitch 
-            mode={visualizationMode} 
-            onModeChange={setVisualizationMode} 
-          />
           
           {/* Voice toggle */}
           <button
