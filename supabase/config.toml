@@ -11,3 +11,15 @@ verify_jwt = false
 
 [functions.elevenlabs-stt]
 verify_jwt = false
+
+[functions.get-news]
+verify_jwt = false
+
+[functions.get-stocks]
+verify_jwt = false
+
+[functions.get-weather]
+verify_jwt = false
+
+[functions.stocks-realtime]
+verify_jwt = false
