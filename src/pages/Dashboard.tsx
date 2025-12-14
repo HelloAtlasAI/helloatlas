@@ -13,9 +13,33 @@ import { WeatherCard } from '@/components/dashboard/WeatherCard';
 import { StocksCard } from '@/components/dashboard/StocksCard';
 import { TravelCard } from '@/components/dashboard/TravelCard';
 import { DocumentsCard } from '@/components/dashboard/DocumentsCard';
+import { NotesCard } from '@/components/dashboard/NotesCard';
+import { TasksCard } from '@/components/dashboard/TasksCard';
+import { NewsCard } from '@/components/dashboard/NewsCard';
 import { ConversationDrawer } from '@/components/dashboard/ConversationDrawer';
 
 type AIState = 'idle' | 'listening' | 'thinking' | 'speaking';
+
+// Card animation variants
+const cardVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  visible: (delay: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      delay: delay * 0.08,
+      ease: [0.25, 0.46, 0.45, 0.94],
+    },
+  }),
+};
+
+// Glow effect for focused cards
+const getFocusedClasses = (cardName: string, focusedCard: string | null) => {
+  if (focusedCard !== cardName) return '';
+  return 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background rounded-2xl shadow-[0_0_30px_rgba(99,102,241,0.4)]';
+};
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -168,14 +192,15 @@ const Dashboard = () => {
       />
       
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Mosaic Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 auto-rows-[140px]">
+        {/* Mosaic Grid Layout - Full width with proper gaps */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 auto-rows-[140px] w-full">
           {/* AI Assistant - Spans 2 columns, compact */}
           <motion.div 
-            className="md:col-span-2 row-span-1"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            className={`md:col-span-2 row-span-1 ${getFocusedClasses('assistant', focusedCard)}`}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            custom={0}
           >
             <AIAssistantCard
               state={effectiveAiState}
@@ -191,60 +216,99 @@ const Dashboard = () => {
 
           {/* Weather - 2 rows */}
           <motion.div 
-            className={`row-span-2 ${focusedCard === 'weather' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            className={`row-span-2 ${getFocusedClasses('weather', focusedCard)}`}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            custom={1}
           >
             <WeatherCard />
           </motion.div>
 
           {/* Travel - 2 rows */}
           <motion.div 
-            className={`row-span-2 ${focusedCard === 'travel' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
+            className={`row-span-2 ${getFocusedClasses('travel', focusedCard)}`}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            custom={2}
           >
             <TravelCard />
           </motion.div>
 
           {/* Email - 3 rows tall */}
           <motion.div 
-            className={`row-span-3 ${focusedCard === 'email' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            className={`row-span-3 ${getFocusedClasses('email', focusedCard)}`}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            custom={3}
           >
             <EmailCard />
           </motion.div>
 
           {/* Calendar - 3 rows tall */}
           <motion.div 
-            className={`row-span-3 ${focusedCard === 'calendar' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
+            className={`row-span-3 ${getFocusedClasses('calendar', focusedCard)}`}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            custom={4}
           >
             <CalendarCard />
           </motion.div>
 
           {/* Stocks - Wide, 2 columns, 2 rows */}
           <motion.div 
-            className={`md:col-span-2 row-span-2 ${focusedCard === 'stocks' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            className={`md:col-span-2 row-span-2 ${getFocusedClasses('stocks', focusedCard)}`}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            custom={5}
           >
             <StocksCard />
           </motion.div>
 
+          {/* Tasks - 2 rows */}
+          <motion.div 
+            className={`row-span-2 ${getFocusedClasses('tasks', focusedCard)}`}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            custom={6}
+          >
+            <TasksCard />
+          </motion.div>
+
+          {/* Notes - 2 rows */}
+          <motion.div 
+            className={`row-span-2 ${getFocusedClasses('notes', focusedCard)}`}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            custom={7}
+          >
+            <NotesCard />
+          </motion.div>
+
+          {/* News - Wide, 2 columns, 2 rows */}
+          <motion.div 
+            className={`md:col-span-2 row-span-2 ${getFocusedClasses('news', focusedCard)}`}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            custom={8}
+          >
+            <NewsCard />
+          </motion.div>
+
           {/* Documents - Wide, 2 columns, 2 rows */}
           <motion.div 
-            className={`md:col-span-2 row-span-2 ${focusedCard === 'documents' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-2xl' : ''}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
+            className={`md:col-span-2 row-span-2 ${getFocusedClasses('documents', focusedCard)}`}
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            custom={9}
           >
             <DocumentsCard />
           </motion.div>
