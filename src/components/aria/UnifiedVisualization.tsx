@@ -193,11 +193,6 @@ export const UnifiedVisualization = ({
           <Vignette offset={0.3} darkness={0.5} />
           <Noise opacity={0.015} blendFunction={BlendFunction.OVERLAY} />
         </EffectComposer>
-            offset={new THREE.Vector2(0.0003, 0.0003)}
-            blendFunction={BlendFunction.NORMAL}
-          />
-          <Noise opacity={0.015} blendFunction={BlendFunction.OVERLAY} />
-        </EffectComposer>
 
         {/* HUD overlay layer */}
         <Suspense fallback={<SceneLoader />}>

@@ -294,10 +294,10 @@ const GravitationalWaves = ({ audioLevel = 0 }: { audioLevel: number }) => {
   const ringsRef = useRef<THREE.Group>(null);
   const ringCount = 5;
 
-  useFrame((clock) => {
+  useFrame((state) => {
     if (!ringsRef.current) return;
     
-    const time = clock.getElapsedTime();
+    const time = state.clock.getElapsedTime();
     
     ringsRef.current.children.forEach((ring, i) => {
       const mesh = ring as THREE.Mesh;
