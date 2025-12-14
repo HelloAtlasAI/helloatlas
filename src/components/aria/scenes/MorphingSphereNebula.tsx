@@ -39,8 +39,8 @@ const vertexShader = `
     gl_Position = projectionMatrix * mvPosition;
     
     // Varied sizes for cloud effect
-    float size = 2.0 + aRandomness * 3.0;
-    gl_PointSize = size * (180.0 / -mvPosition.z);
+    float size = 1.5 + aRandomness * 2.0;
+    gl_PointSize = size * (90.0 / -mvPosition.z);
     
     // Distance-based alpha
     float dist = length(pos);
@@ -79,7 +79,7 @@ export const MorphingSphereNebula = ({ state, audioLevel }: MorphingSphereNebula
   const smoothAudioRef = useRef(0);
 
   const geometry = useMemo(() => {
-    const count = 20000;
+    const count = 100000;
     const positions = new Float32Array(count * 3);
     const randomness = new Float32Array(count);
     

@@ -24,7 +24,7 @@ export interface ParticlePool {
 }
 
 export const useParticlePool = (config: ParticlePoolConfig = {
-  count: 50000,
+  count: 200000,
   universeRadius: 15,
   sphereRadius: 0.8,
 }) => {

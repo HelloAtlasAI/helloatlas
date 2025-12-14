@@ -36,9 +36,9 @@ const universeVertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Size based on state and distance
-    float baseSize = aState < 0.5 ? 1.5 : (aState < 1.5 ? 2.0 : 2.5);
-    gl_PointSize = baseSize * (150.0 / -mvPosition.z);
+    // Size based on state and distance - smaller for massive particle count
+    float baseSize = aState < 0.5 ? 0.8 : (aState < 1.5 ? 1.2 : 1.5);
+    gl_PointSize = baseSize * (80.0 / -mvPosition.z);
   }
 `;
 
