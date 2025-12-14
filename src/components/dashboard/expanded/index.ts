@@ -4,3 +4,6 @@ export { ExpandedCalendarCard } from './ExpandedCalendarCard';
 export { ExpandedWeatherCard } from './ExpandedWeatherCard';
 export { ExpandedStocksCard } from './ExpandedStocksCard';
 export { ExpandedNewsCard } from './ExpandedNewsCard';
+export { ExpandedEmailCard } from './ExpandedEmailCard';
+export { ExpandedTravelCard } from './ExpandedTravelCard';
+export { ExpandedDocumentsCard } from './ExpandedDocumentsCard';

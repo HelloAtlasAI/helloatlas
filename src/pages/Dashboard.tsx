@@ -26,7 +26,10 @@ import {
   ExpandedCalendarCard,
   ExpandedWeatherCard,
   ExpandedStocksCard,
-  ExpandedNewsCard
+  ExpandedNewsCard,
+  ExpandedEmailCard,
+  ExpandedTravelCard,
+  ExpandedDocumentsCard
 } from '@/components/dashboard/expanded';
 
 type AIState = 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -196,9 +199,9 @@ const Dashboard = () => {
       case 'weather': return <ExpandedWeatherCard />;
       case 'stocks': return <ExpandedStocksCard />;
       case 'news': return <ExpandedNewsCard />;
-      case 'email': return <EmailCard />;
-      case 'documents': return <DocumentsCard />;
-      case 'travel': return <TravelCard />;
+      case 'email': return <ExpandedEmailCard />;
+      case 'documents': return <ExpandedDocumentsCard />;
+      case 'travel': return <ExpandedTravelCard />;
       default: return null;
     }
   };
@@ -240,10 +243,10 @@ const Dashboard = () => {
         {/* Mosaic Grid Layout - Dynamic sizing with minmax */}
         <AnimatePresence mode="wait">
           {!expandedCard ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 auto-rows-[minmax(140px,auto)] w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5 auto-rows-[minmax(140px,auto)] w-full">
           {/* AI Assistant - Spans 2 columns, compact */}
           <motion.div 
-            className={`md:col-span-2 row-span-1 ${getFocusedClasses('assistant', focusedCard)}`}
+            className={`md:col-span-2 xl:col-span-2 row-span-1 ${getFocusedClasses('assistant', focusedCard)}`}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -309,9 +312,9 @@ const Dashboard = () => {
             <CalendarCard onExpand={() => setExpandedCard('calendar')} />
           </motion.div>
 
-          {/* Stocks - Wide, 2 columns, 2 rows */}
+          {/* Stocks - Wide, 2-3 columns depending on screen */}
           <motion.div 
-            className={`md:col-span-2 row-span-2 ${getFocusedClasses('stocks', focusedCard)}`}
+            className={`md:col-span-2 xl:col-span-3 2xl:col-span-2 row-span-2 ${getFocusedClasses('stocks', focusedCard)}`}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -344,9 +347,9 @@ const Dashboard = () => {
             <NotesCard onExpand={() => setExpandedCard('notes')} />
           </motion.div>
 
-          {/* News - Wide, 2 columns, 2 rows */}
+          {/* News - Wide, 2-3 columns depending on screen */}
           <motion.div 
-            className={`md:col-span-2 row-span-2 ${getFocusedClasses('news', focusedCard)}`}
+            className={`md:col-span-2 xl:col-span-3 2xl:col-span-3 row-span-2 ${getFocusedClasses('news', focusedCard)}`}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -355,9 +358,9 @@ const Dashboard = () => {
             <NewsCard onExpand={() => setExpandedCard('news')} />
           </motion.div>
 
-          {/* Documents - Wide, 2 columns, 2 rows */}
+          {/* Documents - Wide, 2-3 columns depending on screen */}
           <motion.div 
-            className={`md:col-span-2 row-span-2 ${getFocusedClasses('documents', focusedCard)}`}
+            className={`md:col-span-2 xl:col-span-2 2xl:col-span-3 row-span-2 ${getFocusedClasses('documents', focusedCard)}`}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
