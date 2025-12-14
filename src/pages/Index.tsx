@@ -5,20 +5,12 @@ import { HolographicCards, demoHolographicCards } from "@/components/aria/Hologr
 import { StateIndicator } from "@/components/aria/StateIndicator";
 import { ChatInput } from "@/components/aria/ChatInput";
 import { ConversationPanel } from "@/components/aria/ConversationPanel";
-import { ControlPanel } from "@/components/aria/ControlPanel";
+import { SettingsPanel } from "@/components/aria/SettingsPanel";
 import { useChat } from "@/hooks/useChat";
 import { useVoice } from "@/hooks/useVoice";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Loader2, Volume2, VolumeX, Sparkles } from "lucide-react";
-
-const VARIANTS: { id: SphereVariant; label: string }[] = [
-  { id: "classic", label: "Classic" },
-  { id: "nebula", label: "Nebula" },
-  { id: "crystal", label: "Crystal" },
-  { id: "pulse", label: "Pulse" },
-  { id: "dataflow", label: "Data Flow" },
-];
+import { LogOut, User, Loader2, Volume2, VolumeX } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -99,46 +91,20 @@ const Index = () => {
         />
       </div>
 
-      {/* Variant selector */}
-      <div className="fixed top-20 left-4 z-30 flex flex-col gap-2">
-        {VARIANTS.map((v) => (
-          <button
-            key={v.id}
-            onClick={() => setSphereVariant(v.id)}
-            className={`px-3 py-1.5 text-xs rounded-lg backdrop-blur-sm transition-all border ${
-              sphereVariant === v.id
-                ? "bg-primary/30 text-primary border-primary/50"
-                : "bg-muted/20 text-muted-foreground border-border/20 hover:bg-muted/40"
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
-        {(sphereVariant === "pulse" || sphereVariant === "dataflow") && (
-          <button
-            onClick={() => setShowHUD(!showHUD)}
-            className={`px-3 py-1.5 text-xs rounded-lg backdrop-blur-sm transition-all border flex items-center gap-1.5 ${
-              showHUD
-                ? "bg-accent/30 text-accent border-accent/50"
-                : "bg-muted/20 text-muted-foreground border-border/20 hover:bg-muted/40"
-            }`}
-          >
-            <Sparkles className="w-3 h-3" />
-            HUD
-          </button>
-        )}
-        
-        {/* Control Panel */}
-        <div className="mt-2">
-          <ControlPanel
-            particleDensity={particleDensity}
-            trailLength={trailLength}
-            morphIntensity={morphIntensity}
-            onParticleDensityChange={setParticleDensity}
-            onTrailLengthChange={setTrailLength}
-            onMorphIntensityChange={setMorphIntensity}
-          />
-        </div>
+      {/* Settings Panel */}
+      <div className="fixed top-20 left-4 z-30">
+        <SettingsPanel
+          sphereVariant={sphereVariant}
+          showHUD={showHUD}
+          particleDensity={particleDensity}
+          trailLength={trailLength}
+          morphIntensity={morphIntensity}
+          onVariantChange={setSphereVariant}
+          onShowHUDChange={setShowHUD}
+          onParticleDensityChange={setParticleDensity}
+          onTrailLengthChange={setTrailLength}
+          onMorphIntensityChange={setMorphIntensity}
+        />
       </div>
 
       {/* Header - on top of 3D */}
