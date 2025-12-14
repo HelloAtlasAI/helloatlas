@@ -1,10 +1,9 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Newspaper, ExternalLink, Clock, Search, Bookmark, Share2, RefreshCw } from 'lucide-react';
+import { Newspaper, ExternalLink, Clock, Search, Bookmark, Share2, RefreshCw, TrendingUp } from 'lucide-react';
 import { useNews } from '@/hooks/useNews';
-import { formatDistanceToNow } from 'date-fns';
 
-const categories = ['All', 'Technology', 'Business', 'Science', 'Health', 'Sports'];
+const categories = ['All', 'Technology', 'Finance', 'Science', 'Health', 'Sports'];
 
 export const ExpandedNewsCard = () => {
   const { news, isLoading, refetch } = useNews();
@@ -17,8 +16,7 @@ export const ExpandedNewsCard = () => {
     
     if (searchQuery) {
       filtered = filtered.filter(article => 
-        article.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        article.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        article.title?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     
@@ -106,27 +104,23 @@ export const ExpandedNewsCard = () => {
               }`}
             >
               <div className="flex gap-3">
-                {article.imageUrl && (
-                  <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
-                    <img 
-                      src={article.imageUrl} 
-                      alt="" 
-                      className="w-full h-full object-cover"
-                      onError={(e) => (e.currentTarget.style.display = 'none')}
-                    />
-                  </div>
-                )}
                 <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    {article.trending && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-amber-400 bg-amber-500/20 rounded">
+                        <TrendingUp className="w-3 h-3" />
+                        Trending
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground">{article.category}</span>
+                  </div>
                   <h4 className="font-medium text-sm text-foreground line-clamp-2">{article.title}</h4>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                    {article.description}
-                  </p>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-xs text-muted-foreground">{article.source}</span>
                     <span className="text-xs text-muted-foreground">•</span>
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {article.publishedAt ? formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true }) : 'Recently'}
+                      {article.time}
                     </span>
                   </div>
                 </div>
@@ -145,26 +139,22 @@ export const ExpandedNewsCard = () => {
             animate={{ opacity: 1 }}
             className="flex-1 flex flex-col overflow-hidden"
           >
-            {/* Article header */}
-            {selectedArticle.imageUrl && (
-              <div className="h-64 relative overflow-hidden">
-                <img 
-                  src={selectedArticle.imageUrl} 
-                  alt="" 
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
-              </div>
-            )}
-
             {/* Article content */}
             <div className="flex-1 overflow-y-auto p-6">
               <div className="max-w-3xl mx-auto">
-                {selectedArticle.category && (
-                  <span className="inline-block px-2 py-1 text-xs font-medium text-violet-400 bg-violet-500/20 rounded-lg mb-4">
-                    {selectedArticle.category}
-                  </span>
-                )}
+                <div className="flex items-center gap-2 mb-4">
+                  {selectedArticle.category && (
+                    <span className="inline-block px-2 py-1 text-xs font-medium text-violet-400 bg-violet-500/20 rounded-lg">
+                      {selectedArticle.category}
+                    </span>
+                  )}
+                  {selectedArticle.trending && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-400 bg-amber-500/20 rounded-lg">
+                      <TrendingUp className="w-3 h-3" />
+                      Trending
+                    </span>
+                  )}
+                </div>
                 
                 <h1 className="text-2xl lg:text-3xl font-bold text-foreground leading-tight">
                   {selectedArticle.title}
@@ -175,7 +165,7 @@ export const ExpandedNewsCard = () => {
                   <span>•</span>
                   <span className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
-                    {selectedArticle.publishedAt ? formatDistanceToNow(new Date(selectedArticle.publishedAt), { addSuffix: true }) : 'Recently'}
+                    {selectedArticle.time}
                   </span>
                 </div>
 
@@ -203,13 +193,8 @@ export const ExpandedNewsCard = () => {
 
                 <div className="mt-8 prose prose-invert max-w-none">
                   <p className="text-lg text-muted-foreground leading-relaxed">
-                    {selectedArticle.description}
+                    Click "Read Full Article" to view the complete story on {selectedArticle.source}.
                   </p>
-                  {selectedArticle.content && (
-                    <p className="mt-4 text-foreground leading-relaxed">
-                      {selectedArticle.content}
-                    </p>
-                  )}
                 </div>
               </div>
             </div>

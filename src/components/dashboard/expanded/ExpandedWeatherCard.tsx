@@ -10,7 +10,7 @@ const getWeatherIcon = (condition: string, size: string = 'w-8 h-8') => {
 };
 
 export const ExpandedWeatherCard = () => {
-  const { weather, forecast, isLoading, refetch } = useWeather();
+  const { weather, isLoading, refetch } = useWeather();
 
   if (isLoading || !weather) {
     return (
@@ -20,8 +20,8 @@ export const ExpandedWeatherCard = () => {
     );
   }
 
-  const hourlyForecast = forecast?.slice(0, 24) || [];
-  const dailyForecast = forecast?.filter((_, i) => i % 8 === 0).slice(0, 7) || [];
+  // Use hourly data from weather hook
+  const hourlyForecast = weather.hourly || [];
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
@@ -57,10 +57,10 @@ export const ExpandedWeatherCard = () => {
               transition={{ delay: 0.3 }}
               className="mt-4 text-center"
             >
-              <div className="text-6xl font-light text-foreground">{Math.round(weather.temperature)}°</div>
+              <div className="text-6xl font-light text-foreground">{Math.round(weather.temp)}°</div>
               <div className="text-xl text-muted-foreground mt-2 capitalize">{weather.condition}</div>
               <div className="text-sm text-muted-foreground mt-1">
-                Feels like {Math.round(weather.feelsLike || weather.temperature)}°
+                Feels like {Math.round(weather.temp)}°
               </div>
             </motion.div>
           </div>
@@ -79,7 +79,7 @@ export const ExpandedWeatherCard = () => {
             </div>
             <div className="text-center">
               <Eye className="w-5 h-5 mx-auto text-purple-400 mb-1" />
-              <div className="text-sm font-medium text-foreground">{weather.visibility || '10'} km</div>
+              <div className="text-sm font-medium text-foreground">10 km</div>
               <div className="text-xs text-muted-foreground">Visibility</div>
             </div>
           </div>
@@ -94,7 +94,7 @@ export const ExpandedWeatherCard = () => {
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Sunrise</div>
-                <div className="text-sm font-medium text-foreground">6:45 AM</div>
+                <div className="text-sm font-medium text-foreground">{weather.sunrise}</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -103,7 +103,7 @@ export const ExpandedWeatherCard = () => {
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Sunset</div>
-                <div className="text-sm font-medium text-foreground">5:30 PM</div>
+                <div className="text-sm font-medium text-foreground">{weather.sunset}</div>
               </div>
             </div>
           </div>
@@ -116,7 +116,7 @@ export const ExpandedWeatherCard = () => {
         <div className="bg-card/50 rounded-2xl border border-border/50 p-4">
           <h3 className="text-sm font-medium text-foreground mb-4">Hourly Forecast</h3>
           <div className="flex gap-4 overflow-x-auto pb-2">
-            {hourlyForecast.map((hour: any, i: number) => (
+            {hourlyForecast.map((hour, i: number) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 10 }}
@@ -124,12 +124,10 @@ export const ExpandedWeatherCard = () => {
                 transition={{ delay: i * 0.03 }}
                 className="flex-shrink-0 flex flex-col items-center p-3 rounded-xl bg-muted/30 min-w-[80px]"
               >
-                <span className="text-xs text-muted-foreground">
-                  {i === 0 ? 'Now' : `${(new Date().getHours() + i) % 24}:00`}
-                </span>
-                {getWeatherIcon(hour.condition, 'w-6 h-6')}
+                <span className="text-xs text-muted-foreground">{hour.time}</span>
+                {getWeatherIcon(hour.icon, 'w-6 h-6')}
                 <span className="text-sm font-medium text-foreground mt-1">
-                  {Math.round(hour.temperature)}°
+                  {Math.round(hour.temp)}°
                 </span>
               </motion.div>
             ))}
@@ -146,7 +144,7 @@ export const ExpandedWeatherCard = () => {
                 </span>
                 <Sun className="w-6 h-6 text-amber-400" />
                 <span className="text-sm font-medium text-foreground mt-1">
-                  {Math.round(weather.temperature + (Math.random() * 4 - 2))}°
+                  {Math.round(weather.temp + (Math.random() * 4 - 2))}°
                 </span>
               </motion.div>
             ))}
@@ -157,10 +155,11 @@ export const ExpandedWeatherCard = () => {
         <div className="flex-1 bg-card/50 rounded-2xl border border-border/50 p-4 overflow-hidden flex flex-col">
           <h3 className="text-sm font-medium text-foreground mb-4">7-Day Forecast</h3>
           <div className="flex-1 space-y-2 overflow-y-auto">
-            {(dailyForecast.length > 0 ? dailyForecast : Array.from({ length: 7 })).map((day: any, i: number) => {
+            {Array.from({ length: 7 }).map((_, i) => {
               const date = new Date();
               date.setDate(date.getDate() + i);
               const dayName = i === 0 ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'short' });
+              const conditions = ['Sunny', 'Partly Cloudy', 'Cloudy', 'Sunny', 'Sunny', 'Cloudy', 'Sunny'];
               
               return (
                 <motion.div
@@ -172,17 +171,17 @@ export const ExpandedWeatherCard = () => {
                 >
                   <div className="w-16 text-sm text-foreground font-medium">{dayName}</div>
                   <div className="flex items-center gap-2">
-                    {getWeatherIcon(day?.condition || 'sunny', 'w-5 h-5')}
+                    {getWeatherIcon(conditions[i], 'w-5 h-5')}
                     <span className="text-xs text-muted-foreground capitalize w-20">
-                      {day?.condition || 'Sunny'}
+                      {conditions[i]}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-foreground font-medium">
-                      {Math.round(day?.temperature || weather.temperature + 2)}°
+                      {Math.round(weather.temp + (i % 3) - 1)}°
                     </span>
                     <span className="text-muted-foreground">
-                      {Math.round((day?.temperature || weather.temperature) - 5)}°
+                      {Math.round(weather.temp - 5)}°
                     </span>
                   </div>
                 </motion.div>
@@ -194,9 +193,9 @@ export const ExpandedWeatherCard = () => {
         {/* Additional details */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Pressure', value: `${weather.pressure || 1013} hPa`, icon: Gauge, color: 'text-green-400' },
-            { label: 'UV Index', value: weather.uvIndex || '3', icon: Sun, color: 'text-amber-400' },
-            { label: 'Dew Point', value: `${Math.round(weather.temperature - 5)}°`, icon: Droplets, color: 'text-blue-400' },
+            { label: 'Pressure', value: '1013 hPa', icon: Gauge, color: 'text-green-400' },
+            { label: 'UV Index', value: '3', icon: Sun, color: 'text-amber-400' },
+            { label: 'Dew Point', value: `${Math.round(weather.temp - 5)}°`, icon: Droplets, color: 'text-blue-400' },
             { label: 'Air Quality', value: 'Good', icon: Wind, color: 'text-emerald-400' },
           ].map((stat, i) => (
             <motion.div
