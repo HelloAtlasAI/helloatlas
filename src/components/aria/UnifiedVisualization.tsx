@@ -34,12 +34,12 @@ export const UnifiedVisualization = ({
   const cameraConfig = useMemo(() => {
     switch (mode) {
       case "face":
-        // Camera positioned for 60-70% face coverage
-        return { position: [0, 0, 3.2] as [number, number, number], fov: 50 };
+        // Camera positioned for 50-60% face coverage - smaller, more elegant
+        return { position: [0, 0, 2.2] as [number, number, number], fov: 42 };
       case "hybrid":
-        return { position: [0, 0, 2.8] as [number, number, number], fov: 50 };
+        return { position: [0, 0, 2.4] as [number, number, number], fov: 45 };
       default:
-        return { position: [0, 0, 3] as [number, number, number], fov: 55 };
+        return { position: [0, 0, 2.8] as [number, number, number], fov: 50 };
     }
   }, [mode]);
 
@@ -61,40 +61,69 @@ export const UnifiedVisualization = ({
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
         
-        {/* Enhanced lighting rig */}
-        {/* Key light - main illumination from front-top */}
+        {/* Enhanced lighting rig for face visibility */}
+        {/* Strong key light - main illumination from front-top */}
         <spotLight 
-          position={[0, 3, 4]} 
-          intensity={1.5} 
+          position={[0, 2.5, 4]} 
+          intensity={2.5} 
           color="#ffffff"
-          angle={0.6}
-          penumbra={0.5}
-          distance={15}
+          angle={0.7}
+          penumbra={0.4}
+          distance={12}
+          castShadow
+        />
+        
+        {/* Secondary key light - frontal fill */}
+        <spotLight 
+          position={[0, 0, 5]} 
+          intensity={1.8} 
+          color="#e8e8ff"
+          angle={0.5}
+          penumbra={0.6}
+          distance={10}
         />
         
         {/* Fill light - softer, from side */}
-        <pointLight position={[-3, 1, 3]} intensity={0.6} color="#00d4ff" distance={10} />
+        <pointLight position={[-2.5, 1, 3]} intensity={0.8} color="#00d4ff" distance={8} />
+        <pointLight position={[2.5, 1, 3]} intensity={0.8} color="#00d4ff" distance={8} />
         
-        {/* Rim light - dramatic backlight for edge definition */}
-        <pointLight position={[0, 0, -3]} intensity={1.2} color="#00ffaa" distance={8} />
+        {/* Rim lights - edge definition from behind */}
+        <pointLight position={[-1.5, 0, -2]} intensity={1.5} color="#00ffaa" distance={6} />
+        <pointLight position={[1.5, 0, -2]} intensity={1.5} color="#00ffaa" distance={6} />
+        
+        {/* Top rim for head contour */}
+        <pointLight position={[0, 2, -1]} intensity={1} color="#00d4ff" distance={5} />
+        
+        {/* Bottom fill to illuminate dark areas */}
+        <pointLight position={[0, -2, 2]} intensity={0.6} color="#a855f7" distance={5} />
         
         {/* Accent lights */}
-        <pointLight position={[3, 2, 2]} intensity={0.5} color="#a855f7" distance={8} />
-        <pointLight position={[-2, -2, 2]} intensity={0.4} color="#ec4899" distance={6} />
+        <pointLight position={[3, 2, 2]} intensity={0.6} color="#a855f7" distance={6} />
+        <pointLight position={[-3, 2, 2]} intensity={0.6} color="#ec4899" distance={6} />
         
-        {/* Subtle ambient */}
-        <ambientLight intensity={0.08} color="#001122" />
+        {/* Subtle ambient - slightly brighter for visibility */}
+        <ambientLight intensity={0.12} color="#112233" />
         
-        {/* Face-specific spotlight */}
+        {/* Face-specific spotlight - brighter center focus */}
         {mode === "face" && (
-          <spotLight 
-            position={[0, 0.5, 3]} 
-            intensity={2} 
-            color="#00d4ff"
-            angle={0.5}
-            penumbra={0.8}
-            distance={6}
-          />
+          <>
+            <spotLight 
+              position={[0, 0.3, 3]} 
+              intensity={2.5} 
+              color="#ffffff"
+              angle={0.4}
+              penumbra={0.7}
+              distance={5}
+            />
+            <spotLight 
+              position={[0, -0.5, 2.5]} 
+              intensity={1} 
+              color="#00d4ff"
+              angle={0.5}
+              penumbra={0.8}
+              distance={4}
+            />
+          </>
         )}
 
         {/* Background layer - always visible, immersive cosmic environment */}
