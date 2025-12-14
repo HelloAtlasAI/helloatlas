@@ -19,9 +19,9 @@ export const DashboardCard = ({
 }: DashboardCardProps) => {
   return (
     <motion.div
-      className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900/90 via-slate-800/80 to-slate-900/90 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={`relative overflow-hidden rounded-2xl h-full bg-gradient-to-br from-slate-900/90 via-slate-800/80 to-slate-900/90 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 ${onClick ? 'cursor-pointer' : ''} ${className}`}
       onClick={onClick}
-      whileHover={{ scale: 1.02, borderColor: 'rgba(255,255,255,0.2)' }}
+      whileHover={{ scale: 1.01, borderColor: 'rgba(255,255,255,0.2)' }}
       transition={{ duration: 0.2 }}
     >
       <div className="absolute inset-0 opacity-30" style={{ background: glowColor ? `radial-gradient(ellipse at top, ${glowColor} 0%, transparent 60%)` : 'radial-gradient(ellipse at top, rgba(99, 102, 241, 0.15) 0%, transparent 60%)' }} />
