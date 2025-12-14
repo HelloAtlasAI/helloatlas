@@ -7,12 +7,16 @@ import { ParticleTrails } from "../particles/ParticleTrails";
 interface MorphingSphereNebulaProps {
   state: AIState;
   audioLevel: number;
+  particleDensity?: number;
+  trailLength?: number;
+  morphIntensity?: number;
 }
 
 const vertexShader = `
   uniform float uTime;
   uniform float uAudioLevel;
   uniform float uDispersion;
+  uniform float uDensityDivisor;
   
   attribute float aRandomness;
   
@@ -39,9 +43,9 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Ultra-dense: smaller particles
+    // Dynamic density
     float size = 0.4 + aRandomness * 0.6;
-    gl_PointSize = size * (250.0 / -mvPosition.z);
+    gl_PointSize = size * (uDensityDivisor / -mvPosition.z);
     
     // Distance-based alpha
     float dist = length(pos);
@@ -74,11 +78,23 @@ const fragmentShader = `
   }
 `;
 
-export const MorphingSphereNebula = ({ state, audioLevel }: MorphingSphereNebulaProps) => {
+export const MorphingSphereNebula = ({ 
+  state, 
+  audioLevel,
+  particleDensity = 75,
+  trailLength = 6,
+  morphIntensity = 50,
+}: MorphingSphereNebulaProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const smoothAudioRef = useRef(0);
   const rotationRef = useRef(new THREE.Euler());
+  
+  // Map morphIntensity (0-100) to dispersion (0.1-0.8)
+  const baseDispersion = 0.1 + (morphIntensity / 100) * 0.7;
+  
+  // Map particleDensity (25-100) to divisor
+  const densityDivisor = 150 + (particleDensity / 100) * 200;
 
   const geometry = useMemo(() => {
     // Massive particle count for ultra-dense nebula
@@ -127,7 +143,8 @@ export const MorphingSphereNebula = ({ state, audioLevel }: MorphingSphereNebula
       uniforms: {
         uTime: { value: 0 },
         uAudioLevel: { value: 0 },
-        uDispersion: { value: 0.3 },
+        uDispersion: { value: baseDispersion },
+        uDensityDivisor: { value: densityDivisor },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -141,17 +158,21 @@ export const MorphingSphereNebula = ({ state, audioLevel }: MorphingSphereNebula
     const time = frameState.clock.elapsedTime;
     smoothAudioRef.current = THREE.MathUtils.lerp(smoothAudioRef.current, audioLevel, 0.1);
 
-    let targetDispersion = 0.3;
+    // State-based modifiers
+    let stateMultiplier = 1.0;
     switch (state) {
-      case "listening": targetDispersion = 0.4; break;
-      case "thinking": targetDispersion = 0.6; break;
-      case "speaking": targetDispersion = 0.5; break;
+      case "listening": stateMultiplier = 1.2; break;
+      case "thinking": stateMultiplier = 1.8; break;
+      case "speaking": stateMultiplier = 1.5; break;
     }
+    
+    const targetDispersion = baseDispersion * stateMultiplier;
 
     const uniforms = materialRef.current.uniforms;
     uniforms.uTime.value = time;
     uniforms.uAudioLevel.value = smoothAudioRef.current;
     uniforms.uDispersion.value = THREE.MathUtils.lerp(uniforms.uDispersion.value, targetDispersion, 0.03);
+    uniforms.uDensityDivisor.value = THREE.MathUtils.lerp(uniforms.uDensityDivisor.value, densityDivisor, 0.05);
 
     pointsRef.current.rotation.y += 0.0005;
     rotationRef.current.copy(pointsRef.current.rotation);
@@ -167,6 +188,7 @@ export const MorphingSphereNebula = ({ state, audioLevel }: MorphingSphereNebula
         audioLevel={smoothAudioRef.current} 
         sphereGeometry={geometry}
         sphereRotation={rotationRef.current}
+        trailLength={trailLength}
       />
     </group>
   );

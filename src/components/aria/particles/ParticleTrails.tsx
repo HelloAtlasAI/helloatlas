@@ -8,6 +8,7 @@ interface ParticleTrailsProps {
   audioLevel: number;
   sphereGeometry: THREE.BufferGeometry;
   sphereRotation: THREE.Euler;
+  trailLength?: number;
 }
 
 const trailVertexShader = `
@@ -68,25 +69,25 @@ const trailFragmentShader = `
   }
 `;
 
-const TRAIL_HISTORY_LENGTH = 6;
-
-export const ParticleTrails = ({ state, audioLevel, sphereGeometry, sphereRotation }: ParticleTrailsProps) => {
+export const ParticleTrails = ({ state, audioLevel, sphereGeometry, sphereRotation, trailLength = 6 }: ParticleTrailsProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const historyRef = useRef<Float32Array[]>([]);
   const frameCountRef = useRef(0);
+  
+  const effectiveTrailLength = Math.max(1, trailLength);
 
   const { geometry, particleCount } = useMemo(() => {
     const sourcePositions = sphereGeometry.attributes.position.array as Float32Array;
     const count = sourcePositions.length / 3;
-    const totalParticles = count * TRAIL_HISTORY_LENGTH;
+    const totalParticles = count * effectiveTrailLength;
     
     const positions = new Float32Array(totalParticles * 3);
     const trailIndices = new Float32Array(totalParticles);
     const randomSeeds = new Float32Array(totalParticles);
     
     // Initialize positions and attributes
-    for (let trail = 0; trail < TRAIL_HISTORY_LENGTH; trail++) {
+    for (let trail = 0; trail < effectiveTrailLength; trail++) {
       for (let i = 0; i < count; i++) {
         const idx = (trail * count + i) * 3;
         const srcIdx = i * 3;
@@ -95,7 +96,7 @@ export const ParticleTrails = ({ state, audioLevel, sphereGeometry, sphereRotati
         positions[idx + 1] = sourcePositions[srcIdx + 1];
         positions[idx + 2] = sourcePositions[srcIdx + 2];
         
-        trailIndices[trail * count + i] = trail / TRAIL_HISTORY_LENGTH;
+        trailIndices[trail * count + i] = trail / effectiveTrailLength;
         randomSeeds[trail * count + i] = Math.random();
       }
     }
@@ -106,7 +107,7 @@ export const ParticleTrails = ({ state, audioLevel, sphereGeometry, sphereRotati
     geo.setAttribute("aRandomSeed", new THREE.BufferAttribute(randomSeeds, 1));
     
     return { geometry: geo, particleCount: count };
-  }, [sphereGeometry]);
+  }, [sphereGeometry, effectiveTrailLength]);
 
   const material = useMemo(() => {
     return new THREE.ShaderMaterial({
@@ -115,7 +116,7 @@ export const ParticleTrails = ({ state, audioLevel, sphereGeometry, sphereRotati
       uniforms: {
         uTime: { value: 0 },
         uAudioLevel: { value: 0 },
-        uTrailLength: { value: TRAIL_HISTORY_LENGTH },
+        uTrailLength: { value: effectiveTrailLength },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -135,7 +136,7 @@ export const ParticleTrails = ({ state, audioLevel, sphereGeometry, sphereRotati
       const positions = geometry.attributes.position.array as Float32Array;
       
       // Shift history back
-      for (let trail = TRAIL_HISTORY_LENGTH - 1; trail > 0; trail--) {
+      for (let trail = effectiveTrailLength - 1; trail > 0; trail--) {
         for (let i = 0; i < particleCount; i++) {
           const dstIdx = (trail * particleCount + i) * 3;
           const srcIdx = ((trail - 1) * particleCount + i) * 3;
@@ -171,6 +172,9 @@ export const ParticleTrails = ({ state, audioLevel, sphereGeometry, sphereRotati
     materialRef.current.uniforms.uTime.value = time;
     materialRef.current.uniforms.uAudioLevel.value = audioLevel;
   });
+
+  // Hide trails if trailLength is 0
+  if (trailLength === 0) return null;
 
   return (
     <points ref={pointsRef} geometry={geometry}>

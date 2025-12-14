@@ -10,6 +10,9 @@ interface MorphingSphereDataFlowProps {
   audioLevel: number;
   pool?: ParticlePool;
   hudVisible?: boolean;
+  particleDensity?: number;
+  trailLength?: number;
+  morphIntensity?: number;
 }
 
 // Core sphere shader
@@ -195,7 +198,15 @@ const OrbitalRing = ({ ringIndex, audioLevel, state }: { ringIndex: number; audi
   );
 };
 
-export const MorphingSphereDataFlow = ({ state, audioLevel, pool, hudVisible }: MorphingSphereDataFlowProps) => {
+export const MorphingSphereDataFlow = ({ 
+  state, 
+  audioLevel, 
+  pool, 
+  hudVisible,
+  particleDensity = 75,
+  trailLength = 6,
+  morphIntensity = 50,
+}: MorphingSphereDataFlowProps) => {
   const coreRef = useRef<THREE.Points>(null);
   const coreMaterialRef = useRef<THREE.ShaderMaterial>(null);
   const smoothAudioRef = useRef(0);
@@ -250,6 +261,7 @@ export const MorphingSphereDataFlow = ({ state, audioLevel, pool, hudVisible }: 
         audioLevel={smoothAudioRef.current} 
         sphereGeometry={coreGeometry}
         sphereRotation={rotationRef.current}
+        trailLength={trailLength}
       />
       
       {/* Orbital rings */}

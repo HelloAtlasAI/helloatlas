@@ -20,6 +20,9 @@ interface VariantVisualizationProps {
   audioLevel?: number;
   variant?: SphereVariant;
   showHUD?: boolean;
+  particleDensity?: number;
+  trailLength?: number;
+  morphIntensity?: number;
   className?: string;
 }
 
@@ -27,12 +30,18 @@ const VariantScene = ({
   state, 
   audioLevel, 
   variant, 
-  showHUD 
+  showHUD,
+  particleDensity,
+  trailLength,
+  morphIntensity,
 }: { 
   state: AIState; 
   audioLevel: number; 
   variant: SphereVariant;
   showHUD: boolean;
+  particleDensity: number;
+  trailLength: number;
+  morphIntensity: number;
 }) => {
   const { pool } = useParticlePool({
     count: 30000,
@@ -41,17 +50,18 @@ const VariantScene = ({
   });
 
   const renderSphere = () => {
+    const commonProps = { state, audioLevel, particleDensity, trailLength, morphIntensity };
     switch (variant) {
       case "nebula":
-        return <MorphingSphereNebula state={state} audioLevel={audioLevel} />;
+        return <MorphingSphereNebula {...commonProps} />;
       case "crystal":
-        return <MorphingSphereCrystal state={state} audioLevel={audioLevel} />;
+        return <MorphingSphereCrystal {...commonProps} />;
       case "pulse":
-        return <MorphingSpherePulse state={state} audioLevel={audioLevel} pool={pool} hudVisible={showHUD} />;
+        return <MorphingSpherePulse {...commonProps} pool={pool} hudVisible={showHUD} />;
       case "dataflow":
-        return <MorphingSphereDataFlow state={state} audioLevel={audioLevel} pool={pool} hudVisible={showHUD} />;
+        return <MorphingSphereDataFlow {...commonProps} pool={pool} hudVisible={showHUD} />;
       default:
-        return <MorphingSphereClassic state={state} audioLevel={audioLevel} />;
+        return <MorphingSphereClassic {...commonProps} />;
     }
   };
 
@@ -116,6 +126,9 @@ export const VariantVisualization = ({
   audioLevel = 0,
   variant = "classic",
   showHUD = false,
+  particleDensity = 75,
+  trailLength = 6,
+  morphIntensity = 50,
   className = "",
 }: VariantVisualizationProps) => {
   return (
@@ -144,6 +157,9 @@ export const VariantVisualization = ({
             audioLevel={audioLevel} 
             variant={variant}
             showHUD={showHUD}
+            particleDensity={particleDensity}
+            trailLength={trailLength}
+            morphIntensity={morphIntensity}
           />
         </Suspense>
 
