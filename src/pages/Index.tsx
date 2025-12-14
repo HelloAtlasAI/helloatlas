@@ -1,10 +1,15 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { NeuralCore3D } from "@/components/aria/NeuralCore3D";
+import { CyberGrid3D } from "@/components/aria/CyberGrid3D";
+import { DigitalFace3D } from "@/components/aria/DigitalFace3D";
+import { HybridVisualization } from "@/components/aria/HybridVisualization";
+import { DataRain } from "@/components/aria/DataRain";
+import { HolographicHUD } from "@/components/aria/HolographicHUD";
 import { ParticleUniverse } from "@/components/aria/ParticleUniverse";
 import { HolographicCards, demoHolographicCards } from "@/components/aria/HolographicCard";
 import { ImmersiveBackground } from "@/components/aria/ImmersiveBackground";
 import { StateIndicator } from "@/components/aria/StateIndicator";
+import { VisualizationModeSwitch, VisualizationMode } from "@/components/aria/VisualizationModeSwitch";
 import { ChatInput } from "@/components/aria/ChatInput";
 import { ConversationPanel } from "@/components/aria/ConversationPanel";
 import { useChat } from "@/hooks/useChat";
@@ -17,7 +22,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [cards, setCards] = useState(demoHolographicCards);
-  const [showParticleUniverse, setShowParticleUniverse] = useState(true);
+  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>("cyber");
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const APP_NAME = "Atlas";
 
@@ -40,7 +45,6 @@ const Index = () => {
     onSpeakResponse: handleSpeakResponse,
   });
 
-  // Determine effective AI state
   const effectiveAiState = isRecording ? "listening" : isPlaying ? "speaking" : aiState;
 
   const handleCardClose = (id: string) => {
@@ -73,15 +77,40 @@ const Index = () => {
     );
   }
 
+  // Render the appropriate visualization based on mode
+  const renderVisualization = () => {
+    const commonProps = {
+      state: effectiveAiState,
+      audioLevel,
+    };
+
+    switch (visualizationMode) {
+      case "face":
+        return <DigitalFace3D {...commonProps} isSpeaking={isPlaying} />;
+      case "hybrid":
+        return <HybridVisualization {...commonProps} isSpeaking={isPlaying} />;
+      case "cyber":
+      default:
+        return <CyberGrid3D {...commonProps} />;
+    }
+  };
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background">
-      {/* Immersive 3D Particle Universe Background */}
-      {showParticleUniverse && <ParticleUniverse state={effectiveAiState} />}
+      {/* Data Rain background */}
+      <div className="fixed inset-0 z-0 opacity-30">
+        <DataRain state={effectiveAiState} />
+      </div>
+      
+      {/* Particle Universe */}
+      <div className="fixed inset-0 z-0 opacity-50">
+        <ParticleUniverse state={effectiveAiState} />
+      </div>
       
       {/* Layered ambient background */}
       <ImmersiveBackground state={effectiveAiState} />
 
-      {/* Header - floating glass style */}
+      {/* Header */}
       <header className="relative z-20 flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
           <div 
@@ -101,8 +130,13 @@ const Index = () => {
         </div>
 
         <nav className="flex items-center gap-3">
-          {/* State indicator */}
           <StateIndicator state={effectiveAiState} />
+          
+          {/* Visualization mode switch */}
+          <VisualizationModeSwitch 
+            mode={visualizationMode} 
+            onModeChange={setVisualizationMode} 
+          />
           
           {/* Voice toggle */}
           <button
@@ -111,14 +145,6 @@ const Index = () => {
             title={voiceEnabled ? "Disable voice responses" : "Enable voice responses"}
           >
             {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-          </button>
-
-          {/* Particle toggle */}
-          <button
-            onClick={() => setShowParticleUniverse(!showParticleUniverse)}
-            className="px-3 py-2 text-xs rounded-xl bg-muted/20 backdrop-blur-sm text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-all border border-border/20"
-          >
-            {showParticleUniverse ? "Simple BG" : "Universe BG"}
           </button>
 
           {isAuthenticated ? (
@@ -149,12 +175,16 @@ const Index = () => {
         </nav>
       </header>
 
-      {/* Holographic data cards orbiting the center */}
+      {/* Holographic HUD overlay */}
+      <div className="fixed inset-0 z-10 pointer-events-none">
+        <HolographicHUD state={effectiveAiState} />
+      </div>
+
+      {/* Holographic data cards */}
       <HolographicCards cards={cards} onCardClose={handleCardClose} />
 
-      {/* Main content - Neural Core */}
+      {/* Main content */}
       <main className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-12rem)]">
-        {/* Welcome text - more ethereal */}
         <div className="text-center mb-4 animate-fade-in relative z-10">
           <h2 className="text-3xl md:text-4xl font-extralight text-foreground mb-2 tracking-wide">
             {user?.user_metadata?.display_name ? `Hello, ${user.user_metadata.display_name}` : "Welcome"}
@@ -164,18 +194,18 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Neural Core 3D Visualization */}
+        {/* Main Visualization */}
         <div className="w-[400px] h-[400px] md:w-[500px] md:h-[500px] relative">
-          <NeuralCore3D state={effectiveAiState} audioLevel={audioLevel} />
+          {renderVisualization()}
         </div>
 
-        {/* Conversation panel - positioned below */}
+        {/* Conversation panel */}
         <div className="w-full max-w-2xl px-4 mt-4">
           <ConversationPanel messages={messages} />
         </div>
       </main>
 
-      {/* Bottom input area - refined glass style */}
+      {/* Bottom input area */}
       <footer className="fixed bottom-0 left-0 right-0 z-20 p-4 md:p-6">
         <div className="max-w-2xl mx-auto">
           <ChatInput
@@ -187,7 +217,6 @@ const Index = () => {
             disabled={isLoading || isPlaying}
           />
           
-          {/* Quick action chips - more refined */}
           <div className="flex flex-wrap justify-center gap-2 mt-4">
             {["Check emails", "Search flights", "Stock analysis", "Create document"].map((action) => (
               <button
