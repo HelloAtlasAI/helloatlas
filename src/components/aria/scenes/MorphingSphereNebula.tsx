@@ -39,26 +39,27 @@ const vertexShader = `
     ) * disperseAmount * 0.5;
     
     // Audio reactivity - gentle expansion
-    pos *= 1.0 + uAudioLevel * 0.1;
+    pos *= 1.0 + uAudioLevel * 0.08;
     
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
     // Dynamic density
-    float size = 0.4 + aRandomness * 0.6;
+    float size = 0.5 + aRandomness * 0.5;
     gl_PointSize = size * (uDensityDivisor / -mvPosition.z);
     
-    // Distance-based alpha
+    // Distance-based alpha - REDUCED brightness
     float dist = length(pos);
-    vAlpha = 0.5 * (1.0 - smoothstep(0.5, 1.5, dist));
+    vAlpha = 0.3 * (1.0 - smoothstep(0.5, 1.5, dist));
     
-    // Soft purple-blue nebula colors
-    vColor = mix(
-      vec3(0.02, 0.03, 0.12),
-      vec3(0.15, 0.03, 0.25),
-      aRandomness
-    );
-    vColor += vec3(0.0, 0.1, 0.15) * uAudioLevel;
+    // BLUE nebula colors - deep ocean to electric blue
+    vec3 colorDeep = vec3(0.02, 0.06, 0.15);
+    vec3 colorMid = vec3(0.04, 0.12, 0.28);
+    vec3 colorBright = vec3(0.06, 0.18, 0.38);
+    
+    float colorMix = aRandomness;
+    vColor = mix(colorDeep, mix(colorMid, colorBright, colorMix), colorMix);
+    vColor += vec3(0.01, 0.04, 0.08) * uAudioLevel;
   }
 `;
 
@@ -73,9 +74,9 @@ const fragmentShader = `
     // Very soft falloff for cloud effect
     float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
     alpha *= vAlpha;
-    alpha = pow(alpha, 0.7); // Softer edges
+    alpha = pow(alpha, 0.8); // Softer edges, reduced intensity
     
-    gl_FragColor = vec4(vColor, alpha);
+    gl_FragColor = vec4(vColor, alpha * 0.85);
   }
 `;
 
@@ -98,8 +99,8 @@ export const MorphingSphereNebula = ({
   const densityDivisor = 150 + (particleDensity / 100) * 200;
 
   const geometry = useMemo(() => {
-    // OPTIMIZED: Reduced from 400k to 80k particles
-    const count = 80000;
+    // OPTIMIZED: Reduced from 80k to 25k particles for better performance
+    const count = 25000;
     const positions = new Float32Array(count * 3);
     const normals = new Float32Array(count * 3);
     const randomness = new Float32Array(count);
@@ -107,7 +108,7 @@ export const MorphingSphereNebula = ({
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
       
-      // Spherical distribution - SMALLER sphere (0.55 vs 0.8)
+      // Spherical distribution
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       const r = 0.55 * Math.pow(Math.random(), 0.35);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NebulaOrb } from '@/components/dashboard/NebulaOrb';
 import { GlassmorphicCard } from '@/components/dashboard/GlassmorphicCard';
@@ -29,7 +29,7 @@ const orbitCards = [
   { id: 'weather' as CardId, Component: WeatherCard, color: 'cyan', angle: 300 },
 ];
 
-export const OrbitLayout = ({
+const OrbitLayoutComponent = ({
   aiState,
   audioLevel,
   focusedCard,
@@ -140,3 +140,5 @@ export const OrbitLayout = ({
     </div>
   );
 };
+
+export const OrbitLayout = memo(OrbitLayoutComponent);

@@ -8,7 +8,7 @@ interface NebulaBackgroundProps {
   audioLevel: number;
 }
 
-// Optimized cosmic gas stream shader
+// Optimized cosmic gas stream shader - BLUE color palette
 const gasStreamVertexShader = `
   uniform float uTime;
   uniform float uAudioLevel;
@@ -34,22 +34,22 @@ const gasStreamVertexShader = `
     float wave = sin(aProgress * 6.0 + uTime * 0.4) * 0.15;
     pos += perp * wave;
     
-    pos *= 1.0 + uAudioLevel * 0.025;
+    pos *= 1.0 + uAudioLevel * 0.02;
     
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    float size = 0.6 + aRandomness * 0.9;
-    gl_PointSize = size * (100.0 / -mvPosition.z);
+    float size = 0.5 + aRandomness * 0.7;
+    gl_PointSize = size * (80.0 / -mvPosition.z);
     
     float distFade = 1.0 - smoothstep(2.5, 6.0, length(pos));
     float streamFade = sin(aProgress * 3.14159) * 0.7 + 0.3;
-    vAlpha = distFade * streamFade * 0.2;
+    vAlpha = distFade * streamFade * 0.12; // Reduced brightness
     
-    // Purple/magenta colors
-    vec3 colorDeep = vec3(0.06, 0.015, 0.12);
-    vec3 colorMid = vec3(0.18, 0.04, 0.22);
-    vec3 colorBright = vec3(0.3, 0.08, 0.35);
+    // BLUE color palette - deep ocean to electric blue
+    vec3 colorDeep = vec3(0.02, 0.05, 0.12);
+    vec3 colorMid = vec3(0.04, 0.10, 0.22);
+    vec3 colorBright = vec3(0.06, 0.15, 0.32);
     
     float colorMix = aRandomness;
     if (colorMix < 0.33) {
@@ -60,7 +60,7 @@ const gasStreamVertexShader = `
       vColor = mix(colorBright, colorDeep, (colorMix - 0.66) * 3.0);
     }
     
-    vColor += vec3(0.0, 0.015, 0.04) * uAudioLevel;
+    vColor += vec3(0.01, 0.03, 0.06) * uAudioLevel;
   }
 `;
 
@@ -111,15 +111,16 @@ const starFragmentShader = `
     
     float core = 1.0 - smoothstep(0.0, 0.12, dist);
     float glow = 1.0 - smoothstep(0.08, 0.5, dist);
-    float alpha = (core * 0.75 + glow * 0.25) * vAlpha;
+    float alpha = (core * 0.75 + glow * 0.25) * vAlpha * 0.7; // Reduced brightness
     
-    vec3 color = vec3(0.75, 0.8, 0.95) * vBrightness + vec3(0.18, 0.12, 0.25);
+    // Blue-tinted stars
+    vec3 color = vec3(0.7, 0.8, 1.0) * vBrightness + vec3(0.1, 0.15, 0.25);
     
     gl_FragColor = vec4(color, alpha);
   }
 `;
 
-// Optimized nebula cores shader
+// Optimized nebula cores shader - BLUE color palette
 const coreVertexShader = `
   uniform float uTime;
   uniform float uAudioLevel;
@@ -139,11 +140,12 @@ const coreVertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    gl_PointSize = aSize * (1.0 + uAudioLevel * 0.25) * (120.0 / -mvPosition.z);
+    gl_PointSize = aSize * (1.0 + uAudioLevel * 0.2) * (100.0 / -mvPosition.z);
     
-    vAlpha = 0.45 + sin(uTime * 1.0 + aPhase * 3.14) * 0.18;
+    vAlpha = 0.25 + sin(uTime * 1.0 + aPhase * 3.14) * 0.12; // Reduced brightness
     
-    vColor = vec3(0.45, 0.18, 0.55) + vec3(0.15, 0.08, 0.15) * uAudioLevel;
+    // Blue cores
+    vColor = vec3(0.08, 0.18, 0.38) + vec3(0.04, 0.08, 0.15) * uAudioLevel;
   }
 `;
 
@@ -159,10 +161,10 @@ const coreFragmentShader = `
     
     vec3 color = vColor;
     if (dist < 0.18) {
-      color += vec3(0.18, 0.12, 0.25);
+      color += vec3(0.05, 0.12, 0.22); // Blue highlight
     }
     
-    gl_FragColor = vec4(color, alpha);
+    gl_FragColor = vec4(color, alpha * 0.8);
   }
 `;
 
@@ -176,10 +178,10 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
   
   const smoothAudioRef = useRef(0);
 
-  // OPTIMIZED: Reduced from 75k to 20k particles
+  // OPTIMIZED: Reduced to 8k particles for better performance
   const gasGeometry = useMemo(() => {
-    const streamCount = 18;
-    const particlesPerStream = 1100;
+    const streamCount = 12;
+    const particlesPerStream = 650;
     const totalParticles = streamCount * particlesPerStream;
     
     const positions = new Float32Array(totalParticles * 3);
@@ -231,9 +233,9 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
     return geo;
   }, []);
 
-  // OPTIMIZED: Reduced from 3k to 1.5k stars
+  // OPTIMIZED: Reduced to 800 stars
   const starsGeometry = useMemo(() => {
-    const count = 1500;
+    const count = 800;
     const positions = new Float32Array(count * 3);
     const brightness = new Float32Array(count);
     const twinklePhases = new Float32Array(count);
@@ -261,9 +263,9 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
     return geo;
   }, []);
 
-  // OPTIMIZED: Reduced from 40 to 20 cores
+  // OPTIMIZED: Reduced to 12 cores
   const coresGeometry = useMemo(() => {
-    const count = 20;
+    const count = 12;
     const positions = new Float32Array(count * 3);
     const phases = new Float32Array(count);
     const sizes = new Float32Array(count);
@@ -280,7 +282,7 @@ export const NebulaBackground = ({ state, audioLevel }: NebulaBackgroundProps) =
       positions[i3 + 2] = r * Math.cos(phi);
       
       phases[i] = Math.random();
-      sizes[i] = 1.8 + Math.random() * 2.5;
+      sizes[i] = 1.5 + Math.random() * 2.0;
     }
     
     const geo = new THREE.BufferGeometry();

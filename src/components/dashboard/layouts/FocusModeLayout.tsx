@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NebulaOrb } from '@/components/dashboard/NebulaOrb';
 import { GlassmorphicCard } from '@/components/dashboard/GlassmorphicCard';
@@ -29,7 +29,7 @@ const focusCards = [
   { id: 'weather' as CardId, Component: WeatherCard, color: 'cyan', title: 'Weather' },
 ];
 
-export const FocusModeLayout = ({
+const FocusModeLayoutComponent = ({
   aiState,
   audioLevel,
   focusedCard,
@@ -174,3 +174,5 @@ export const FocusModeLayout = ({
     </div>
   );
 };
+
+export const FocusModeLayout = memo(FocusModeLayoutComponent);

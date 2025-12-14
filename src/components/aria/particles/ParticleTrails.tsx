@@ -55,15 +55,15 @@ const trailFragmentShader = `
     float dist = length(gl_PointCoord - vec2(0.5));
     if (dist > 0.5) discard;
     
-    // Trail colors - fade from cyan to deep blue
-    vec3 trailStart = vec3(0.0, 0.4, 0.6);
-    vec3 trailEnd = vec3(0.02, 0.05, 0.15);
+    // Trail colors - fade from electric blue to deep navy
+    vec3 trailStart = vec3(0.08, 0.25, 0.45);
+    vec3 trailEnd = vec3(0.02, 0.06, 0.12);
     vec3 color = mix(trailEnd, trailStart, vTrailFade);
     
-    // Add glow for newer particles
-    color += vec3(0.05, 0.1, 0.15) * vTrailFade * vAudioLevel;
+    // Add subtle glow for newer particles
+    color += vec3(0.02, 0.06, 0.12) * vTrailFade * vAudioLevel;
     
-    float alpha = (1.0 - smoothstep(0.1, 0.5, dist)) * vTrailFade * 0.5;
+    float alpha = (1.0 - smoothstep(0.1, 0.5, dist)) * vTrailFade * 0.35; // Reduced brightness
     
     gl_FragColor = vec4(color, alpha);
   }
