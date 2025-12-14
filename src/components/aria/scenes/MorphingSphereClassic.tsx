@@ -2,6 +2,7 @@ import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AIState } from "../AIOrb";
+import { ParticleTrails } from "../particles/ParticleTrails";
 
 interface MorphingSphereClassicProps {
   state: AIState;
@@ -104,8 +105,9 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    float baseSizeMultiplier = 1.0 + uAudioLevel * 0.6;
-    gl_PointSize = baseSizeMultiplier * (100.0 / -mvPosition.z);
+    // Ultra-dense: smaller particles
+    float baseSizeMultiplier = 0.35 + uAudioLevel * 0.15;
+    gl_PointSize = baseSizeMultiplier * (300.0 / -mvPosition.z);
   }
 `;
 
@@ -118,7 +120,7 @@ const fragmentShader = `
     float dist = length(gl_PointCoord - vec2(0.5));
     if (dist > 0.5) discard;
     
-    // Dimmer color palette
+    // Color palette
     vec3 deepBlue = vec3(0.008, 0.02, 0.1);
     vec3 cyan = vec3(0.0, 0.4, 0.6);
     vec3 purple = vec3(0.25, 0.05, 0.4);
@@ -131,11 +133,12 @@ const fragmentShader = `
     
     color += vec3(0.0, 0.05, 0.1) * vAudioLevel;
     
-    float alpha = 1.0 - smoothstep(0.2, 0.5, dist);
-    alpha *= 0.35;
+    // Higher alpha for solid appearance
+    float alpha = 1.0 - smoothstep(0.1, 0.5, dist);
+    alpha *= 0.7;
     
     float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.0);
-    alpha += fresnel * 0.05;
+    alpha += fresnel * 0.08;
     
     gl_FragColor = vec4(color, alpha);
   }
@@ -144,13 +147,15 @@ const fragmentShader = `
 export const MorphingSphereClassic = ({ state, audioLevel }: MorphingSphereClassicProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const rotationRef = useRef(new THREE.Euler());
   
   const smoothAudioRef = useRef(0);
   const targetMorphRef = useRef(0.15);
   const targetSpeedRef = useRef(0.3);
 
   const geometry = useMemo(() => {
-    const ico = new THREE.IcosahedronGeometry(0.8, 8);
+    // Detail level 9 for ultra-dense sphere (~655k particles)
+    const ico = new THREE.IcosahedronGeometry(0.8, 9);
     const positions = ico.attributes.position.array;
     const particleGeometry = new THREE.BufferGeometry();
     particleGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(positions), 3));
@@ -196,11 +201,20 @@ export const MorphingSphereClassic = ({ state, audioLevel }: MorphingSphereClass
 
     pointsRef.current.rotation.y += 0.001;
     pointsRef.current.rotation.x = Math.sin(time * 0.1) * 0.05;
+    rotationRef.current.copy(pointsRef.current.rotation);
   });
 
   return (
-    <points ref={pointsRef} geometry={geometry}>
-      <primitive object={material} ref={materialRef} attach="material" />
-    </points>
+    <group>
+      <points ref={pointsRef} geometry={geometry}>
+        <primitive object={material} ref={materialRef} attach="material" />
+      </points>
+      <ParticleTrails 
+        state={state} 
+        audioLevel={smoothAudioRef.current} 
+        sphereGeometry={geometry}
+        sphereRotation={rotationRef.current}
+      />
+    </group>
   );
 };

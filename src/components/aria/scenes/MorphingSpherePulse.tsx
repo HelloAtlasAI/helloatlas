@@ -1,8 +1,9 @@
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AIState } from "../AIOrb";
-import { ParticlePool, ParticleState } from "../particles/useParticlePool";
+import { ParticlePool } from "../particles/useParticlePool";
+import { ParticleTrails } from "../particles/ParticleTrails";
 
 interface MorphingSpherePulseProps {
   state: AIState;
@@ -42,8 +43,9 @@ const vertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    float baseSizeMultiplier = 1.0 + uAudioLevel * 0.6;
-    gl_PointSize = baseSizeMultiplier * (100.0 / -mvPosition.z);
+    // Ultra-dense: smaller particles
+    float baseSizeMultiplier = 0.35 + uAudioLevel * 0.15;
+    gl_PointSize = baseSizeMultiplier * (300.0 / -mvPosition.z);
   }
 `;
 
@@ -65,11 +67,12 @@ const fragmentShader = `
     vec3 color = mix(core, pulse, smoothstep(0.3, 0.6, t));
     color = mix(color, peak, smoothstep(0.7, 1.0, t) * 0.6);
     
-    float alpha = 1.0 - smoothstep(0.2, 0.5, dist);
-    alpha *= 0.35;
+    // Higher alpha for solid appearance
+    float alpha = 1.0 - smoothstep(0.1, 0.5, dist);
+    alpha *= 0.7;
     
     float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.0);
-    alpha += fresnel * 0.06;
+    alpha += fresnel * 0.1;
     
     gl_FragColor = vec4(color, alpha);
   }
@@ -79,9 +82,11 @@ export const MorphingSpherePulse = ({ state, audioLevel, pool, hudVisible }: Mor
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const smoothAudioRef = useRef(0);
+  const rotationRef = useRef(new THREE.Euler());
 
   const geometry = useMemo(() => {
-    const ico = new THREE.IcosahedronGeometry(0.8, 8);
+    // Detail level 9 for ultra-dense sphere (~655k particles)
+    const ico = new THREE.IcosahedronGeometry(0.8, 9);
     const positions = ico.attributes.position.array;
     const normals = ico.attributes.normal.array;
     
@@ -139,11 +144,20 @@ export const MorphingSpherePulse = ({ state, audioLevel, pool, hudVisible }: Mor
     uniforms.uRippleSpeed.value = THREE.MathUtils.lerp(uniforms.uRippleSpeed.value, targetSpeed, 0.05);
 
     pointsRef.current.rotation.y += 0.001;
+    rotationRef.current.copy(pointsRef.current.rotation);
   });
 
   return (
-    <points ref={pointsRef} geometry={geometry}>
-      <primitive object={material} ref={materialRef} attach="material" />
-    </points>
+    <group>
+      <points ref={pointsRef} geometry={geometry}>
+        <primitive object={material} ref={materialRef} attach="material" />
+      </points>
+      <ParticleTrails 
+        state={state} 
+        audioLevel={smoothAudioRef.current} 
+        sphereGeometry={geometry}
+        sphereRotation={rotationRef.current}
+      />
+    </group>
   );
 };

@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { AdaptiveDpr, AdaptiveEvents, Preload } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette, ChromaticAberration } from "@react-three/postprocessing";
@@ -66,32 +66,44 @@ const VariantScene = ({
       {/* Main sphere */}
       {renderSphere()}
       
-      {/* Particle HUD elements for pulse/dataflow variants */}
+      {/* Massive glassmorphic particle HUD elements */}
       {showParticleHUD && (
         <>
           <ParticleHUDElement
             visible={showHUD}
-            position={[2, 1, 0]}
-            width={1.2}
-            height={0.6}
-            particleCount={400}
+            position={[2.2, 0.9, 0]}
+            width={1.4}
+            height={0.9}
+            particleCount={8000}
             color={[0.05, 0.25, 0.4]}
+            cornerRadius={0.12}
           />
           <ParticleHUDElement
             visible={showHUD}
-            position={[-2, -0.5, 0]}
-            width={1.0}
-            height={0.8}
-            particleCount={350}
+            position={[-2.3, -0.4, 0]}
+            width={1.2}
+            height={1.0}
+            particleCount={7000}
             color={[0.2, 0.08, 0.35]}
+            cornerRadius={0.1}
           />
           <ParticleHUDElement
             visible={showHUD}
-            position={[1.5, -1.2, 0]}
-            width={0.8}
-            height={0.5}
-            particleCount={250}
+            position={[1.8, -1.3, 0]}
+            width={1.0}
+            height={0.6}
+            particleCount={5000}
             color={[0.08, 0.3, 0.35]}
+            cornerRadius={0.08}
+          />
+          <ParticleHUDElement
+            visible={showHUD}
+            position={[-1.5, 1.2, 0]}
+            width={0.9}
+            height={0.5}
+            particleCount={4000}
+            color={[0.15, 0.2, 0.4]}
+            cornerRadius={0.1}
           />
         </>
       )}
