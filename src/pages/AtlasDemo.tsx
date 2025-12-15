@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap } from 'lucide-react';
+import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers } from 'lucide-react';
 import { AtlasCoreFixed } from '@/components/dashboard/AtlasCoreFixed';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
@@ -118,9 +118,24 @@ export default function AtlasDemo() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [autoAudio, setAutoAudio] = useState(false);
   const [activePreset, setActivePreset] = useState<string | null>(null);
+  
+  // Trail controls
   const [enableTrails, setEnableTrails] = useState(true);
   const [trailLength, setTrailLength] = useState(6);
   const [trailOpacity, setTrailOpacity] = useState(0.5);
+  
+  // Particle controls
+  const [particleCount, setParticleCount] = useState(2000);
+  const [particleSize, setParticleSize] = useState(0.08);
+  const [density, setDensity] = useState(1.0);
+  const [rotationSpeed, setRotationSpeed] = useState(0.5);
+  
+  // Effects controls
+  const [enableBloom, setEnableBloom] = useState(true);
+  const [bloomIntensity, setBloomIntensity] = useState(0.8);
+  
+  // Animation controls
+  const [morphSpeed, setMorphSpeed] = useState(1.5);
 
   // Simulate audio levels
   useEffect(() => {
@@ -170,6 +185,13 @@ export default function AtlasDemo() {
     setEnableTrails(true);
     setTrailLength(6);
     setTrailOpacity(0.5);
+    setParticleCount(2000);
+    setParticleSize(0.08);
+    setDensity(1.0);
+    setRotationSpeed(0.5);
+    setEnableBloom(true);
+    setBloomIntensity(0.8);
+    setMorphSpeed(1.5);
   };
 
   return (
@@ -193,9 +215,9 @@ export default function AtlasDemo() {
 
       <div className="pt-20 flex min-h-screen">
         {/* Main visualization area */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-full max-w-2xl aspect-square">
+            <div className="w-full max-w-3xl aspect-square">
               <AtlasCoreFixed 
                 state={state} 
                 audioLevel={audioLevel} 
@@ -203,6 +225,13 @@ export default function AtlasDemo() {
                 enableTrails={enableTrails}
                 trailLength={trailLength}
                 trailOpacity={trailOpacity}
+                particleCount={particleCount}
+                particleSize={particleSize}
+                density={density}
+                rotationSpeed={rotationSpeed}
+                enableBloom={enableBloom}
+                bloomIntensity={bloomIntensity}
+                morphSpeed={morphSpeed}
               />
             </div>
           </div>
@@ -224,9 +253,9 @@ export default function AtlasDemo() {
         <motion.aside 
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
-          className="w-80 lg:w-96 backdrop-blur-xl bg-background/20 border-l border-border/20 p-6 overflow-y-auto"
+          className="w-80 lg:w-96 backdrop-blur-xl bg-background/20 border-l border-border/20 p-6 overflow-y-auto max-h-screen"
         >
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* Header */}
             <div>
               <h2 className="text-xl font-semibold text-foreground mb-2">Visual Controls</h2>
@@ -246,24 +275,24 @@ export default function AtlasDemo() {
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
                 {presets.map((preset) => (
                   <motion.button
                     key={preset.name}
                     onClick={() => applyPreset(preset)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`p-3 rounded-xl text-left transition-all ${
+                    className={`p-2.5 rounded-xl text-left transition-all ${
                       activePreset === preset.name
                         ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 ring-1 ring-amber-500/30'
                         : `bg-gradient-to-r ${preset.gradient} border border-border/30 hover:border-border/50`
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-base">{preset.icon}</span>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm">{preset.icon}</span>
                       <span className="text-xs font-medium text-foreground truncate">{preset.name}</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground line-clamp-2">{preset.description}</p>
+                    <p className="text-[10px] text-muted-foreground line-clamp-1">{preset.description}</p>
                   </motion.button>
                 ))}
               </div>
@@ -302,7 +331,7 @@ export default function AtlasDemo() {
                       setState(s);
                       setActivePreset(null);
                     }}
-                    className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
                       state === s
                         ? 'bg-gradient-to-r from-amber-500/30 to-orange-500/30 border border-amber-500/50 text-amber-300'
                         : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground hover:text-foreground'
@@ -317,27 +346,118 @@ export default function AtlasDemo() {
               </div>
             </div>
 
-            {/* Morph Progress */}
+            {/* Animation Controls */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">Morph Progress</h3>
-                <span className="text-sm font-mono text-amber-400">{morphProgress.toFixed(2)}</span>
+              <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-cyan-400" />
+                Animation
+              </h3>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Morph Progress</span>
+                  <span className="text-xs font-mono text-amber-400">{morphProgress.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[morphProgress]}
+                  onValueChange={([v]) => setMorphProgress(v)}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>Scattered</span>
+                  <span>Sphere</span>
+                </div>
               </div>
-              <Slider
-                value={[morphProgress]}
-                onValueChange={([v]) => setMorphProgress(v)}
-                min={0}
-                max={1}
-                step={0.01}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Scattered (0.0)</span>
-                <span>Sphere (1.0)</span>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Morph Speed</span>
+                  <span className="text-xs font-mono text-amber-400">{morphSpeed.toFixed(1)}</span>
+                </div>
+                <Slider
+                  value={[morphSpeed]}
+                  onValueChange={([v]) => setMorphSpeed(v)}
+                  min={0.5}
+                  max={5}
+                  step={0.1}
+                  className="w-full"
+                />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Controls particle formation: scattered wave → tight sphere formation
-              </p>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Rotation Speed</span>
+                  <span className="text-xs font-mono text-cyan-400">{rotationSpeed.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[rotationSpeed]}
+                  onValueChange={([v]) => setRotationSpeed(v)}
+                  min={0}
+                  max={2}
+                  step={0.05}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            {/* Particle Controls */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
+                <Layers className="w-4 h-4 text-purple-400" />
+                Particles
+              </h3>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Particle Count</span>
+                  <span className="text-xs font-mono text-purple-400">{particleCount}</span>
+                </div>
+                <Slider
+                  value={[particleCount]}
+                  onValueChange={([v]) => setParticleCount(v)}
+                  min={500}
+                  max={5000}
+                  step={100}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Particle Size</span>
+                  <span className="text-xs font-mono text-purple-400">{particleSize.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[particleSize]}
+                  onValueChange={([v]) => setParticleSize(v)}
+                  min={0.02}
+                  max={0.2}
+                  step={0.01}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Density</span>
+                  <span className="text-xs font-mono text-purple-400">{density.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[density]}
+                  onValueChange={([v]) => setDensity(v)}
+                  min={0.3}
+                  max={2}
+                  step={0.05}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>Tight</span>
+                  <span>Spread</span>
+                </div>
+              </div>
             </div>
 
             {/* Audio Level */}
@@ -367,9 +487,40 @@ export default function AtlasDemo() {
               >
                 {autoAudio ? '🔊 Simulating Audio...' : '🔇 Simulate Audio'}
               </button>
-              <p className="text-xs text-muted-foreground">
-                Drives audio-reactive displacement and ripple effects
-              </p>
+            </div>
+
+            {/* Effects Controls */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">Bloom Effect</h3>
+                <button
+                  onClick={() => setEnableBloom(!enableBloom)}
+                  className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                    enableBloom
+                      ? 'bg-pink-500/20 border border-pink-500/50 text-pink-300'
+                      : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                  }`}
+                >
+                  {enableBloom ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              
+              {enableBloom && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Bloom Intensity</span>
+                    <span className="text-xs font-mono text-pink-400">{bloomIntensity.toFixed(2)}</span>
+                  </div>
+                  <Slider
+                    value={[bloomIntensity]}
+                    onValueChange={([v]) => setBloomIntensity(v)}
+                    min={0}
+                    max={2}
+                    step={0.05}
+                    className="w-full"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Trail Controls */}
@@ -421,10 +572,6 @@ export default function AtlasDemo() {
                   </div>
                 </>
               )}
-              
-              <p className="text-xs text-muted-foreground">
-                Creates motion blur effect as particles move and morph
-              </p>
             </div>
 
             {/* Info Panel */}
@@ -433,31 +580,21 @@ export default function AtlasDemo() {
               <ul className="text-xs text-muted-foreground space-y-2">
                 <li className="flex items-start gap-2">
                   <span className="text-amber-400">•</span>
-                  <span><strong>5000+ particles</strong> with custom shaders</span>
+                  <span>Circular particle texture for smooth rendering</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-amber-400">•</span>
-                  <span><strong>4-layer system:</strong> core, lattice, particles, glow</span>
+                  <span className="text-cyan-400">•</span>
+                  <span>Bloom post-processing for enhanced glow</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-amber-400">•</span>
-                  <span><strong>Icosahedron wireframe</strong> with independent rotation</span>
+                  <span className="text-purple-400">•</span>
+                  <span>Fluid easing with per-particle offsets</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-amber-400">•</span>
-                  <span>Inspired by <strong>izum.study</strong> morphing design</span>
+                  <span className="text-pink-400">•</span>
+                  <span>Additive blending for light accumulation</span>
                 </li>
               </ul>
-            </div>
-
-            {/* Shader Uniforms Reference */}
-            <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/50 font-mono text-xs">
-              <h4 className="text-foreground/80 mb-2">Active Uniforms</h4>
-              <div className="space-y-1 text-slate-400">
-                <div>uMorphProgress: <span className="text-amber-400">{morphProgress.toFixed(3)}</span></div>
-                <div>uAudioLevel: <span className="text-cyan-400">{audioLevel.toFixed(3)}</span></div>
-                <div>uStateIntensity: <span className="text-purple-400">{stateDescriptions[state].label}</span></div>
-              </div>
             </div>
           </div>
         </motion.aside>
