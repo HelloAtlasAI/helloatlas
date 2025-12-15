@@ -47,6 +47,8 @@ interface AtlasCoreProps {
   fluidCohesion?: number;
   surfaceTension?: number;
   fluidFlow?: number;
+  // Audio reactivity props
+  audioReactivitySpeed?: number;
 }
 
 // State color configurations
@@ -586,6 +588,7 @@ const ParticleSystem = memo(({
   fluidCohesion = 0,
   surfaceTension = 0.5,
   fluidFlow = 0.3,
+  audioReactivitySpeed = 1.0,
   mousePosition
 }: AtlasCoreProps & { mousePosition: React.MutableRefObject<{ x: number; y: number; active: boolean }> }) => {
   const pointsRef = useRef<THREE.Points>(null);
@@ -766,9 +769,9 @@ const ParticleSystem = memo(({
             py += ny * audioDisplacement;
             pz += nz * audioDisplacement;
             
-            // Audio wave effect - creates rippling motion
-            const wavePhase = time * 10 + currentDist * 6 + particleOffset * Math.PI;
-            const audioWave = Math.sin(wavePhase) * effectiveAudio * 0.2;
+            // Audio wave effect - creates rippling motion with adjustable speed
+            const wavePhase = time * (10 * audioReactivitySpeed) + currentDist * 6 + particleOffset * Math.PI;
+            const audioWave = Math.sin(wavePhase) * effectiveAudio * 0.2 * audioReactivitySpeed;
             px += nx * audioWave;
             py += ny * audioWave;
             pz += nz * audioWave;
