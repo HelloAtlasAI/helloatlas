@@ -24,7 +24,12 @@ const Index = () => {
   const savedSettings = useMemo(() => {
     try {
       const stored = localStorage.getItem('atlas-demo-settings');
-      if (stored) return JSON.parse(stored);
+      console.log('Atlas settings from localStorage:', stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        console.log('Parsed Atlas settings:', parsed);
+        return parsed;
+      }
     } catch (e) {
       console.warn('Failed to load Atlas settings:', e);
     }
@@ -96,9 +101,9 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background">
-      {/* Atlas Sphere - centered in viewport */}
+      {/* Atlas Sphere - centered in viewport, fills available space */}
       <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
-        <div className="w-[400px] h-[400px]">
+        <div className="w-[60vmin] h-[60vmin] max-w-[600px] max-h-[600px]">
           <AtlasCoreFixed
             state={getWakeWordState(effectiveAiState)}
             audioLevel={audioLevel}
