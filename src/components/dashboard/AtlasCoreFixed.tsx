@@ -371,6 +371,9 @@ const CoreParticleSystem = memo(({
   coreIntensity = 1.2,
   corePulseSpeed = 1.5,
   coreRotationOffset = -0.5,
+  fluidCohesion = 0,
+  surfaceTension = 0.5,
+  fluidFlow = 0.3,
   circleTexture
 }: {
   state: WakeWordState;
@@ -382,6 +385,9 @@ const CoreParticleSystem = memo(({
   coreIntensity?: number;
   corePulseSpeed?: number;
   coreRotationOffset?: number;
+  fluidCohesion?: number;
+  surfaceTension?: number;
+  fluidFlow?: number;
   circleTexture: THREE.CanvasTexture;
 }) => {
   const pointsRef = useRef<THREE.Points>(null);
@@ -442,6 +448,8 @@ const CoreParticleSystem = memo(({
       const time = timeRef.current;
       
       // Core uses same morphing logic as main particles for consistency
+      const baseRadius = coreDensity * 1.5;
+      
       for (let i = 0; i < count; i++) {
         const i3 = i * 3;
         
@@ -456,15 +464,51 @@ const CoreParticleSystem = memo(({
         let py = scatteredPositions[i3 + 1] + (spherePositions[i3 + 1] - scatteredPositions[i3 + 1]) * adjustedMorph;
         let pz = scatteredPositions[i3 + 2] + (spherePositions[i3 + 2] - scatteredPositions[i3 + 2]) * adjustedMorph;
         
-        // Core-specific turbulence - faster, smaller scale
-        const turbTime = time * 2;
-        const nx = noise3D(px * 3 + turbTime, py * 3, pz * 3, 1.5) * 0.02;
-        const ny = noise3D(px * 3, py * 3 + turbTime, pz * 3, 1.5) * 0.02;
-        const nz = noise3D(px * 3, py * 3, pz * 3 + turbTime, 1.5) * 0.02;
+        // Apply fluid cohesion - push core particles toward uniform radius
+        if (fluidCohesion > 0) {
+          const currentDist = Math.sqrt(px * px + py * py + pz * pz);
+          if (currentDist > 0.01) {
+            const nx = px / currentDist;
+            const ny = py / currentDist;
+            const nz = pz / currentDist;
+            
+            const radiusVariation = (1 - fluidCohesion) * 0.3;
+            const targetRadius = baseRadius + (particleOffset - 0.2) * radiusVariation * baseRadius;
+            
+            const radiusDiff = targetRadius - currentDist;
+            const tensionForce = radiusDiff * surfaceTension * fluidCohesion;
+            
+            px += nx * tensionForce;
+            py += ny * tensionForce;
+            pz += nz * tensionForce;
+            
+            // Fluid flow for core
+            if (fluidFlow > 0 && fluidCohesion > 0.3) {
+              const flowSpeed = fluidFlow * fluidCohesion * 0.03;
+              const flowAngle = time * flowSpeed * 2 + particleOffset * Math.PI * 2;
+              
+              const tangentX = -ny * Math.cos(flowAngle) + (-nx * nz) * Math.sin(flowAngle);
+              const tangentY = nx * Math.cos(flowAngle) + (-ny * nz) * Math.sin(flowAngle);
+              const tangentZ = (nx * nx + ny * ny) * Math.sin(flowAngle);
+              
+              const flowMagnitude = flowSpeed * currentDist;
+              px += tangentX * flowMagnitude;
+              py += tangentY * flowMagnitude;
+              pz += tangentZ * flowMagnitude;
+            }
+          }
+        }
         
-        positions[i3] = px + nx;
-        positions[i3 + 1] = py + ny;
-        positions[i3 + 2] = pz + nz;
+        // Core-specific turbulence - faster, smaller scale (reduced with cohesion)
+        const turbulenceScale = 1 - fluidCohesion * 0.8;
+        const turbTime = time * 2;
+        const tnx = noise3D(px * 3 + turbTime, py * 3, pz * 3, 1.5) * 0.02 * turbulenceScale;
+        const tny = noise3D(px * 3, py * 3 + turbTime, pz * 3, 1.5) * 0.02 * turbulenceScale;
+        const tnz = noise3D(px * 3, py * 3, pz * 3 + turbTime, 1.5) * 0.02 * turbulenceScale;
+        
+        positions[i3] = px + tnx;
+        positions[i3 + 1] = py + tny;
+        positions[i3 + 2] = pz + tnz;
       }
       geometry.attributes.position.needsUpdate = true;
       
@@ -851,6 +895,9 @@ const ParticleSystem = memo(({
           coreIntensity={coreIntensity}
           corePulseSpeed={corePulseSpeed}
           coreRotationOffset={coreRotationOffset}
+          fluidCohesion={fluidCohesion}
+          surfaceTension={surfaceTension}
+          fluidFlow={fluidFlow}
           circleTexture={circleTexture}
         />
       )}
