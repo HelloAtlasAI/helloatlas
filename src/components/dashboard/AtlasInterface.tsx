@@ -101,7 +101,7 @@ const AtlasInterfaceComponent = ({
   return (
     <div className="relative w-full h-full min-h-[280px] flex flex-col items-center justify-center">
       {/* Atlas Core Sphere - fills container, using saved settings from AtlasDemo */}
-      <div className="relative w-full h-full z-10">
+      <div className="relative flex-1 w-full z-10">
         <AtlasCoreFixed 
           state={state} 
           audioLevel={audioLevel}
@@ -138,39 +138,38 @@ const AtlasInterfaceComponent = ({
           surfaceTension={savedSettings.surfaceTension}
           fluidFlow={savedSettings.fluidFlow}
         />
-        
-        {/* Manual activate button for unsupported browsers */}
-        {!isSupported && (
-          <button
-            onClick={onManualActivate}
-            className="absolute inset-0 flex items-center justify-center bg-transparent cursor-pointer group"
-          >
-            <motion.div
-              className="p-4 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 group-hover:bg-primary/30 transition-colors"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Mic className="w-6 h-6 text-primary" />
-            </motion.div>
-          </button>
-        )}
       </div>
 
-      {/* Status hint */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={state}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          className="absolute bottom-6 left-0 right-0 text-center"
-        >
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            {!isSupported && <MicOff className="w-4 h-4" />}
-            <span>{getStatusMessage(state, isSupported)}</span>
-          </div>
-        </motion.div>
-      </AnimatePresence>
+      {/* Controls area - below sphere, not overlapping */}
+      <div className="relative z-20 pb-4 flex flex-col items-center gap-3">
+        {/* Manual activate button for unsupported browsers */}
+        {!isSupported && (
+          <motion.button
+            onClick={onManualActivate}
+            className="p-4 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 hover:bg-primary/30 transition-colors"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Mic className="w-6 h-6 text-primary" />
+          </motion.button>
+        )}
+
+        {/* Status hint */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={state}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="text-center"
+          >
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              {!isSupported && <MicOff className="w-4 h-4" />}
+              <span>{getStatusMessage(state, isSupported)}</span>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       {/* Greeting */}
       {userName && state === 'dormant' && (
