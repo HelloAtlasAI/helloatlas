@@ -103,6 +103,203 @@ export type Database = {
         }
         Relationships: []
       }
+      atlas_error_logs: {
+        Row: {
+          context: Json | null
+          created_at: string
+          error_message: string
+          error_type: string
+          id: string
+          resolved: boolean
+          severity: string
+          stack_trace: string | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          error_message: string
+          error_type: string
+          id?: string
+          resolved?: boolean
+          severity?: string
+          stack_trace?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          error_message?: string
+          error_type?: string
+          id?: string
+          resolved?: boolean
+          severity?: string
+          stack_trace?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      atlas_health_metrics: {
+        Row: {
+          context: Json | null
+          id: string
+          metric_type: string
+          recorded_at: string
+          value: number
+        }
+        Insert: {
+          context?: Json | null
+          id?: string
+          metric_type: string
+          recorded_at?: string
+          value: number
+        }
+        Update: {
+          context?: Json | null
+          id?: string
+          metric_type?: string
+          recorded_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      atlas_knowledge_entries: {
+        Row: {
+          access_count: number
+          category: string
+          confidence: number
+          content: Json
+          created_at: string
+          id: string
+          last_accessed: string | null
+          relevance_score: number
+          source: string
+          topic: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          access_count?: number
+          category?: string
+          confidence?: number
+          content: Json
+          created_at?: string
+          id?: string
+          last_accessed?: string | null
+          relevance_score?: number
+          source?: string
+          topic: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          access_count?: number
+          category?: string
+          confidence?: number
+          content?: Json
+          created_at?: string
+          id?: string
+          last_accessed?: string | null
+          relevance_score?: number
+          source?: string
+          topic?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      atlas_learning_sessions: {
+        Row: {
+          created_at: string
+          discoveries: Json | null
+          ended_at: string | null
+          id: string
+          mode: string
+          status: string
+          topic: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          discoveries?: Json | null
+          ended_at?: string | null
+          id?: string
+          mode?: string
+          status?: string
+          topic: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          discoveries?: Json | null
+          ended_at?: string | null
+          id?: string
+          mode?: string
+          status?: string
+          topic?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      atlas_research_topics: {
+        Row: {
+          auto_generated: boolean
+          completed_at: string | null
+          created_at: string
+          depth_level: number
+          description: string | null
+          findings: Json | null
+          id: string
+          parent_id: string | null
+          priority: number
+          sources: Json | null
+          status: string
+          topic: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          auto_generated?: boolean
+          completed_at?: string | null
+          created_at?: string
+          depth_level?: number
+          description?: string | null
+          findings?: Json | null
+          id?: string
+          parent_id?: string | null
+          priority?: number
+          sources?: Json | null
+          status?: string
+          topic: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          auto_generated?: boolean
+          completed_at?: string | null
+          created_at?: string
+          depth_level?: number
+          description?: string | null
+          findings?: Json | null
+          id?: string
+          parent_id?: string | null
+          priority?: number
+          sources?: Json | null
+          status?: string
+          topic?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atlas_research_topics_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "atlas_research_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           created_at: string

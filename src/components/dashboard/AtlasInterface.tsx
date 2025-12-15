@@ -101,7 +101,7 @@ const AtlasInterfaceComponent = ({
   return (
     <div className="relative w-full h-full flex items-center justify-center gap-4 px-4">
       {/* Atlas Core Sphere - centered, fixed size */}
-      <div className="relative flex-shrink-0 w-40 h-40 z-10 overflow-hidden rounded-full">
+      <div className="relative flex-shrink-0 w-48 h-48 z-10">
         <AtlasCoreFixed 
           state={state} 
           audioLevel={audioLevel}
