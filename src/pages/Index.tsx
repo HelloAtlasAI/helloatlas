@@ -101,8 +101,8 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background">
-      {/* Atlas Sphere - centered in viewport, fills available space */}
-      <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
+      {/* Atlas Sphere - centered but offset upward to leave room for input */}
+      <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none pb-48">
         <div className="w-[60vmin] h-[60vmin] max-w-[600px] max-h-[600px]">
           <AtlasCoreFixed
             state={getWakeWordState(effectiveAiState)}
