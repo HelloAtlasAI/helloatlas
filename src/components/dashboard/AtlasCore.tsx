@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -10,12 +10,14 @@ interface AtlasCoreProps {
   morphProgress?: number;
 }
 
-// Vertex shader for particles
+// Vertex shader for particles with state-based colors
 const particleVertexShader = `
   uniform float uTime;
   uniform float uMorphProgress;
   uniform float uAudioLevel;
   uniform float uStateIntensity;
+  uniform vec3 uColorPrimary;
+  uniform vec3 uColorSecondary;
   
   attribute float aSize;
   attribute float aRandom;
@@ -58,19 +60,16 @@ const particleVertexShader = `
     // Size based on distance and state
     float size = aSize * (1.0 + uAudioLevel * 0.5 + uStateIntensity * 0.3);
     gl_PointSize = size * (300.0 / -mvPosition.z);
+    gl_PointSize = max(gl_PointSize, 1.0);
     
     gl_Position = projectionMatrix * mvPosition;
     
     // Alpha based on morph progress and state
-    vAlpha = 0.3 + uMorphProgress * 0.5 + uStateIntensity * 0.2;
+    vAlpha = 0.4 + uMorphProgress * 0.4 + uStateIntensity * 0.2;
     
-    // Color gradient based on position
+    // Color gradient based on position using state colors
     float heightFactor = (finalPos.y + 2.0) / 4.0;
-    vColor = mix(
-      vec3(1.0, 0.3, 0.0),  // Orange/red
-      vec3(1.0, 0.8, 0.2),  // Gold
-      heightFactor
-    );
+    vColor = mix(uColorPrimary, uColorSecondary, heightFactor);
   }
 `;
 
@@ -82,13 +81,14 @@ const particleFragmentShader = `
   
   void main() {
     // Circular particle with soft edges
-    float dist = length(gl_PointCoord - vec2(0.5));
+    vec2 center = gl_PointCoord - vec2(0.5);
+    float dist = length(center);
     if (dist > 0.5) discard;
     
-    float alpha = smoothstep(0.5, 0.1, dist) * vAlpha;
+    float alpha = smoothstep(0.5, 0.0, dist) * vAlpha;
     
-    // Add glow
-    vec3 glowColor = vColor + vec3(0.2, 0.1, 0.0) * (1.0 - dist * 2.0);
+    // Add glow based on particle color
+    vec3 glowColor = vColor + vColor * 0.3 * (1.0 - dist * 2.0);
     
     gl_FragColor = vec4(glowColor, alpha);
   }
@@ -125,20 +125,69 @@ const latticeFragmentShader = `
   varying float vEdgeFactor;
   
   void main() {
-    float alpha = 0.1 + uStateIntensity * 0.4;
+    float alpha = 0.15 + uStateIntensity * 0.5;
     gl_FragColor = vec4(uLatticeColor, alpha * vEdgeFactor);
   }
 `;
 
-// Get state configuration
+// State color configurations
 const getStateConfig = (state: WakeWordState) => {
-  const configs: Record<WakeWordState, { morph: number; intensity: number; color: [number, number, number]; latticeColor: [number, number, number] }> = {
-    dormant: { morph: 0.2, intensity: 0.1, color: [1.0, 0.6, 0.2], latticeColor: [1.0, 0.5, 0.2] },
-    passive: { morph: 0.4, intensity: 0.2, color: [1.0, 0.5, 0.1], latticeColor: [1.0, 0.6, 0.3] },
-    activated: { morph: 1.0, intensity: 0.8, color: [1.0, 0.8, 0.3], latticeColor: [1.0, 0.9, 0.5] },
-    listening: { morph: 1.0, intensity: 0.6, color: [0.3, 0.8, 1.0], latticeColor: [0.4, 0.9, 1.0] },
-    thinking: { morph: 1.0, intensity: 0.9, color: [0.7, 0.4, 1.0], latticeColor: [0.8, 0.5, 1.0] },
-    speaking: { morph: 1.0, intensity: 0.7, color: [1.0, 0.85, 0.4], latticeColor: [1.0, 0.9, 0.6] },
+  const configs: Record<WakeWordState, { 
+    morph: number; 
+    intensity: number; 
+    colorPrimary: [number, number, number];
+    colorSecondary: [number, number, number];
+    latticeColor: [number, number, number];
+    coreColor: [number, number, number];
+  }> = {
+    dormant: { 
+      morph: 0.2, 
+      intensity: 0.1, 
+      colorPrimary: [1.0, 0.4, 0.1],
+      colorSecondary: [1.0, 0.7, 0.3],
+      latticeColor: [1.0, 0.5, 0.2],
+      coreColor: [1.0, 0.5, 0.2]
+    },
+    passive: { 
+      morph: 0.4, 
+      intensity: 0.2, 
+      colorPrimary: [1.0, 0.5, 0.1],
+      colorSecondary: [1.0, 0.8, 0.3],
+      latticeColor: [1.0, 0.6, 0.3],
+      coreColor: [1.0, 0.6, 0.2]
+    },
+    activated: { 
+      morph: 1.0, 
+      intensity: 0.8, 
+      colorPrimary: [1.0, 0.6, 0.2],
+      colorSecondary: [1.0, 0.9, 0.5],
+      latticeColor: [1.0, 0.9, 0.5],
+      coreColor: [1.0, 0.8, 0.3]
+    },
+    listening: { 
+      morph: 1.0, 
+      intensity: 0.6, 
+      colorPrimary: [0.2, 0.6, 1.0],
+      colorSecondary: [0.5, 0.9, 1.0],
+      latticeColor: [0.4, 0.9, 1.0],
+      coreColor: [0.3, 0.8, 1.0]
+    },
+    thinking: { 
+      morph: 1.0, 
+      intensity: 0.9, 
+      colorPrimary: [0.6, 0.3, 1.0],
+      colorSecondary: [0.9, 0.6, 1.0],
+      latticeColor: [0.8, 0.5, 1.0],
+      coreColor: [0.7, 0.4, 1.0]
+    },
+    speaking: { 
+      morph: 1.0, 
+      intensity: 0.7, 
+      colorPrimary: [1.0, 0.7, 0.2],
+      colorSecondary: [1.0, 0.95, 0.6],
+      latticeColor: [1.0, 0.9, 0.6],
+      coreColor: [1.0, 0.85, 0.4]
+    },
   };
   return configs[state];
 };
@@ -155,7 +204,7 @@ const ParticleSystem = ({ state, audioLevel, morphProgress }: AtlasCoreProps) =>
 
   // Generate particle geometry
   const { geometry, latticeGeometry } = useMemo(() => {
-    const count = 5000;
+    const count = 4000;
     const positions = new Float32Array(count * 3);
     const scatteredPositions = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
@@ -178,7 +227,7 @@ const ParticleSystem = ({ state, audioLevel, morphProgress }: AtlasCoreProps) =>
       scatteredPositions[i3 + 1] = (Math.random() - 0.5) * 6;
       scatteredPositions[i3 + 2] = (Math.random() - 0.5) * 8;
       
-      sizes[i] = Math.random() * 15 + 5;
+      sizes[i] = Math.random() * 12 + 4;
       randoms[i] = Math.random();
     }
 
@@ -208,12 +257,20 @@ const ParticleSystem = ({ state, audioLevel, morphProgress }: AtlasCoreProps) =>
       materialRef.current.uniforms.uStateIntensity.value += (config.intensity - currentIntensity) * 0.08;
       
       materialRef.current.uniforms.uAudioLevel.value = audioLevel;
+      
+      // Smooth color transitions
+      const targetPrimary = new THREE.Color(...config.colorPrimary);
+      const targetSecondary = new THREE.Color(...config.colorSecondary);
+      materialRef.current.uniforms.uColorPrimary.value.lerp(targetPrimary, 0.1);
+      materialRef.current.uniforms.uColorSecondary.value.lerp(targetSecondary, 0.1);
     }
 
     if (latticeMaterialRef.current) {
       latticeMaterialRef.current.uniforms.uTime.value += delta;
       latticeMaterialRef.current.uniforms.uStateIntensity.value = config.intensity;
-      latticeMaterialRef.current.uniforms.uLatticeColor.value.set(...config.latticeColor);
+      
+      const targetLattice = new THREE.Color(...config.latticeColor);
+      latticeMaterialRef.current.uniforms.uLatticeColor.value.lerp(targetLattice, 0.1);
     }
   });
 
@@ -231,7 +288,7 @@ const ParticleSystem = ({ state, audioLevel, morphProgress }: AtlasCoreProps) =>
           uniforms={{
             uTime: { value: 0 },
             uStateIntensity: { value: config.intensity },
-            uLatticeColor: { value: new THREE.Vector3(...config.latticeColor) },
+            uLatticeColor: { value: new THREE.Color(...config.latticeColor) },
           }}
         />
       </lineSegments>
@@ -250,43 +307,73 @@ const ParticleSystem = ({ state, audioLevel, morphProgress }: AtlasCoreProps) =>
             uMorphProgress: { value: targetMorph },
             uAudioLevel: { value: audioLevel },
             uStateIntensity: { value: config.intensity },
+            uColorPrimary: { value: new THREE.Color(...config.colorPrimary) },
+            uColorSecondary: { value: new THREE.Color(...config.colorSecondary) },
           }}
         />
       </points>
 
-      {/* Core glow */}
+      {/* Core glow sphere */}
       <mesh>
-        <sphereGeometry args={[0.8, 32, 32]} />
+        <sphereGeometry args={[0.6, 32, 32]} />
         <meshBasicMaterial
-          color={new THREE.Color(...config.color)}
+          color={new THREE.Color(...config.coreColor)}
           transparent
-          opacity={0.15 + audioLevel * 0.2 + config.intensity * 0.1}
+          opacity={0.2 + audioLevel * 0.3 + config.intensity * 0.15}
+        />
+      </mesh>
+      
+      {/* Inner core for depth */}
+      <mesh>
+        <sphereGeometry args={[0.3, 16, 16]} />
+        <meshBasicMaterial
+          color={new THREE.Color(...config.coreColor)}
+          transparent
+          opacity={0.4 + audioLevel * 0.2}
         />
       </mesh>
     </group>
   );
 };
 
-// Main exported component
+// Fallback component
+const AtlasFallback = () => (
+  <div className="w-full h-full flex items-center justify-center">
+    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500/30 to-orange-600/30 animate-pulse" />
+  </div>
+);
+
+// Main exported component with error handling
 export const AtlasCore = ({ state, audioLevel, morphProgress }: AtlasCoreProps) => {
   return (
-    <div className="w-full h-full">
-      <Canvas
-        camera={{ position: [0, 0, 6], fov: 60 }}
-        gl={{ antialias: true, alpha: true }}
-        style={{ background: 'transparent' }}
-      >
-        <ambientLight intensity={0.2} />
-        <ParticleSystem state={state} audioLevel={audioLevel} morphProgress={morphProgress} />
-        <EffectComposer>
-          <Bloom
-            intensity={1.2}
-            luminanceThreshold={0.2}
-            luminanceSmoothing={0.9}
-            radius={0.8}
-          />
-        </EffectComposer>
-      </Canvas>
+    <div className="w-full h-full min-w-[200px] min-h-[200px]">
+      <Suspense fallback={<AtlasFallback />}>
+        <Canvas
+          camera={{ position: [0, 0, 6], fov: 60 }}
+          gl={{ 
+            antialias: true, 
+            alpha: true,
+            powerPreference: 'high-performance',
+            failIfMajorPerformanceCaveat: false,
+          }}
+          style={{ background: 'transparent' }}
+          dpr={[1, 2]}
+          onCreated={({ gl }) => {
+            gl.setClearColor(0x000000, 0);
+          }}
+        >
+          <ambientLight intensity={0.3} />
+          <ParticleSystem state={state} audioLevel={audioLevel} morphProgress={morphProgress} />
+          <EffectComposer>
+            <Bloom
+              intensity={0.8}
+              luminanceThreshold={0.1}
+              luminanceSmoothing={0.5}
+              radius={0.6}
+            />
+          </EffectComposer>
+        </Canvas>
+      </Suspense>
     </div>
   );
 };
