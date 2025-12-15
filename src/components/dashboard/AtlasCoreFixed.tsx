@@ -197,19 +197,30 @@ const RingRipples = memo(({
 
 RingRipples.displayName = 'RingRipples';
 
-// Optimized trail shader - single pass with built-in fading
+// Enhanced trail shader - dense glowing particle trails with smooth fading
 const trailVertexShader = `
   attribute float trailIndex;
   attribute float opacity;
+  attribute float randomSize;
   varying float vOpacity;
   varying float vTrailIndex;
+  varying float vGlow;
   
   void main() {
     vOpacity = opacity;
     vTrailIndex = trailIndex;
+    
+    // Glow intensity based on trail position (newer = more glow)
+    vGlow = 1.0 - trailIndex;
+    
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mvPosition;
-    gl_PointSize = (0.08 - trailIndex * 0.01) * (300.0 / -mvPosition.z);
+    
+    // Larger base size, gradual shrinking with trail age
+    float baseSize = 0.12 * (1.0 - trailIndex * 0.4);
+    // Add size variation for more organic look
+    float sizeVariation = 0.8 + randomSize * 0.4;
+    gl_PointSize = baseSize * sizeVariation * (350.0 / -mvPosition.z);
   }
 `;
 
@@ -218,13 +229,28 @@ const trailFragmentShader = `
   uniform float uBaseOpacity;
   varying float vOpacity;
   varying float vTrailIndex;
+  varying float vGlow;
   
   void main() {
-    float dist = length(gl_PointCoord - vec2(0.5));
+    vec2 center = gl_PointCoord - vec2(0.5);
+    float dist = length(center);
     if (dist > 0.5) discard;
     
-    float alpha = (1.0 - smoothstep(0.0, 0.5, dist)) * vOpacity * uBaseOpacity;
-    gl_FragColor = vec4(uColor, alpha);
+    // Soft circular gradient with glowing core
+    float coreFalloff = 1.0 - smoothstep(0.0, 0.25, dist);
+    float outerFalloff = 1.0 - smoothstep(0.15, 0.5, dist);
+    
+    // Combine for soft glow effect
+    float intensity = mix(outerFalloff, coreFalloff, vGlow * 0.5);
+    
+    // Color with slight brightness boost for newer trails
+    vec3 glowColor = uColor + vec3(0.15, 0.1, 0.05) * vGlow;
+    
+    // Smooth exponential opacity falloff
+    float trailFade = pow(vOpacity, 0.7);
+    float alpha = intensity * trailFade * uBaseOpacity * 0.85;
+    
+    gl_FragColor = vec4(glowColor, alpha);
   }
 `;
 
@@ -251,13 +277,19 @@ const OptimizedParticleTrails = memo(({
     const positions = new Float32Array(totalParticles * 3);
     const indices = new Float32Array(totalParticles);
     const opacityArray = new Float32Array(totalParticles);
+    const randomSizes = new Float32Array(totalParticles);
     
-    // Initialize attributes
+    // Initialize attributes with smooth exponential fade
     for (let trail = 0; trail < trailLength; trail++) {
+      const trailProgress = trail / trailLength;
+      // Exponential fade for more natural trail appearance
+      const fadeOpacity = Math.pow(1 - trailProgress, 1.5);
+      
       for (let i = 0; i < particleCount; i++) {
         const idx = trail * particleCount + i;
-        indices[idx] = trail / trailLength;
-        opacityArray[idx] = (1 - (trail + 1) / (trailLength + 1));
+        indices[idx] = trailProgress;
+        opacityArray[idx] = fadeOpacity;
+        randomSizes[idx] = Math.random();
       }
     }
     
@@ -265,6 +297,7 @@ const OptimizedParticleTrails = memo(({
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geo.setAttribute('trailIndex', new THREE.BufferAttribute(indices, 1));
     geo.setAttribute('opacity', new THREE.BufferAttribute(opacityArray, 1));
+    geo.setAttribute('randomSize', new THREE.BufferAttribute(randomSizes, 1));
     
     return geo;
   }, [particleCount, trailLength]);
