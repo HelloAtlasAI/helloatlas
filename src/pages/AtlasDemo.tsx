@@ -1126,8 +1126,8 @@ export default function AtlasDemo() {
                   value={[particleCount]}
                   onValueChange={([v]) => setParticleCount(v)}
                   min={500}
-                  max={5000}
-                  step={100}
+                  max={20000}
+                  step={500}
                   className="w-full"
                 />
               </div>
