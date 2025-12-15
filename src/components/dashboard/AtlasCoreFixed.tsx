@@ -700,6 +700,24 @@ const ParticleSystem = memo(({
       // Target radius for fluid cohesion (when cohesion is high, all particles aim for same radius)
       const baseRadius = 1.8 * density;
       
+      // Pre-compute values outside loop for performance
+      const hasFluidCohesion = fluidCohesion > 0;
+      const hasFluidFlow = fluidFlow > 0 && fluidCohesion > 0.3;
+      const audioMultiplier = state === 'speaking' ? 2.5 : (state === 'thinking' ? 1.5 : 1.0);
+      const effectiveAudio = audioLevel * audioMultiplier;
+      const hasAudioEffect = effectiveAudio > 0.01;
+      const hasTurbulence = enableTurbulence && turbulenceAmplitude > 0.001;
+      const hasMouseInteraction = enableMouseInteraction && mousePosition.current.active;
+      
+      // Pre-compute turbulence values if needed
+      const turbulenceScale = hasTurbulence ? (1 - fluidCohesion * 0.7) : 0;
+      const audioTurbulenceBoost = hasTurbulence ? (1 + effectiveAudio * 2.5) : 0;
+      const noiseTime = hasTurbulence ? time * turbulenceSpeed : 0;
+      
+      // Pre-compute mouse values if needed
+      const mouseX = hasMouseInteraction ? mousePosition.current.x * 4 : 0;
+      const mouseY = hasMouseInteraction ? mousePosition.current.y * 4 : 0;
+      
       for (let i = 0; i < count; i++) {
         const i3 = i * 3;
         
@@ -713,20 +731,17 @@ const ParticleSystem = memo(({
         let py = scatteredPositions[i3 + 1] + (spherePositions[i3 + 1] - scatteredPositions[i3 + 1]) * adjustedMorph;
         let pz = scatteredPositions[i3 + 2] + (spherePositions[i3 + 2] - scatteredPositions[i3 + 2]) * adjustedMorph;
         
-        // Apply fluid cohesion - push particles toward uniform radius
-        if (fluidCohesion > 0) {
+        // Apply fluid cohesion - push particles toward uniform radius (EARLY EXIT if disabled)
+        if (hasFluidCohesion) {
           const currentDist = Math.sqrt(px * px + py * py + pz * pz);
           if (currentDist > 0.01) {
-            // Normalize to unit sphere direction
-            const nx = px / currentDist;
-            const ny = py / currentDist;
-            const nz = pz / currentDist;
+            const invDist = 1 / currentDist;
+            const nx = px * invDist;
+            const ny = py * invDist;
+            const nz = pz * invDist;
             
-            // Target radius with reduced variation based on cohesion
             const radiusVariation = (1 - fluidCohesion) * 0.4;
             const targetRadius = baseRadius + (particleOffset - 0.2) * radiusVariation * baseRadius;
-            
-            // Surface tension pulls toward target radius
             const radiusDiff = targetRadius - currentDist;
             const tensionForce = radiusDiff * surfaceTension * fluidCohesion;
             
@@ -734,15 +749,16 @@ const ParticleSystem = memo(({
             py += ny * tensionForce;
             pz += nz * tensionForce;
             
-            // Fluid flow - particles glide along surface
-            if (fluidFlow > 0 && fluidCohesion > 0.3) {
+            // Fluid flow (EARLY EXIT if disabled)
+            if (hasFluidFlow) {
               const flowSpeed = fluidFlow * fluidCohesion * 0.02;
               const flowAngle = time * flowSpeed + particleOffset * Math.PI * 2;
+              const cosFlow = Math.cos(flowAngle);
+              const sinFlow = Math.sin(flowAngle);
               
-              // Tangent direction for flow (perpendicular to normal)
-              const tangentX = -ny * Math.cos(flowAngle) + (-nx * nz) * Math.sin(flowAngle);
-              const tangentY = nx * Math.cos(flowAngle) + (-ny * nz) * Math.sin(flowAngle);
-              const tangentZ = (nx * nx + ny * ny) * Math.sin(flowAngle);
+              const tangentX = -ny * cosFlow + (-nx * nz) * sinFlow;
+              const tangentY = nx * cosFlow + (-ny * nz) * sinFlow;
+              const tangentZ = (nx * nx + ny * ny) * sinFlow;
               
               const flowMagnitude = flowSpeed * currentDist;
               px += tangentX * flowMagnitude;
@@ -752,24 +768,20 @@ const ParticleSystem = memo(({
           }
         }
         
-        // AUDIO-REACTIVE MORPHING: Intense radial displacement when speaking
-        const audioMultiplier = state === 'speaking' ? 2.5 : (state === 'thinking' ? 1.5 : 1.0);
-        const effectiveAudio = audioLevel * audioMultiplier;
-        
-        if (effectiveAudio > 0.01) {
+        // AUDIO-REACTIVE MORPHING (EARLY EXIT if no audio)
+        if (hasAudioEffect) {
           const currentDist = Math.sqrt(px * px + py * py + pz * pz);
           if (currentDist > 0.01) {
-            const nx = px / currentDist;
-            const ny = py / currentDist;
-            const nz = pz / currentDist;
+            const invDist = 1 / currentDist;
+            const nx = px * invDist;
+            const ny = py * invDist;
+            const nz = pz * invDist;
             
-            // Radial audio pulse - push particles outward with audio
             const audioDisplacement = effectiveAudio * 0.4;
             px += nx * audioDisplacement;
             py += ny * audioDisplacement;
             pz += nz * audioDisplacement;
             
-            // Audio wave effect - creates rippling motion with adjustable speed
             const wavePhase = time * (10 * audioReactivitySpeed) + currentDist * 6 + particleOffset * Math.PI;
             const audioWave = Math.sin(wavePhase) * effectiveAudio * 0.2 * audioReactivitySpeed;
             px += nx * audioWave;
@@ -778,36 +790,32 @@ const ParticleSystem = memo(({
           }
         }
         
-        // Apply Perlin noise turbulence (boosted by audio, reduced by cohesion)
-        if (enableTurbulence) {
-          const turbulenceScale = 1 - fluidCohesion * 0.7;
-          const audioTurbulenceBoost = 1 + effectiveAudio * 2.5; // Up to 3.5x turbulence at max audio
-          const noiseTime = time * turbulenceSpeed;
-          const nx = noise3D(px + noiseTime, py, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
-          const ny = noise3D(px, py + noiseTime, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
-          const nz = noise3D(px, py, pz + noiseTime, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
+        // Apply turbulence (EARLY EXIT if disabled)
+        if (hasTurbulence) {
+          const tnx = noise3D(px + noiseTime, py, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
+          const tny = noise3D(px, py + noiseTime, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
+          const tnz = noise3D(px, py, pz + noiseTime, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
           
-          px += nx;
-          py += ny;
-          pz += nz;
+          px += tnx;
+          py += tny;
+          pz += tnz;
         }
         
-        // Apply mouse interaction
-        if (enableMouseInteraction && mousePosition.current.active) {
-          const mouseX = mousePosition.current.x * 4;
-          const mouseY = mousePosition.current.y * 4;
-          const mouseZ = 0;
-          
+        // Apply mouse interaction (EARLY EXIT if inactive)
+        if (hasMouseInteraction) {
           const dx = mouseX - px;
           const dy = mouseY - py;
-          const dz = mouseZ - pz;
-          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          const dz = -pz;
+          const distSq = dx * dx + dy * dy + dz * dz;
+          const radiusSq = mouseInfluenceRadius * mouseInfluenceRadius;
           
-          if (dist < mouseInfluenceRadius && dist > 0.01) {
+          if (distSq < radiusSq && distSq > 0.0001) {
+            const dist = Math.sqrt(distSq);
             const influence = (1 - dist / mouseInfluenceRadius) * mouseStrength * 0.3;
-            const dirX = dx / dist;
-            const dirY = dy / dist;
-            const dirZ = dz / dist;
+            const invDist = 1 / dist;
+            const dirX = dx * invDist;
+            const dirY = dy * invDist;
+            const dirZ = dz * invDist;
             
             if (mouseMode === 'attract') {
               px += dirX * influence;
@@ -837,8 +845,8 @@ const ParticleSystem = memo(({
       const pulse = 1 + audioLevel * audioScaleMultiplier + Math.sin(timeRef.current * 2) * 0.02;
       pointsRef.current.scale.setScalar(pulse);
       
-      // Store trail positions - copy final rendered positions (optimized: no re-morph needed)
-      if (enableTrails && frameCountRef.current % 5 === 0) {
+      // Store trail positions - optimized: update every 8 frames instead of 5, skip if trails disabled
+      if (enableTrails && trailLength > 0 && frameCountRef.current % 8 === 0) {
         // Create snapshot of current rendered positions with transform applied
         const snapshot = new Float32Array(count * 3);
         const quaternion = new THREE.Quaternion().setFromEuler(pointsRef.current.rotation);
