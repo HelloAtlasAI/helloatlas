@@ -54,7 +54,7 @@ const defaultSettings: AtlasDemoSettings = {
   enableTrails: true,
   trailLength: 4,
   trailOpacity: 0.5,
-  particleCount: 2000,
+  particleCount: 15000,
   particleSize: 0.08,
   density: 1.0,
   rotationSpeed: 0.5,
