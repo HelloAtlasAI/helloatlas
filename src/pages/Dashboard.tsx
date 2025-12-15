@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useVoice } from '@/hooks/useVoice';
-import { useWakeWord, WakeWordState } from '@/hooks/useWakeWord';
+import { useWakeWordFixed as useWakeWord, WakeWordState } from '@/hooks/useWakeWordFixed';
 import { useChatWithMemory } from '@/hooks/useChatWithMemory';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { AtlasInterface } from '@/components/dashboard/AtlasInterface';
