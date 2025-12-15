@@ -1,5 +1,5 @@
-import { useRef, useMemo, memo, forwardRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useRef, useMemo, memo, forwardRef, useState, useEffect } from 'react';
+import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { WakeWordState } from '@/hooks/useWakeWord';
@@ -11,7 +11,6 @@ interface AtlasCoreProps {
   enableTrails?: boolean;
   trailLength?: number;
   trailOpacity?: number;
-  // New controls
   particleCount?: number;
   particleSize?: number;
   density?: number;
@@ -19,9 +18,23 @@ interface AtlasCoreProps {
   enableBloom?: boolean;
   bloomIntensity?: number;
   morphSpeed?: number;
+  // Ring Ripple props
+  enableRipples?: boolean;
+  rippleSpeed?: number;
+  rippleCount?: number;
+  // Turbulence props
+  enableTurbulence?: boolean;
+  turbulenceFrequency?: number;
+  turbulenceAmplitude?: number;
+  turbulenceSpeed?: number;
+  // Mouse Interaction props
+  enableMouseInteraction?: boolean;
+  mouseMode?: 'attract' | 'repulse';
+  mouseStrength?: number;
+  mouseInfluenceRadius?: number;
 }
 
-// State color configurations with proper typing
+// State color configurations
 const STATE_CONFIGS: Record<WakeWordState, { 
   morph: number; 
   intensity: number; 
@@ -94,10 +107,87 @@ const generateCircleTexture = (): THREE.CanvasTexture => {
   return texture;
 };
 
+// Simplex-like noise function for turbulence
+const noise3D = (x: number, y: number, z: number, frequency: number): number => {
+  const fx = x * frequency;
+  const fy = y * frequency;
+  const fz = z * frequency;
+  return (
+    Math.sin(fx * 1.1 + fz * 0.7) * 
+    Math.cos(fy * 1.3 + fx * 0.5) * 
+    Math.sin(fz * 0.9 + fy * 0.6) +
+    Math.sin(fx * 2.1 + fy * 1.4) * 0.5 +
+    Math.cos(fy * 1.8 + fz * 1.2) * 0.3
+  ) * 0.5;
+};
+
 // Easing function for fluid morphing
 const easeInOutCubic = (t: number): number => {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 };
+
+// Ripple interface
+interface Ripple {
+  id: number;
+  startTime: number;
+  color: THREE.Color;
+}
+
+// Ring Ripples component - expanding shockwaves on state changes
+const RingRipples = memo(({ 
+  ripples, 
+  rippleSpeed 
+}: { 
+  ripples: Ripple[]; 
+  rippleSpeed: number;
+}) => {
+  const ripplesRef = useRef<THREE.Group>(null);
+  const materialsRef = useRef<Map<number, THREE.MeshBasicMaterial>>(new Map());
+  
+  useFrame(({ clock }) => {
+    if (!ripplesRef.current) return;
+    
+    ripplesRef.current.children.forEach((child, index) => {
+      const ripple = ripples[index];
+      if (!ripple) return;
+      
+      const elapsed = clock.getElapsedTime() - ripple.startTime;
+      const progress = Math.min(elapsed * rippleSpeed, 1);
+      
+      // Expand radius from 0.5 to 4
+      const radius = 0.5 + progress * 3.5;
+      child.scale.setScalar(radius);
+      
+      // Fade out opacity
+      const material = materialsRef.current.get(ripple.id);
+      if (material) {
+        material.opacity = (1 - progress) * 0.6;
+      }
+    });
+  });
+
+  return (
+    <group ref={ripplesRef}>
+      {ripples.map((ripple) => (
+        <mesh key={ripple.id} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[1, 0.02, 8, 64]} />
+          <meshBasicMaterial
+            ref={(mat) => {
+              if (mat) materialsRef.current.set(ripple.id, mat);
+            }}
+            color={ripple.color}
+            transparent
+            opacity={0.6}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+});
+
+RingRipples.displayName = 'RingRipples';
 
 // Trail system component
 const ParticleTrails = memo(({ 
@@ -144,7 +234,7 @@ const ParticleTrails = memo(({
 
 ParticleTrails.displayName = 'ParticleTrails';
 
-// Simplified particle system using THREE.Points with PointsMaterial
+// Main particle system
 const ParticleSystem = memo(({ 
   state, 
   audioLevel, 
@@ -156,20 +246,63 @@ const ParticleSystem = memo(({
   particleSize = 0.08,
   density = 1.0,
   rotationSpeed = 0.5,
-  morphSpeed = 1.5
-}: AtlasCoreProps) => {
+  morphSpeed = 1.5,
+  enableRipples = true,
+  rippleSpeed = 1.5,
+  rippleCount = 2,
+  enableTurbulence = true,
+  turbulenceFrequency = 0.5,
+  turbulenceAmplitude = 0.08,
+  turbulenceSpeed = 0.3,
+  enableMouseInteraction = true,
+  mouseMode = 'attract' as const,
+  mouseStrength = 0.5,
+  mouseInfluenceRadius = 2.5,
+  mousePosition
+}: AtlasCoreProps & { mousePosition: React.MutableRefObject<{ x: number; y: number; active: boolean }> }) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
   const timeRef = useRef(0);
   const currentColorRef = useRef(new THREE.Color(1.0, 0.5, 0.2));
   const frameCountRef = useRef(0);
   const currentMorphRef = useRef(morphProgress ?? 1);
+  const prevStateRef = useRef(state);
+  
+  // Ripple state
+  const [ripples, setRipples] = useState<Ripple[]>([]);
+  const rippleIdRef = useRef(0);
   
   // Position history for trails
   const positionHistoryRef = useRef<Float32Array[]>([]);
   const [, forceUpdate] = useState(0);
   
   const config = STATE_CONFIGS[state];
+
+  // Trigger ripples on state change
+  useEffect(() => {
+    if (prevStateRef.current !== state && enableRipples) {
+      const newRipples: Ripple[] = [];
+      for (let i = 0; i < rippleCount; i++) {
+        rippleIdRef.current++;
+        newRipples.push({
+          id: rippleIdRef.current,
+          startTime: performance.now() / 1000 + i * 0.15,
+          color: config.primary.clone()
+        });
+      }
+      setRipples(prev => [...prev.slice(-5), ...newRipples]);
+      prevStateRef.current = state;
+    }
+  }, [state, enableRipples, rippleCount, config.primary]);
+
+  // Clean up old ripples
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = performance.now() / 1000;
+      setRipples(prev => prev.filter(r => now - r.startTime < 2));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Create circular texture once
   const circleTexture = useMemo(() => generateCircleTexture(), []);
@@ -180,12 +313,11 @@ const ParticleSystem = memo(({
     const sphere = new Float32Array(count * 3);
     const scattered = new Float32Array(count * 3);
     const positions = new Float32Array(count * 3);
-    const offsets = new Float32Array(count); // Per-particle offset for wave morphing
+    const offsets = new Float32Array(count);
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
       
-      // Sphere distribution with density control
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       const r = (1.8 * density) + (Math.random() - 0.5) * 0.4 * density;
@@ -194,18 +326,15 @@ const ParticleSystem = memo(({
       sphere[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       sphere[i3 + 2] = r * Math.cos(phi);
       
-      // Scattered positions (random cloud)
       const scatterRadius = 6 * density;
       scattered[i3] = (Math.random() - 0.5) * scatterRadius;
       scattered[i3 + 1] = (Math.random() - 0.5) * scatterRadius;
       scattered[i3 + 2] = (Math.random() - 0.5) * scatterRadius;
       
-      // Initial positions
       positions[i3] = sphere[i3];
       positions[i3 + 1] = sphere[i3 + 1];
       positions[i3 + 2] = sphere[i3 + 2];
       
-      // Random offset for wave effect (0 to 0.4)
       offsets[i] = Math.random() * 0.4;
     }
 
@@ -214,15 +343,13 @@ const ParticleSystem = memo(({
     return { geometry: geo, spherePositions: sphere, scatteredPositions: scattered, particleOffsets: offsets };
   }, [particleCount, density]);
 
-  // Target morph value
   const targetMorph = morphProgress ?? 1;
 
   // Animation loop
-  useFrame((_, delta) => {
+  useFrame((state3D, delta) => {
     timeRef.current += delta;
     frameCountRef.current++;
     
-    // Smooth lerp morph value over time for fluid animation
     currentMorphRef.current = THREE.MathUtils.lerp(
       currentMorphRef.current,
       targetMorph,
@@ -231,35 +358,77 @@ const ParticleSystem = memo(({
     
     const smoothMorph = currentMorphRef.current;
     
-    // Interpolate particle positions with easing and per-particle offset
     if (pointsRef.current && geometry) {
       const positions = geometry.attributes.position.array as Float32Array;
       const count = positions.length / 3;
+      const time = timeRef.current;
       
       for (let i = 0; i < count; i++) {
         const i3 = i * 3;
         
-        // Apply per-particle offset for wave effect
         const particleOffset = particleOffsets[i];
         const adjustedMorph = easeInOutCubic(
           Math.max(0, Math.min(1, smoothMorph * (1 + particleOffset) - particleOffset * 0.5))
         );
         
-        positions[i3] = scatteredPositions[i3] + (spherePositions[i3] - scatteredPositions[i3]) * adjustedMorph;
-        positions[i3 + 1] = scatteredPositions[i3 + 1] + (spherePositions[i3 + 1] - scatteredPositions[i3 + 1]) * adjustedMorph;
-        positions[i3 + 2] = scatteredPositions[i3 + 2] + (spherePositions[i3 + 2] - scatteredPositions[i3 + 2]) * adjustedMorph;
+        // Base interpolated position
+        let px = scatteredPositions[i3] + (spherePositions[i3] - scatteredPositions[i3]) * adjustedMorph;
+        let py = scatteredPositions[i3 + 1] + (spherePositions[i3 + 1] - scatteredPositions[i3 + 1]) * adjustedMorph;
+        let pz = scatteredPositions[i3 + 2] + (spherePositions[i3 + 2] - scatteredPositions[i3 + 2]) * adjustedMorph;
+        
+        // Apply Perlin noise turbulence
+        if (enableTurbulence) {
+          const noiseTime = time * turbulenceSpeed;
+          const nx = noise3D(px + noiseTime, py, pz, turbulenceFrequency) * turbulenceAmplitude;
+          const ny = noise3D(px, py + noiseTime, pz, turbulenceFrequency) * turbulenceAmplitude;
+          const nz = noise3D(px, py, pz + noiseTime, turbulenceFrequency) * turbulenceAmplitude;
+          
+          px += nx;
+          py += ny;
+          pz += nz;
+        }
+        
+        // Apply mouse interaction
+        if (enableMouseInteraction && mousePosition.current.active) {
+          const mouseX = mousePosition.current.x * 4;
+          const mouseY = mousePosition.current.y * 4;
+          const mouseZ = 0;
+          
+          const dx = mouseX - px;
+          const dy = mouseY - py;
+          const dz = mouseZ - pz;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          
+          if (dist < mouseInfluenceRadius && dist > 0.01) {
+            const influence = (1 - dist / mouseInfluenceRadius) * mouseStrength * 0.3;
+            const dirX = dx / dist;
+            const dirY = dy / dist;
+            const dirZ = dz / dist;
+            
+            if (mouseMode === 'attract') {
+              px += dirX * influence;
+              py += dirY * influence;
+              pz += dirZ * influence;
+            } else {
+              px -= dirX * influence;
+              py -= dirY * influence;
+              pz -= dirZ * influence;
+            }
+          }
+        }
+        
+        positions[i3] = px;
+        positions[i3 + 1] = py;
+        positions[i3 + 2] = pz;
       }
       geometry.attributes.position.needsUpdate = true;
       
-      // Rotation with configurable speed
       pointsRef.current.rotation.y += delta * rotationSpeed * (0.2 + config.intensity * 0.3);
       pointsRef.current.rotation.x += delta * rotationSpeed * 0.05;
       
-      // Pulsing scale based on audio
       const pulse = 1 + audioLevel * 0.15 + Math.sin(timeRef.current * 2) * 0.02;
       pointsRef.current.scale.setScalar(pulse);
       
-      // Update position history for trails (every 3rd frame for performance)
       if (enableTrails && frameCountRef.current % 3 === 0) {
         const rotatedPositions = new Float32Array(positions.length);
         const rotation = new THREE.Euler(
@@ -288,7 +457,6 @@ const ParticleSystem = memo(({
       }
     }
     
-    // Smooth color transition
     if (materialRef.current) {
       currentColorRef.current.lerp(config.primary, 0.08);
       materialRef.current.color.copy(currentColorRef.current);
@@ -297,6 +465,11 @@ const ParticleSystem = memo(({
 
   return (
     <group>
+      {/* Ring ripples on state change */}
+      {enableRipples && ripples.length > 0 && (
+        <RingRipples ripples={ripples} rippleSpeed={rippleSpeed} />
+      )}
+      
       {/* Particle trails */}
       {enableTrails && positionHistoryRef.current.length > 0 && (
         <ParticleTrails
@@ -324,7 +497,7 @@ const ParticleSystem = memo(({
         />
       </points>
 
-      {/* Inner core glow - very subtle with additive blending */}
+      {/* Inner core glow */}
       <mesh>
         <sphereGeometry args={[0.3, 24, 24]} />
         <meshBasicMaterial
@@ -400,10 +573,40 @@ export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   rotationSpeed = 0.5,
   enableBloom = true,
   bloomIntensity = 0.8,
-  morphSpeed = 1.5
+  morphSpeed = 1.5,
+  enableRipples = true,
+  rippleSpeed = 1.5,
+  rippleCount = 2,
+  enableTurbulence = true,
+  turbulenceFrequency = 0.5,
+  turbulenceAmplitude = 0.08,
+  turbulenceSpeed = 0.3,
+  enableMouseInteraction = true,
+  mouseMode = 'attract',
+  mouseStrength = 0.5,
+  mouseInfluenceRadius = 2.5
 }, ref) => {
+  // Mouse tracking ref
+  const mousePositionRef = useRef({ x: 0, y: 0, active: false });
+  
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    mousePositionRef.current = { x, y, active: true };
+  };
+  
+  const handlePointerLeave = () => {
+    mousePositionRef.current.active = false;
+  };
+
   return (
-    <div ref={ref} className="w-full h-full min-w-[200px] min-h-[200px]">
+    <div 
+      ref={ref} 
+      className="w-full h-full min-w-[200px] min-h-[200px]"
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+    >
       <Canvas
         camera={{ position: [0, 0, 6], fov: 45 }}
         gl={{ 
@@ -431,6 +634,18 @@ export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           density={density}
           rotationSpeed={rotationSpeed}
           morphSpeed={morphSpeed}
+          enableRipples={enableRipples}
+          rippleSpeed={rippleSpeed}
+          rippleCount={rippleCount}
+          enableTurbulence={enableTurbulence}
+          turbulenceFrequency={turbulenceFrequency}
+          turbulenceAmplitude={turbulenceAmplitude}
+          turbulenceSpeed={turbulenceSpeed}
+          enableMouseInteraction={enableMouseInteraction}
+          mouseMode={mouseMode}
+          mouseStrength={mouseStrength}
+          mouseInfluenceRadius={mouseInfluenceRadius}
+          mousePosition={mousePositionRef}
         />
         {enableBloom && <BloomEffect intensity={bloomIntensity} />}
       </Canvas>
