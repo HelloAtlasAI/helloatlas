@@ -407,11 +407,13 @@ const CoreParticleSystem = memo(({
       sphere[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       sphere[i3 + 2] = r * Math.cos(phi);
       
-      // Scattered core is smaller radius
-      const scatterRadius = coreDensity * 3;
-      scattered[i3] = (Math.random() - 0.5) * scatterRadius;
-      scattered[i3 + 1] = (Math.random() - 0.5) * scatterRadius;
-      scattered[i3 + 2] = (Math.random() - 0.5) * scatterRadius;
+      // Scattered core - use spherical distribution for consistent shape
+      const scatterTheta = Math.random() * Math.PI * 2;
+      const scatterPhi = Math.acos(2 * Math.random() - 1);
+      const scatterR = (0.5 + Math.random() * 0.5) * coreDensity * 2;
+      scattered[i3] = scatterR * Math.sin(scatterPhi) * Math.cos(scatterTheta);
+      scattered[i3 + 1] = scatterR * Math.sin(scatterPhi) * Math.sin(scatterTheta);
+      scattered[i3 + 2] = scatterR * Math.cos(scatterPhi);
       
       positions[i3] = sphere[i3];
       positions[i3 + 1] = sphere[i3 + 1];
@@ -830,14 +832,84 @@ const CSSFallbackOrb = memo(({ state, audioLevel }: { state: WakeWordState; audi
 
 CSSFallbackOrb.displayName = 'CSSFallbackOrb';
 
+// Edge glow sphere component
+const EdgeGlow = memo(({ state, audioLevel }: { state: WakeWordState; audioLevel: number }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const config = STATE_CONFIGS[state];
+  
+  const glowMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uColor: { value: config.primary.clone() },
+        uIntensity: { value: 0.6 },
+        uTime: { value: 0 }
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vPosition = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uColor;
+        uniform float uIntensity;
+        uniform float uTime;
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        
+        void main() {
+          vec3 viewDirection = normalize(cameraPosition - vPosition);
+          float fresnel = pow(1.0 - abs(dot(viewDirection, vNormal)), 3.0);
+          
+          // Animated shimmer
+          float shimmer = 0.8 + 0.2 * sin(uTime * 2.0 + vPosition.y * 3.0);
+          
+          vec3 glowColor = uColor * (1.0 + fresnel * 0.5);
+          float alpha = fresnel * uIntensity * shimmer;
+          
+          gl_FragColor = vec4(glowColor, alpha);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      side: THREE.BackSide,
+      depthWrite: false
+    });
+  }, []);
+
+  useFrame((_, delta) => {
+    if (materialRef.current) {
+      materialRef.current.uniforms.uColor.value.lerp(config.primary, 0.1);
+      materialRef.current.uniforms.uIntensity.value = 0.4 + audioLevel * 0.4;
+      materialRef.current.uniforms.uTime.value += delta;
+    }
+    if (meshRef.current) {
+      meshRef.current.rotation.y += delta * 0.1;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} scale={1.8}>
+      <sphereGeometry args={[1, 32, 32]} />
+      <primitive object={glowMaterial} ref={materialRef} attach="material" />
+    </mesh>
+  );
+});
+
+EdgeGlow.displayName = 'EdgeGlow';
+
 // Bloom wrapper component
 const BloomEffect = memo(({ intensity }: { intensity: number }) => (
   <EffectComposer>
     <Bloom
       intensity={intensity}
-      luminanceThreshold={0.2}
-      luminanceSmoothing={0.9}
-      radius={0.8}
+      luminanceThreshold={0.15}
+      luminanceSmoothing={0.95}
+      radius={1.0}
       mipmapBlur
     />
   </EffectComposer>
@@ -947,6 +1019,7 @@ export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           coreRotationOffset={coreRotationOffset}
           mousePosition={mousePositionRef}
         />
+        <EdgeGlow state={state} audioLevel={audioLevel} />
         {enableBloom && <BloomEffect intensity={bloomIntensity} />}
       </Canvas>
     </div>
