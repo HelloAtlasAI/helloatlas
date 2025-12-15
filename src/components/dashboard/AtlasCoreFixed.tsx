@@ -32,6 +32,14 @@ interface AtlasCoreProps {
   mouseMode?: 'attract' | 'repulse';
   mouseStrength?: number;
   mouseInfluenceRadius?: number;
+  // Core props
+  enableCore?: boolean;
+  coreParticleCount?: number;
+  coreDensity?: number;
+  coreParticleSize?: number;
+  coreIntensity?: number;
+  corePulseSpeed?: number;
+  coreRotationOffset?: number;
 }
 
 // State color configurations
@@ -189,27 +197,67 @@ const RingRipples = memo(({
 
 RingRipples.displayName = 'RingRipples';
 
-// Trail system component
-const ParticleTrails = memo(({ 
-  positionHistory, 
+// Trail data structure that includes morph info
+interface TrailFrame {
+  spherePositions: Float32Array;
+  scatteredPositions: Float32Array;
+  morphProgress: number;
+  rotation: THREE.Euler;
+  scale: number;
+}
+
+// Morphing trail system component - trails now follow the morphing animation
+const MorphingParticleTrails = memo(({ 
+  trailHistory, 
   trailLength, 
   trailOpacity, 
   color,
-  circleTexture
+  circleTexture,
+  currentMorphProgress
 }: { 
-  positionHistory: Float32Array[];
+  trailHistory: TrailFrame[];
   trailLength: number;
   trailOpacity: number;
   color: THREE.Color;
   circleTexture: THREE.CanvasTexture;
+  currentMorphProgress: number;
 }) => {
   const trailGeometries = useMemo(() => {
-    return positionHistory.slice(0, trailLength).map((positions, index) => {
+    return trailHistory.slice(0, trailLength).map((frame, index) => {
+      const count = frame.spherePositions.length / 3;
+      const positions = new Float32Array(count * 3);
+      
+      // Calculate trail morph with lag (trails morph slower than main)
+      const trailMorphLag = Math.max(0, currentMorphProgress - (index + 1) * 0.08);
+      const trailMorph = easeInOutCubic(Math.max(0, Math.min(1, trailMorphLag)));
+      
+      // Create quaternion from rotation
+      const quaternion = new THREE.Quaternion().setFromEuler(frame.rotation);
+      const tempVec = new THREE.Vector3();
+      
+      for (let i = 0; i < count; i++) {
+        const i3 = i * 3;
+        
+        // Interpolate between scattered and sphere based on trail morph
+        const px = frame.scatteredPositions[i3] + (frame.spherePositions[i3] - frame.scatteredPositions[i3]) * trailMorph;
+        const py = frame.scatteredPositions[i3 + 1] + (frame.spherePositions[i3 + 1] - frame.scatteredPositions[i3 + 1]) * trailMorph;
+        const pz = frame.scatteredPositions[i3 + 2] + (frame.spherePositions[i3 + 2] - frame.scatteredPositions[i3 + 2]) * trailMorph;
+        
+        // Apply rotation and scale
+        tempVec.set(px, py, pz);
+        tempVec.applyQuaternion(quaternion);
+        tempVec.multiplyScalar(frame.scale);
+        
+        positions[i3] = tempVec.x;
+        positions[i3 + 1] = tempVec.y;
+        positions[i3 + 2] = tempVec.z;
+      }
+      
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       return { geo, opacity: (1 - (index + 1) / (trailLength + 1)) * trailOpacity };
     });
-  }, [positionHistory, trailLength, trailOpacity]);
+  }, [trailHistory, trailLength, trailOpacity, currentMorphProgress]);
 
   return (
     <group>
@@ -232,7 +280,142 @@ const ParticleTrails = memo(({
   );
 });
 
-ParticleTrails.displayName = 'ParticleTrails';
+MorphingParticleTrails.displayName = 'MorphingParticleTrails';
+
+// Core particle system - dense inner particles with independent behavior
+const CoreParticleSystem = memo(({
+  state,
+  audioLevel,
+  morphProgress,
+  coreParticleCount = 400,
+  coreDensity = 0.25,
+  coreParticleSize = 0.04,
+  coreIntensity = 1.2,
+  corePulseSpeed = 1.5,
+  coreRotationOffset = -0.5,
+  circleTexture
+}: {
+  state: WakeWordState;
+  audioLevel: number;
+  morphProgress: number;
+  coreParticleCount?: number;
+  coreDensity?: number;
+  coreParticleSize?: number;
+  coreIntensity?: number;
+  corePulseSpeed?: number;
+  coreRotationOffset?: number;
+  circleTexture: THREE.CanvasTexture;
+}) => {
+  const pointsRef = useRef<THREE.Points>(null);
+  const materialRef = useRef<THREE.PointsMaterial>(null);
+  const timeRef = useRef(0);
+  const currentColorRef = useRef(new THREE.Color());
+  
+  const config = STATE_CONFIGS[state];
+  
+  // Generate core particle positions with exponential distribution for density
+  const { geometry, spherePositions, scatteredPositions } = useMemo(() => {
+    const count = coreParticleCount;
+    const sphere = new Float32Array(count * 3);
+    const scattered = new Float32Array(count * 3);
+    const positions = new Float32Array(count * 3);
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      
+      // Exponential distribution for core density - more particles near center
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const baseR = Math.pow(Math.random(), 0.5); // Square root for more uniform volume distribution
+      const r = baseR * coreDensity * 1.5;
+      
+      sphere[i3] = r * Math.sin(phi) * Math.cos(theta);
+      sphere[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      sphere[i3 + 2] = r * Math.cos(phi);
+      
+      // Scattered core is smaller radius
+      const scatterRadius = coreDensity * 3;
+      scattered[i3] = (Math.random() - 0.5) * scatterRadius;
+      scattered[i3 + 1] = (Math.random() - 0.5) * scatterRadius;
+      scattered[i3 + 2] = (Math.random() - 0.5) * scatterRadius;
+      
+      positions[i3] = sphere[i3];
+      positions[i3 + 1] = sphere[i3 + 1];
+      positions[i3 + 2] = sphere[i3 + 2];
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    return { geometry: geo, spherePositions: sphere, scatteredPositions: scattered };
+  }, [coreParticleCount, coreDensity]);
+
+  useFrame((_, delta) => {
+    timeRef.current += delta;
+    
+    if (pointsRef.current && geometry) {
+      const positions = geometry.attributes.position.array as Float32Array;
+      const count = positions.length / 3;
+      const time = timeRef.current;
+      
+      // Core morphs with main but can lead or lag
+      const coreMorph = easeInOutCubic(Math.max(0, Math.min(1, morphProgress)));
+      
+      for (let i = 0; i < count; i++) {
+        const i3 = i * 3;
+        
+        // Base interpolated position
+        let px = scatteredPositions[i3] + (spherePositions[i3] - scatteredPositions[i3]) * coreMorph;
+        let py = scatteredPositions[i3 + 1] + (spherePositions[i3 + 1] - scatteredPositions[i3 + 1]) * coreMorph;
+        let pz = scatteredPositions[i3 + 2] + (spherePositions[i3 + 2] - scatteredPositions[i3 + 2]) * coreMorph;
+        
+        // Core-specific turbulence - faster, smaller scale
+        const turbTime = time * 2;
+        const nx = noise3D(px * 3 + turbTime, py * 3, pz * 3, 1.5) * 0.02;
+        const ny = noise3D(px * 3, py * 3 + turbTime, pz * 3, 1.5) * 0.02;
+        const nz = noise3D(px * 3, py * 3, pz * 3 + turbTime, 1.5) * 0.02;
+        
+        positions[i3] = px + nx;
+        positions[i3 + 1] = py + ny;
+        positions[i3 + 2] = pz + nz;
+      }
+      geometry.attributes.position.needsUpdate = true;
+      
+      // Counter-rotate core
+      pointsRef.current.rotation.y += delta * coreRotationOffset;
+      pointsRef.current.rotation.z += delta * 0.1;
+      
+      // Core pulse - independent rhythm
+      const corePulse = 1 + Math.sin(time * corePulseSpeed * 2) * 0.1 + audioLevel * 0.2;
+      pointsRef.current.scale.setScalar(corePulse);
+    }
+    
+    if (materialRef.current) {
+      currentColorRef.current.lerp(config.core, 0.1);
+      materialRef.current.color.copy(currentColorRef.current);
+      // Intensity affects opacity
+      materialRef.current.opacity = 0.6 + audioLevel * 0.3 * coreIntensity;
+    }
+  });
+
+  return (
+    <points ref={pointsRef} geometry={geometry}>
+      <pointsMaterial
+        ref={materialRef}
+        size={coreParticleSize}
+        sizeAttenuation={true}
+        color={config.core}
+        map={circleTexture}
+        alphaTest={0.01}
+        transparent
+        opacity={0.7 * coreIntensity}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </points>
+  );
+});
+
+CoreParticleSystem.displayName = 'CoreParticleSystem';
 
 // Main particle system
 const ParticleSystem = memo(({ 
@@ -258,6 +441,13 @@ const ParticleSystem = memo(({
   mouseMode = 'attract' as const,
   mouseStrength = 0.5,
   mouseInfluenceRadius = 2.5,
+  enableCore = true,
+  coreParticleCount = 400,
+  coreDensity = 0.25,
+  coreParticleSize = 0.04,
+  coreIntensity = 1.2,
+  corePulseSpeed = 1.5,
+  coreRotationOffset = -0.5,
   mousePosition
 }: AtlasCoreProps & { mousePosition: React.MutableRefObject<{ x: number; y: number; active: boolean }> }) => {
   const pointsRef = useRef<THREE.Points>(null);
@@ -272,8 +462,8 @@ const ParticleSystem = memo(({
   const [ripples, setRipples] = useState<Ripple[]>([]);
   const rippleIdRef = useRef(0);
   
-  // Position history for trails
-  const positionHistoryRef = useRef<Float32Array[]>([]);
+  // Trail history with morph data
+  const trailHistoryRef = useRef<TrailFrame[]>([]);
   const [, forceUpdate] = useState(0);
   
   const config = STATE_CONFIGS[state];
@@ -429,29 +619,23 @@ const ParticleSystem = memo(({
       const pulse = 1 + audioLevel * 0.15 + Math.sin(timeRef.current * 2) * 0.02;
       pointsRef.current.scale.setScalar(pulse);
       
+      // Store trail frame with morph data for morphing trails
       if (enableTrails && frameCountRef.current % 3 === 0) {
-        const rotatedPositions = new Float32Array(positions.length);
-        const rotation = new THREE.Euler(
-          pointsRef.current.rotation.x,
-          pointsRef.current.rotation.y,
-          pointsRef.current.rotation.z
-        );
-        const quaternion = new THREE.Quaternion().setFromEuler(rotation);
-        const tempVec = new THREE.Vector3();
+        const trailFrame: TrailFrame = {
+          spherePositions: new Float32Array(spherePositions),
+          scatteredPositions: new Float32Array(scatteredPositions),
+          morphProgress: smoothMorph,
+          rotation: new THREE.Euler(
+            pointsRef.current.rotation.x,
+            pointsRef.current.rotation.y,
+            pointsRef.current.rotation.z
+          ),
+          scale: pulse
+        };
         
-        for (let i = 0; i < count; i++) {
-          const i3 = i * 3;
-          tempVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-          tempVec.applyQuaternion(quaternion);
-          tempVec.multiplyScalar(pulse);
-          rotatedPositions[i3] = tempVec.x;
-          rotatedPositions[i3 + 1] = tempVec.y;
-          rotatedPositions[i3 + 2] = tempVec.z;
-        }
-        
-        positionHistoryRef.current.unshift(rotatedPositions);
-        if (positionHistoryRef.current.length > trailLength) {
-          positionHistoryRef.current.pop();
+        trailHistoryRef.current.unshift(trailFrame);
+        if (trailHistoryRef.current.length > trailLength) {
+          trailHistoryRef.current.pop();
         }
         forceUpdate(f => f + 1);
       }
@@ -470,14 +654,15 @@ const ParticleSystem = memo(({
         <RingRipples ripples={ripples} rippleSpeed={rippleSpeed} />
       )}
       
-      {/* Particle trails */}
-      {enableTrails && positionHistoryRef.current.length > 0 && (
-        <ParticleTrails
-          positionHistory={positionHistoryRef.current}
+      {/* Morphing particle trails */}
+      {enableTrails && trailHistoryRef.current.length > 0 && (
+        <MorphingParticleTrails
+          trailHistory={trailHistoryRef.current}
           trailLength={trailLength}
           trailOpacity={trailOpacity}
           color={config.secondary}
           circleTexture={circleTexture}
+          currentMorphProgress={currentMorphRef.current}
         />
       )}
       
@@ -497,17 +682,21 @@ const ParticleSystem = memo(({
         />
       </points>
 
-      {/* Inner core glow */}
-      <mesh>
-        <sphereGeometry args={[0.3, 24, 24]} />
-        <meshBasicMaterial
-          color={config.core}
-          transparent
-          opacity={0.15 + audioLevel * 0.1}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
+      {/* Particle-based core system */}
+      {enableCore && (
+        <CoreParticleSystem
+          state={state}
+          audioLevel={audioLevel}
+          morphProgress={currentMorphRef.current}
+          coreParticleCount={coreParticleCount}
+          coreDensity={coreDensity}
+          coreParticleSize={coreParticleSize}
+          coreIntensity={coreIntensity}
+          corePulseSpeed={corePulseSpeed}
+          coreRotationOffset={coreRotationOffset}
+          circleTexture={circleTexture}
         />
-      </mesh>
+      )}
     </group>
   );
 });
@@ -584,7 +773,14 @@ export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   enableMouseInteraction = true,
   mouseMode = 'attract',
   mouseStrength = 0.5,
-  mouseInfluenceRadius = 2.5
+  mouseInfluenceRadius = 2.5,
+  enableCore = true,
+  coreParticleCount = 400,
+  coreDensity = 0.25,
+  coreParticleSize = 0.04,
+  coreIntensity = 1.2,
+  corePulseSpeed = 1.5,
+  coreRotationOffset = -0.5
 }, ref) => {
   // Mouse tracking ref
   const mousePositionRef = useRef({ x: 0, y: 0, active: false });
@@ -645,6 +841,13 @@ export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           mouseMode={mouseMode}
           mouseStrength={mouseStrength}
           mouseInfluenceRadius={mouseInfluenceRadius}
+          enableCore={enableCore}
+          coreParticleCount={coreParticleCount}
+          coreDensity={coreDensity}
+          coreParticleSize={coreParticleSize}
+          coreIntensity={coreIntensity}
+          corePulseSpeed={corePulseSpeed}
+          coreRotationOffset={coreRotationOffset}
           mousePosition={mousePositionRef}
         />
         {enableBloom && <BloomEffect intensity={bloomIntensity} />}

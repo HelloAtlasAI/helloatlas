@@ -1,10 +1,85 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer } from 'lucide-react';
+import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc } from 'lucide-react';
 import { AtlasCoreFixed } from '@/components/dashboard/AtlasCoreFixed';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
+import { toast } from 'sonner';
+
+const STORAGE_KEY = 'atlas-demo-settings';
+
+// Settings interface for persistence
+interface AtlasDemoSettings {
+  state: WakeWordState;
+  morphProgress: number;
+  audioLevel: number;
+  autoAudio: boolean;
+  enableTrails: boolean;
+  trailLength: number;
+  trailOpacity: number;
+  particleCount: number;
+  particleSize: number;
+  density: number;
+  rotationSpeed: number;
+  enableBloom: boolean;
+  bloomIntensity: number;
+  morphSpeed: number;
+  enableRipples: boolean;
+  rippleSpeed: number;
+  rippleCount: number;
+  enableTurbulence: boolean;
+  turbulenceFrequency: number;
+  turbulenceAmplitude: number;
+  turbulenceSpeed: number;
+  enableMouseInteraction: boolean;
+  mouseMode: 'attract' | 'repulse';
+  mouseStrength: number;
+  mouseInfluenceRadius: number;
+  // Core settings
+  enableCore: boolean;
+  coreParticleCount: number;
+  coreDensity: number;
+  coreParticleSize: number;
+  coreIntensity: number;
+  corePulseSpeed: number;
+  coreRotationOffset: number;
+}
+
+const defaultSettings: AtlasDemoSettings = {
+  state: 'dormant',
+  morphProgress: 0.2,
+  audioLevel: 0,
+  autoAudio: false,
+  enableTrails: true,
+  trailLength: 6,
+  trailOpacity: 0.5,
+  particleCount: 2000,
+  particleSize: 0.08,
+  density: 1.0,
+  rotationSpeed: 0.5,
+  enableBloom: true,
+  bloomIntensity: 0.8,
+  morphSpeed: 1.5,
+  enableRipples: true,
+  rippleSpeed: 1.5,
+  rippleCount: 2,
+  enableTurbulence: true,
+  turbulenceFrequency: 0.5,
+  turbulenceAmplitude: 0.08,
+  turbulenceSpeed: 0.3,
+  enableMouseInteraction: true,
+  mouseMode: 'attract',
+  mouseStrength: 0.5,
+  mouseInfluenceRadius: 2.5,
+  enableCore: true,
+  coreParticleCount: 400,
+  coreDensity: 0.25,
+  coreParticleSize: 0.04,
+  coreIntensity: 1.2,
+  corePulseSpeed: 1.5,
+  coreRotationOffset: -0.5,
+};
 
 const states: WakeWordState[] = ['dormant', 'passive', 'activated', 'listening', 'thinking', 'speaking'];
 
@@ -112,47 +187,237 @@ const presets: Preset[] = [
 ];
 
 export default function AtlasDemo() {
-  const [state, setState] = useState<WakeWordState>('dormant');
-  const [morphProgress, setMorphProgress] = useState(0.2);
-  const [audioLevel, setAudioLevel] = useState(0);
+  const [state, setState] = useState<WakeWordState>(defaultSettings.state);
+  const [morphProgress, setMorphProgress] = useState(defaultSettings.morphProgress);
+  const [audioLevel, setAudioLevel] = useState(defaultSettings.audioLevel);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [autoAudio, setAutoAudio] = useState(false);
+  const [autoAudio, setAutoAudio] = useState(defaultSettings.autoAudio);
   const [activePreset, setActivePreset] = useState<string | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   
   // Trail controls
-  const [enableTrails, setEnableTrails] = useState(true);
-  const [trailLength, setTrailLength] = useState(6);
-  const [trailOpacity, setTrailOpacity] = useState(0.5);
+  const [enableTrails, setEnableTrails] = useState(defaultSettings.enableTrails);
+  const [trailLength, setTrailLength] = useState(defaultSettings.trailLength);
+  const [trailOpacity, setTrailOpacity] = useState(defaultSettings.trailOpacity);
   
   // Particle controls
-  const [particleCount, setParticleCount] = useState(2000);
-  const [particleSize, setParticleSize] = useState(0.08);
-  const [density, setDensity] = useState(1.0);
-  const [rotationSpeed, setRotationSpeed] = useState(0.5);
+  const [particleCount, setParticleCount] = useState(defaultSettings.particleCount);
+  const [particleSize, setParticleSize] = useState(defaultSettings.particleSize);
+  const [density, setDensity] = useState(defaultSettings.density);
+  const [rotationSpeed, setRotationSpeed] = useState(defaultSettings.rotationSpeed);
   
   // Effects controls
-  const [enableBloom, setEnableBloom] = useState(true);
-  const [bloomIntensity, setBloomIntensity] = useState(0.8);
+  const [enableBloom, setEnableBloom] = useState(defaultSettings.enableBloom);
+  const [bloomIntensity, setBloomIntensity] = useState(defaultSettings.bloomIntensity);
   
   // Animation controls
-  const [morphSpeed, setMorphSpeed] = useState(1.5);
+  const [morphSpeed, setMorphSpeed] = useState(defaultSettings.morphSpeed);
   
   // Ring Ripple controls
-  const [enableRipples, setEnableRipples] = useState(true);
-  const [rippleSpeed, setRippleSpeed] = useState(1.5);
-  const [rippleCount, setRippleCount] = useState(2);
+  const [enableRipples, setEnableRipples] = useState(defaultSettings.enableRipples);
+  const [rippleSpeed, setRippleSpeed] = useState(defaultSettings.rippleSpeed);
+  const [rippleCount, setRippleCount] = useState(defaultSettings.rippleCount);
   
   // Turbulence controls
-  const [enableTurbulence, setEnableTurbulence] = useState(true);
-  const [turbulenceFrequency, setTurbulenceFrequency] = useState(0.5);
-  const [turbulenceAmplitude, setTurbulenceAmplitude] = useState(0.08);
-  const [turbulenceSpeed, setTurbulenceSpeed] = useState(0.3);
+  const [enableTurbulence, setEnableTurbulence] = useState(defaultSettings.enableTurbulence);
+  const [turbulenceFrequency, setTurbulenceFrequency] = useState(defaultSettings.turbulenceFrequency);
+  const [turbulenceAmplitude, setTurbulenceAmplitude] = useState(defaultSettings.turbulenceAmplitude);
+  const [turbulenceSpeed, setTurbulenceSpeed] = useState(defaultSettings.turbulenceSpeed);
   
   // Mouse Interaction controls
-  const [enableMouseInteraction, setEnableMouseInteraction] = useState(true);
-  const [mouseMode, setMouseMode] = useState<'attract' | 'repulse'>('attract');
-  const [mouseStrength, setMouseStrength] = useState(0.5);
-  const [mouseInfluenceRadius, setMouseInfluenceRadius] = useState(2.5);
+  const [enableMouseInteraction, setEnableMouseInteraction] = useState(defaultSettings.enableMouseInteraction);
+  const [mouseMode, setMouseMode] = useState<'attract' | 'repulse'>(defaultSettings.mouseMode);
+  const [mouseStrength, setMouseStrength] = useState(defaultSettings.mouseStrength);
+  const [mouseInfluenceRadius, setMouseInfluenceRadius] = useState(defaultSettings.mouseInfluenceRadius);
+  
+  // Core controls
+  const [enableCore, setEnableCore] = useState(defaultSettings.enableCore);
+  const [coreParticleCount, setCoreParticleCount] = useState(defaultSettings.coreParticleCount);
+  const [coreDensity, setCoreDensity] = useState(defaultSettings.coreDensity);
+  const [coreParticleSize, setCoreParticleSize] = useState(defaultSettings.coreParticleSize);
+  const [coreIntensity, setCoreIntensity] = useState(defaultSettings.coreIntensity);
+  const [corePulseSpeed, setCorePulseSpeed] = useState(defaultSettings.corePulseSpeed);
+  const [coreRotationOffset, setCoreRotationOffset] = useState(defaultSettings.coreRotationOffset);
+
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const settings: AtlasDemoSettings = JSON.parse(saved);
+        setState(settings.state);
+        setMorphProgress(settings.morphProgress);
+        setAudioLevel(settings.audioLevel);
+        setAutoAudio(settings.autoAudio);
+        setEnableTrails(settings.enableTrails);
+        setTrailLength(settings.trailLength);
+        setTrailOpacity(settings.trailOpacity);
+        setParticleCount(settings.particleCount);
+        setParticleSize(settings.particleSize);
+        setDensity(settings.density);
+        setRotationSpeed(settings.rotationSpeed);
+        setEnableBloom(settings.enableBloom);
+        setBloomIntensity(settings.bloomIntensity);
+        setMorphSpeed(settings.morphSpeed);
+        setEnableRipples(settings.enableRipples);
+        setRippleSpeed(settings.rippleSpeed);
+        setRippleCount(settings.rippleCount);
+        setEnableTurbulence(settings.enableTurbulence);
+        setTurbulenceFrequency(settings.turbulenceFrequency);
+        setTurbulenceAmplitude(settings.turbulenceAmplitude);
+        setTurbulenceSpeed(settings.turbulenceSpeed);
+        setEnableMouseInteraction(settings.enableMouseInteraction);
+        setMouseMode(settings.mouseMode);
+        setMouseStrength(settings.mouseStrength);
+        setMouseInfluenceRadius(settings.mouseInfluenceRadius);
+        setEnableCore(settings.enableCore ?? defaultSettings.enableCore);
+        setCoreParticleCount(settings.coreParticleCount ?? defaultSettings.coreParticleCount);
+        setCoreDensity(settings.coreDensity ?? defaultSettings.coreDensity);
+        setCoreParticleSize(settings.coreParticleSize ?? defaultSettings.coreParticleSize);
+        setCoreIntensity(settings.coreIntensity ?? defaultSettings.coreIntensity);
+        setCorePulseSpeed(settings.corePulseSpeed ?? defaultSettings.corePulseSpeed);
+        setCoreRotationOffset(settings.coreRotationOffset ?? defaultSettings.coreRotationOffset);
+        toast.success('Settings restored');
+      }
+    } catch (e) {
+      console.error('Failed to load settings:', e);
+    }
+    setSettingsLoaded(true);
+  }, []);
+
+  // Save settings to localStorage when they change
+  useEffect(() => {
+    if (!settingsLoaded) return; // Don't save until initial load complete
+    
+    const settings: AtlasDemoSettings = {
+      state,
+      morphProgress,
+      audioLevel,
+      autoAudio,
+      enableTrails,
+      trailLength,
+      trailOpacity,
+      particleCount,
+      particleSize,
+      density,
+      rotationSpeed,
+      enableBloom,
+      bloomIntensity,
+      morphSpeed,
+      enableRipples,
+      rippleSpeed,
+      rippleCount,
+      enableTurbulence,
+      turbulenceFrequency,
+      turbulenceAmplitude,
+      turbulenceSpeed,
+      enableMouseInteraction,
+      mouseMode,
+      mouseStrength,
+      mouseInfluenceRadius,
+      enableCore,
+      coreParticleCount,
+      coreDensity,
+      coreParticleSize,
+      coreIntensity,
+      corePulseSpeed,
+      coreRotationOffset,
+    };
+    
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch (e) {
+      console.error('Failed to save settings:', e);
+    }
+  }, [
+    settingsLoaded, state, morphProgress, audioLevel, autoAudio, enableTrails, trailLength, trailOpacity,
+    particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
+    enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
+    turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
+    enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset
+  ]);
+
+  // Export settings as JSON file
+  const exportSettings = useCallback(() => {
+    const settings: AtlasDemoSettings = {
+      state, morphProgress, audioLevel, autoAudio, enableTrails, trailLength, trailOpacity,
+      particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
+      enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
+      turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
+      enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset
+    };
+    
+    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `atlas-settings-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Settings exported');
+  }, [
+    state, morphProgress, audioLevel, autoAudio, enableTrails, trailLength, trailOpacity,
+    particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
+    enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
+    turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
+    enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset
+  ]);
+
+  // Import settings from JSON file
+  const importSettings = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const settings: AtlasDemoSettings = JSON.parse(ev.target?.result as string);
+          setState(settings.state);
+          setMorphProgress(settings.morphProgress);
+          setAudioLevel(settings.audioLevel);
+          setAutoAudio(settings.autoAudio);
+          setEnableTrails(settings.enableTrails);
+          setTrailLength(settings.trailLength);
+          setTrailOpacity(settings.trailOpacity);
+          setParticleCount(settings.particleCount);
+          setParticleSize(settings.particleSize);
+          setDensity(settings.density);
+          setRotationSpeed(settings.rotationSpeed);
+          setEnableBloom(settings.enableBloom);
+          setBloomIntensity(settings.bloomIntensity);
+          setMorphSpeed(settings.morphSpeed);
+          setEnableRipples(settings.enableRipples);
+          setRippleSpeed(settings.rippleSpeed);
+          setRippleCount(settings.rippleCount);
+          setEnableTurbulence(settings.enableTurbulence);
+          setTurbulenceFrequency(settings.turbulenceFrequency);
+          setTurbulenceAmplitude(settings.turbulenceAmplitude);
+          setTurbulenceSpeed(settings.turbulenceSpeed);
+          setEnableMouseInteraction(settings.enableMouseInteraction);
+          setMouseMode(settings.mouseMode);
+          setMouseStrength(settings.mouseStrength);
+          setMouseInfluenceRadius(settings.mouseInfluenceRadius);
+          setEnableCore(settings.enableCore ?? defaultSettings.enableCore);
+          setCoreParticleCount(settings.coreParticleCount ?? defaultSettings.coreParticleCount);
+          setCoreDensity(settings.coreDensity ?? defaultSettings.coreDensity);
+          setCoreParticleSize(settings.coreParticleSize ?? defaultSettings.coreParticleSize);
+          setCoreIntensity(settings.coreIntensity ?? defaultSettings.coreIntensity);
+          setCorePulseSpeed(settings.corePulseSpeed ?? defaultSettings.corePulseSpeed);
+          setCoreRotationOffset(settings.coreRotationOffset ?? defaultSettings.coreRotationOffset);
+          setActivePreset(null);
+          toast.success('Settings imported');
+        } catch (err) {
+          toast.error('Invalid settings file');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }, []);
 
   // Simulate audio levels
   useEffect(() => {
@@ -194,33 +459,41 @@ export default function AtlasDemo() {
   };
 
   const resetToDefaults = () => {
-    setState('dormant');
-    setMorphProgress(0.2);
-    setAudioLevel(0);
-    setAutoAudio(false);
+    setState(defaultSettings.state);
+    setMorphProgress(defaultSettings.morphProgress);
+    setAudioLevel(defaultSettings.audioLevel);
+    setAutoAudio(defaultSettings.autoAudio);
     setActivePreset(null);
-    setEnableTrails(true);
-    setTrailLength(6);
-    setTrailOpacity(0.5);
-    setParticleCount(2000);
-    setParticleSize(0.08);
-    setDensity(1.0);
-    setRotationSpeed(0.5);
-    setEnableBloom(true);
-    setBloomIntensity(0.8);
-    setMorphSpeed(1.5);
-    // Reset new controls
-    setEnableRipples(true);
-    setRippleSpeed(1.5);
-    setRippleCount(2);
-    setEnableTurbulence(true);
-    setTurbulenceFrequency(0.5);
-    setTurbulenceAmplitude(0.08);
-    setTurbulenceSpeed(0.3);
-    setEnableMouseInteraction(true);
-    setMouseMode('attract');
-    setMouseStrength(0.5);
-    setMouseInfluenceRadius(2.5);
+    setEnableTrails(defaultSettings.enableTrails);
+    setTrailLength(defaultSettings.trailLength);
+    setTrailOpacity(defaultSettings.trailOpacity);
+    setParticleCount(defaultSettings.particleCount);
+    setParticleSize(defaultSettings.particleSize);
+    setDensity(defaultSettings.density);
+    setRotationSpeed(defaultSettings.rotationSpeed);
+    setEnableBloom(defaultSettings.enableBloom);
+    setBloomIntensity(defaultSettings.bloomIntensity);
+    setMorphSpeed(defaultSettings.morphSpeed);
+    setEnableRipples(defaultSettings.enableRipples);
+    setRippleSpeed(defaultSettings.rippleSpeed);
+    setRippleCount(defaultSettings.rippleCount);
+    setEnableTurbulence(defaultSettings.enableTurbulence);
+    setTurbulenceFrequency(defaultSettings.turbulenceFrequency);
+    setTurbulenceAmplitude(defaultSettings.turbulenceAmplitude);
+    setTurbulenceSpeed(defaultSettings.turbulenceSpeed);
+    setEnableMouseInteraction(defaultSettings.enableMouseInteraction);
+    setMouseMode(defaultSettings.mouseMode);
+    setMouseStrength(defaultSettings.mouseStrength);
+    setMouseInfluenceRadius(defaultSettings.mouseInfluenceRadius);
+    setEnableCore(defaultSettings.enableCore);
+    setCoreParticleCount(defaultSettings.coreParticleCount);
+    setCoreDensity(defaultSettings.coreDensity);
+    setCoreParticleSize(defaultSettings.coreParticleSize);
+    setCoreIntensity(defaultSettings.coreIntensity);
+    setCorePulseSpeed(defaultSettings.corePulseSpeed);
+    setCoreRotationOffset(defaultSettings.coreRotationOffset);
+    localStorage.removeItem(STORAGE_KEY);
+    toast.success('Reset to defaults');
   };
 
   return (
@@ -238,7 +511,22 @@ export default function AtlasDemo() {
               Atlas Core Demo
             </h1>
           </div>
-          <div className="w-32" />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportSettings}
+              className="p-2 rounded-lg bg-muted/20 border border-border/30 hover:border-border/50 transition-all"
+              title="Export Settings"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button
+              onClick={importSettings}
+              className="p-2 rounded-lg bg-muted/20 border border-border/30 hover:border-border/50 transition-all"
+              title="Import Settings"
+            >
+              <Upload className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -272,6 +560,13 @@ export default function AtlasDemo() {
                 mouseMode={mouseMode}
                 mouseStrength={mouseStrength}
                 mouseInfluenceRadius={mouseInfluenceRadius}
+                enableCore={enableCore}
+                coreParticleCount={coreParticleCount}
+                coreDensity={coreDensity}
+                coreParticleSize={coreParticleSize}
+                coreIntensity={coreIntensity}
+                corePulseSpeed={corePulseSpeed}
+                coreRotationOffset={coreRotationOffset}
               />
             </div>
           </div>
@@ -384,6 +679,128 @@ export default function AtlasDemo() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Core Controls */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
+                  <Disc className="w-4 h-4 text-orange-400" />
+                  Core Particles
+                </h3>
+                <button
+                  onClick={() => setEnableCore(!enableCore)}
+                  className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                    enableCore
+                      ? 'bg-orange-500/20 border border-orange-500/50 text-orange-300'
+                      : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                  }`}
+                >
+                  {enableCore ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              
+              {enableCore && (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Core Particle Count</span>
+                      <span className="text-xs font-mono text-orange-400">{coreParticleCount}</span>
+                    </div>
+                    <Slider
+                      value={[coreParticleCount]}
+                      onValueChange={([v]) => setCoreParticleCount(v)}
+                      min={100}
+                      max={1000}
+                      step={50}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Core Density</span>
+                      <span className="text-xs font-mono text-orange-400">{coreDensity.toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={[coreDensity]}
+                      onValueChange={([v]) => setCoreDensity(v)}
+                      min={0.1}
+                      max={0.6}
+                      step={0.02}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Tight</span>
+                      <span>Spread</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Core Particle Size</span>
+                      <span className="text-xs font-mono text-orange-400">{coreParticleSize.toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={[coreParticleSize]}
+                      onValueChange={([v]) => setCoreParticleSize(v)}
+                      min={0.02}
+                      max={0.1}
+                      step={0.005}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Core Intensity</span>
+                      <span className="text-xs font-mono text-orange-400">{coreIntensity.toFixed(1)}</span>
+                    </div>
+                    <Slider
+                      value={[coreIntensity]}
+                      onValueChange={([v]) => setCoreIntensity(v)}
+                      min={0.5}
+                      max={2.0}
+                      step={0.1}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Core Pulse Speed</span>
+                      <span className="text-xs font-mono text-orange-400">{corePulseSpeed.toFixed(1)}</span>
+                    </div>
+                    <Slider
+                      value={[corePulseSpeed]}
+                      onValueChange={([v]) => setCorePulseSpeed(v)}
+                      min={0.5}
+                      max={3.0}
+                      step={0.1}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Core Rotation</span>
+                      <span className="text-xs font-mono text-orange-400">{coreRotationOffset.toFixed(1)}</span>
+                    </div>
+                    <Slider
+                      value={[coreRotationOffset]}
+                      onValueChange={([v]) => setCoreRotationOffset(v)}
+                      min={-2}
+                      max={2}
+                      step={0.1}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Counter</span>
+                      <span>Same</span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Ring Ripples Controls */}
@@ -827,6 +1244,10 @@ export default function AtlasDemo() {
               <h3 className="text-sm font-medium text-foreground/80">About Atlas Core</h3>
               <ul className="text-xs text-muted-foreground space-y-2">
                 <li className="flex items-start gap-2">
+                  <span className="text-orange-400">•</span>
+                  <span>Particle-based core with independent rotation</span>
+                </li>
+                <li className="flex items-start gap-2">
                   <span className="text-teal-400">•</span>
                   <span>Ring ripples expand on state changes</span>
                 </li>
@@ -840,11 +1261,11 @@ export default function AtlasDemo() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-amber-400">•</span>
-                  <span>Particle trails with configurable length</span>
+                  <span>Morphing particle trails that follow the animation</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-pink-400">•</span>
-                  <span>Bloom post-processing for enhanced glow</span>
+                  <span className="text-cyan-400">•</span>
+                  <span>Settings auto-save to localStorage</span>
                 </li>
               </ul>
             </div>
