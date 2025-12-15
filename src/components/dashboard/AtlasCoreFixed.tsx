@@ -593,10 +593,13 @@ const ParticleSystem = memo(({
       sphere[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       sphere[i3 + 2] = r * Math.cos(phi);
       
-      const scatterRadius = 6 * density;
-      scattered[i3] = (Math.random() - 0.5) * scatterRadius;
-      scattered[i3 + 1] = (Math.random() - 0.5) * scatterRadius;
-      scattered[i3 + 2] = (Math.random() - 0.5) * scatterRadius;
+      // Scattered positions - use spherical distribution with larger radius for organic look
+      const scatterTheta = Math.random() * Math.PI * 2;
+      const scatterPhi = Math.acos(2 * Math.random() - 1);
+      const scatterR = (3 + Math.random() * 3) * density; // Larger, varied radius
+      scattered[i3] = scatterR * Math.sin(scatterPhi) * Math.cos(scatterTheta);
+      scattered[i3 + 1] = scatterR * Math.sin(scatterPhi) * Math.sin(scatterTheta);
+      scattered[i3 + 2] = scatterR * Math.cos(scatterPhi);
       
       positions[i3] = sphere[i3];
       positions[i3 + 1] = sphere[i3 + 1];
