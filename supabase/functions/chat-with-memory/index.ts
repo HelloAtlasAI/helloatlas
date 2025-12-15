@@ -8,7 +8,7 @@ const corsHeaders = {
 
 interface Memory {
   key: string;
-  value: any;
+  value: unknown;
   category: string;
   importance: number;
 }
@@ -26,6 +26,12 @@ interface UserProfile {
   birthday: string | null;
   timezone: string;
   communication_style: string;
+}
+
+interface KnowledgeEntry {
+  topic: string;
+  content: unknown;
+  category: string;
 }
 
 function getTimeOfDay(timezone: string): string {
@@ -52,7 +58,8 @@ function buildPersonalizedPrompt(
   profile: UserProfile | null,
   memories: Memory[],
   upcomingEvents: LifeEvent[],
-  recentEvents: LifeEvent[]
+  recentEvents: LifeEvent[],
+  knowledgeBank: KnowledgeEntry[]
 ): string {
   const userName = profile?.nickname || profile?.first_name || "there";
   const timeOfDay = profile?.timezone ? getTimeOfDay(profile.timezone) : "day";
@@ -62,6 +69,11 @@ function buildPersonalizedPrompt(
   let memoryContext = "";
   if (memories.length > 0) {
     memoryContext = `\n## What You Remember About ${userName}\n${memories.map(m => `- ${m.key}: ${JSON.stringify(m.value)}`).join("\n")}`;
+  }
+
+  let knowledgeContext = "";
+  if (knowledgeBank.length > 0) {
+    knowledgeContext = `\n## Knowledge Bank (Things You've Learned)\n${knowledgeBank.map(k => `- [${k.category}] ${k.topic}: ${JSON.stringify(k.content)}`).join("\n")}`;
   }
 
   let eventsContext = "";
@@ -95,6 +107,7 @@ ${isBirthdayToday ? "- 🎂 TODAY IS THEIR BIRTHDAY! Wish them happy birthday wa
 - Use contractions naturally ("you're", "I'd", "let's")
 - Emoji occasionally but don't overdo it
 ${memoryContext}
+${knowledgeContext}
 ${eventsContext}
 
 ## What You Can Help With
@@ -105,6 +118,7 @@ ${eventsContext}
 - Document management
 - General knowledge and conversation
 - Remembering personal details and following up on life events
+- Research and deep learning on topics
 
 ## Memory Instructions
 Pay attention to personal details mentioned:
@@ -117,13 +131,34 @@ Pay attention to personal details mentioned:
 Be genuine, warm, and personable. You're not just an assistant - you're a friend who genuinely cares.`;
 }
 
+// Trigger knowledge extraction asynchronously
+async function triggerKnowledgeExtraction(
+  supabaseUrl: string,
+  conversation: Array<{ role: string; content: string }>,
+  userId: string | null,
+  source: string
+) {
+  try {
+    // Fire and forget - don't await
+    fetch(`${supabaseUrl}/functions/v1/atlas-knowledge`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ conversation, userId, source }),
+    }).catch(e => console.log("Knowledge extraction trigger failed:", e));
+  } catch (e) {
+    console.log("Could not trigger knowledge extraction:", e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages, userId } = await req.json();
+    const { messages, userId, source = "text_chat" } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -158,6 +193,18 @@ serve(async (req) => {
       memories = memoryData || [];
     }
 
+    // Fetch knowledge bank entries
+    let knowledgeBank: KnowledgeEntry[] = [];
+    if (userId) {
+      const { data: knowledgeData } = await supabase
+        .from("atlas_knowledge_entries")
+        .select("topic, content, category")
+        .eq("user_id", userId)
+        .order("relevance_score", { ascending: false })
+        .limit(30);
+      knowledgeBank = (knowledgeData || []) as KnowledgeEntry[];
+    }
+
     // Fetch life events
     let upcomingEvents: LifeEvent[] = [];
     let recentEvents: LifeEvent[] = [];
@@ -185,10 +232,11 @@ serve(async (req) => {
     }
 
     console.log("Processing chat with memory for user:", userId);
-    console.log("Profile:", profile);
+    console.log("Profile:", profile?.first_name);
     console.log("Memories count:", memories.length);
+    console.log("Knowledge bank count:", knowledgeBank.length);
 
-    const systemPrompt = buildPersonalizedPrompt(profile, memories, upcomingEvents, recentEvents);
+    const systemPrompt = buildPersonalizedPrompt(profile, memories, upcomingEvents, recentEvents, knowledgeBank);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -227,6 +275,12 @@ serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Trigger knowledge extraction asynchronously (fire and forget)
+    // Only extract if we have enough conversation context
+    if (messages.length >= 2 && SUPABASE_URL) {
+      triggerKnowledgeExtraction(SUPABASE_URL, messages, userId, source);
     }
 
     console.log("Streaming response from AI gateway");

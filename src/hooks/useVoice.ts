@@ -124,8 +124,15 @@ export const useVoice = () => {
           const base64Audio = (reader.result as string).split(",")[1];
           
           try {
+            // Get current user for storing transcript
+            const { data: { user } } = await supabase.auth.getUser();
+            
             const { data, error } = await supabase.functions.invoke("elevenlabs-stt", {
-              body: { audio: base64Audio },
+              body: { 
+                audio: base64Audio,
+                userId: user?.id || null,
+                storeTranscript: true, // Enable automatic transcript storage
+              },
             });
 
             if (error) {
@@ -135,6 +142,7 @@ export const useVoice = () => {
               return;
             }
 
+            console.log("Transcription stored:", data.stored);
             resolve(data.text || null);
           } catch (err) {
             console.error("STT request error:", err);
