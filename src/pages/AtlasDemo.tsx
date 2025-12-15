@@ -118,6 +118,9 @@ export default function AtlasDemo() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [autoAudio, setAutoAudio] = useState(false);
   const [activePreset, setActivePreset] = useState<string | null>(null);
+  const [enableTrails, setEnableTrails] = useState(true);
+  const [trailLength, setTrailLength] = useState(6);
+  const [trailOpacity, setTrailOpacity] = useState(0.5);
 
   // Simulate audio levels
   useEffect(() => {
@@ -164,6 +167,9 @@ export default function AtlasDemo() {
     setAudioLevel(0);
     setAutoAudio(false);
     setActivePreset(null);
+    setEnableTrails(true);
+    setTrailLength(6);
+    setTrailOpacity(0.5);
   };
 
   return (
@@ -193,7 +199,10 @@ export default function AtlasDemo() {
               <AtlasCoreFixed 
                 state={state} 
                 audioLevel={audioLevel} 
-                morphProgress={morphProgress} 
+                morphProgress={morphProgress}
+                enableTrails={enableTrails}
+                trailLength={trailLength}
+                trailOpacity={trailOpacity}
               />
             </div>
           </div>
@@ -360,6 +369,61 @@ export default function AtlasDemo() {
               </button>
               <p className="text-xs text-muted-foreground">
                 Drives audio-reactive displacement and ripple effects
+              </p>
+            </div>
+
+            {/* Trail Controls */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">Particle Trails</h3>
+                <button
+                  onClick={() => setEnableTrails(!enableTrails)}
+                  className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                    enableTrails
+                      ? 'bg-amber-500/20 border border-amber-500/50 text-amber-300'
+                      : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                  }`}
+                >
+                  {enableTrails ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              
+              {enableTrails && (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Trail Length</span>
+                      <span className="text-xs font-mono text-amber-400">{trailLength}</span>
+                    </div>
+                    <Slider
+                      value={[trailLength]}
+                      onValueChange={([v]) => setTrailLength(v)}
+                      min={1}
+                      max={12}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Trail Opacity</span>
+                      <span className="text-xs font-mono text-amber-400">{trailOpacity.toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={[trailOpacity]}
+                      onValueChange={([v]) => setTrailOpacity(v)}
+                      min={0.1}
+                      max={1}
+                      step={0.05}
+                      className="w-full"
+                    />
+                  </div>
+                </>
+              )}
+              
+              <p className="text-xs text-muted-foreground">
+                Creates motion blur effect as particles move and morph
               </p>
             </div>
 
