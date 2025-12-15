@@ -18,6 +18,9 @@ interface AtlasDemoSettings {
   enableTrails: boolean;
   trailLength: number;
   trailOpacity: number;
+  trailColorGradient: boolean;
+  trailStartColor: string;
+  trailEndColor: string;
   particleCount: number;
   particleSize: number;
   density: number;
@@ -54,6 +57,9 @@ const defaultSettings: AtlasDemoSettings = {
   enableTrails: true,
   trailLength: 4,
   trailOpacity: 0.5,
+  trailColorGradient: true,
+  trailStartColor: '#ff9500',
+  trailEndColor: '#1a0a2e',
   particleCount: 15000,
   particleSize: 0.08,
   density: 1.0,
@@ -199,6 +205,9 @@ export default function AtlasDemo() {
   const [enableTrails, setEnableTrails] = useState(defaultSettings.enableTrails);
   const [trailLength, setTrailLength] = useState(defaultSettings.trailLength);
   const [trailOpacity, setTrailOpacity] = useState(defaultSettings.trailOpacity);
+  const [trailColorGradient, setTrailColorGradient] = useState(defaultSettings.trailColorGradient);
+  const [trailStartColor, setTrailStartColor] = useState(defaultSettings.trailStartColor);
+  const [trailEndColor, setTrailEndColor] = useState(defaultSettings.trailEndColor);
   
   // Particle controls
   const [particleCount, setParticleCount] = useState(defaultSettings.particleCount);
@@ -297,6 +306,9 @@ export default function AtlasDemo() {
       enableTrails,
       trailLength,
       trailOpacity,
+      trailColorGradient,
+      trailStartColor,
+      trailEndColor,
       particleCount,
       particleSize,
       density,
@@ -341,6 +353,7 @@ export default function AtlasDemo() {
   const exportSettings = useCallback(() => {
     const settings: AtlasDemoSettings = {
       state, morphProgress, audioLevel, autoAudio, enableTrails, trailLength, trailOpacity,
+      trailColorGradient, trailStartColor, trailEndColor,
       particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
       enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
       turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
@@ -357,6 +370,7 @@ export default function AtlasDemo() {
     toast.success('Settings exported');
   }, [
     state, morphProgress, audioLevel, autoAudio, enableTrails, trailLength, trailOpacity,
+    trailColorGradient, trailStartColor, trailEndColor,
     particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
     enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
     turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
@@ -383,6 +397,9 @@ export default function AtlasDemo() {
           setEnableTrails(settings.enableTrails);
           setTrailLength(settings.trailLength);
           setTrailOpacity(settings.trailOpacity);
+          setTrailColorGradient(settings.trailColorGradient ?? defaultSettings.trailColorGradient);
+          setTrailStartColor(settings.trailStartColor ?? defaultSettings.trailStartColor);
+          setTrailEndColor(settings.trailEndColor ?? defaultSettings.trailEndColor);
           setParticleCount(settings.particleCount);
           setParticleSize(settings.particleSize);
           setDensity(settings.density);
@@ -467,6 +484,9 @@ export default function AtlasDemo() {
     setEnableTrails(defaultSettings.enableTrails);
     setTrailLength(defaultSettings.trailLength);
     setTrailOpacity(defaultSettings.trailOpacity);
+    setTrailColorGradient(defaultSettings.trailColorGradient);
+    setTrailStartColor(defaultSettings.trailStartColor);
+    setTrailEndColor(defaultSettings.trailEndColor);
     setParticleCount(defaultSettings.particleCount);
     setParticleSize(defaultSettings.particleSize);
     setDensity(defaultSettings.density);
@@ -542,6 +562,9 @@ export default function AtlasDemo() {
                 enableTrails={enableTrails}
                 trailLength={trailLength}
                 trailOpacity={trailOpacity}
+                trailColorGradient={trailColorGradient}
+                trailStartColor={trailStartColor}
+                trailEndColor={trailEndColor}
                 particleCount={particleCount}
                 particleSize={particleSize}
                 density={density}
@@ -1235,6 +1258,60 @@ export default function AtlasDemo() {
                       className="w-full"
                     />
                   </div>
+
+                  {/* Color Gradient Toggle */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border/20">
+                    <span className="text-xs text-muted-foreground">Color Gradient</span>
+                    <button
+                      onClick={() => setTrailColorGradient(!trailColorGradient)}
+                      className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                        trailColorGradient
+                          ? 'bg-gradient-to-r from-orange-500/30 to-purple-500/30 border border-orange-500/50 text-orange-300'
+                          : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                      }`}
+                    >
+                      {trailColorGradient ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+
+                  {trailColorGradient && (
+                    <div className="space-y-3 pt-2">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Start Color (Bright)</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={trailStartColor}
+                              onChange={(e) => setTrailStartColor(e.target.value)}
+                              className="w-6 h-6 rounded cursor-pointer border border-border/30"
+                            />
+                            <span className="text-xs font-mono text-amber-400">{trailStartColor}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">End Color (Dark)</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={trailEndColor}
+                              onChange={(e) => setTrailEndColor(e.target.value)}
+                              className="w-6 h-6 rounded cursor-pointer border border-border/30"
+                            />
+                            <span className="text-xs font-mono text-purple-400">{trailEndColor}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Gradient Preview */}
+                      <div className="h-3 rounded-full w-full" style={{
+                        background: `linear-gradient(to right, ${trailStartColor}, ${trailEndColor})`
+                      }} />
+                    </div>
+                  )}
                 </>
               )}
             </div>
