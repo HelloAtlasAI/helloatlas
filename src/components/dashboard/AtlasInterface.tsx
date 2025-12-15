@@ -1,8 +1,8 @@
 import { memo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AtlasCore } from './AtlasCore';
+import { AtlasCoreFixed } from './AtlasCoreFixed';
 import { AmbientAudioVisualizer } from './effects/AmbientAudioVisualizer';
-import { WakeWordState } from '@/hooks/useWakeWord';
+import { WakeWordState } from '@/hooks/useWakeWordFixed';
 import { Mic, MicOff } from 'lucide-react';
 
 interface AtlasInterfaceProps {
@@ -92,8 +92,8 @@ const AtlasInterfaceComponent = ({
       />
 
       {/* Atlas Core Sphere */}
-      <div className="relative w-[180px] h-[180px] z-10">
-        <AtlasCore state={state} audioLevel={audioLevel} />
+      <div className="relative w-[220px] h-[220px] z-10">
+        <AtlasCoreFixed state={state} audioLevel={audioLevel} />
         
         {/* Manual activate button for unsupported browsers */}
         {!isSupported && (
