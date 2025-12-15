@@ -1,4 +1,4 @@
-import { useRef, useMemo, memo } from 'react';
+import { useRef, useMemo, memo, forwardRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { WakeWordState } from '@/hooks/useWakeWord';
@@ -7,6 +7,9 @@ interface AtlasCoreProps {
   state: WakeWordState;
   audioLevel: number;
   morphProgress?: number;
+  enableTrails?: boolean;
+  trailLength?: number;
+  trailOpacity?: number;
 }
 
 // State color configurations with proper typing
@@ -61,19 +64,74 @@ const STATE_CONFIGS: Record<WakeWordState, {
   },
 };
 
+// Trail system component
+const ParticleTrails = memo(({ 
+  positionHistory, 
+  trailLength, 
+  trailOpacity, 
+  color 
+}: { 
+  positionHistory: Float32Array[];
+  trailLength: number;
+  trailOpacity: number;
+  color: THREE.Color;
+}) => {
+  const trailsRef = useRef<THREE.Points[]>([]);
+  
+  const trailGeometries = useMemo(() => {
+    return positionHistory.slice(0, trailLength).map((positions, index) => {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      return { geo, opacity: (1 - (index + 1) / (trailLength + 1)) * trailOpacity };
+    });
+  }, [positionHistory, trailLength, trailOpacity]);
+
+  return (
+    <group>
+      {trailGeometries.map((trail, index) => (
+        <points key={index} geometry={trail.geo}>
+          <pointsMaterial
+            size={0.04 + (trailLength - index) * 0.005}
+            sizeAttenuation={true}
+            color={color}
+            transparent
+            opacity={trail.opacity * 0.4}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </points>
+      ))}
+    </group>
+  );
+});
+
+ParticleTrails.displayName = 'ParticleTrails';
+
 // Simplified particle system using THREE.Points with PointsMaterial
-const ParticleSystem = memo(({ state, audioLevel, morphProgress }: AtlasCoreProps) => {
+const ParticleSystem = memo(({ 
+  state, 
+  audioLevel, 
+  morphProgress, 
+  enableTrails = true, 
+  trailLength = 6,
+  trailOpacity = 0.5
+}: AtlasCoreProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
   const coreRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
   const timeRef = useRef(0);
   const currentColorRef = useRef(new THREE.Color(1.0, 0.5, 0.2));
+  const frameCountRef = useRef(0);
+  
+  // Position history for trails
+  const positionHistoryRef = useRef<Float32Array[]>([]);
+  const [, forceUpdate] = useState(0);
   
   const config = STATE_CONFIGS[state];
 
   // Store both sphere and scattered positions
-  const { geometry, spherePositions, scatteredPositions } = useMemo(() => {
+  const { geometry, spherePositions, scatteredPositions, particleCount } = useMemo(() => {
     const count = 2000;
     const sphere = new Float32Array(count * 3);
     const scattered = new Float32Array(count * 3);
@@ -104,7 +162,7 @@ const ParticleSystem = memo(({ state, audioLevel, morphProgress }: AtlasCoreProp
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return { geometry: geo, spherePositions: sphere, scatteredPositions: scattered };
+    return { geometry: geo, spherePositions: sphere, scatteredPositions: scattered, particleCount: count };
   }, []);
 
   // Morph progress for interpolation
@@ -113,6 +171,7 @@ const ParticleSystem = memo(({ state, audioLevel, morphProgress }: AtlasCoreProp
   // Animation loop
   useFrame((_, delta) => {
     timeRef.current += delta;
+    frameCountRef.current++;
     
     // Interpolate particle positions based on morphProgress
     if (pointsRef.current && geometry) {
@@ -133,6 +192,35 @@ const ParticleSystem = memo(({ state, audioLevel, morphProgress }: AtlasCoreProp
       // Pulsing scale based on audio
       const pulse = 1 + audioLevel * 0.15 + Math.sin(timeRef.current * 2) * 0.02;
       pointsRef.current.scale.setScalar(pulse);
+      
+      // Update position history for trails (every 3rd frame for performance)
+      if (enableTrails && frameCountRef.current % 3 === 0) {
+        // Apply rotation to positions for trail history
+        const rotatedPositions = new Float32Array(positions.length);
+        const rotation = new THREE.Euler(
+          pointsRef.current.rotation.x,
+          pointsRef.current.rotation.y,
+          pointsRef.current.rotation.z
+        );
+        const quaternion = new THREE.Quaternion().setFromEuler(rotation);
+        const tempVec = new THREE.Vector3();
+        
+        for (let i = 0; i < count; i++) {
+          const i3 = i * 3;
+          tempVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
+          tempVec.applyQuaternion(quaternion);
+          tempVec.multiplyScalar(pulse);
+          rotatedPositions[i3] = tempVec.x;
+          rotatedPositions[i3 + 1] = tempVec.y;
+          rotatedPositions[i3 + 2] = tempVec.z;
+        }
+        
+        positionHistoryRef.current.unshift(rotatedPositions);
+        if (positionHistoryRef.current.length > trailLength) {
+          positionHistoryRef.current.pop();
+        }
+        forceUpdate(f => f + 1);
+      }
     }
     
     // Animate core glow
@@ -153,8 +241,21 @@ const ParticleSystem = memo(({ state, audioLevel, morphProgress }: AtlasCoreProp
     }
   });
 
+  // Need useState for trail updates
+  const [, setState] = useState(0);
+
   return (
     <group>
+      {/* Particle trails */}
+      {enableTrails && positionHistoryRef.current.length > 0 && (
+        <ParticleTrails
+          positionHistory={positionHistoryRef.current}
+          trailLength={trailLength}
+          trailOpacity={trailOpacity}
+          color={config.secondary}
+        />
+      )}
+      
       {/* Main particle cloud */}
       <points ref={pointsRef} geometry={geometry}>
         <pointsMaterial
@@ -224,10 +325,17 @@ const CSSFallbackOrb = memo(({ state, audioLevel }: { state: WakeWordState; audi
 
 CSSFallbackOrb.displayName = 'CSSFallbackOrb';
 
-// Main exported component
-export const AtlasCoreFixed = memo(({ state, audioLevel, morphProgress }: AtlasCoreProps) => {
+// Main exported component with forwardRef
+export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({ 
+  state, 
+  audioLevel, 
+  morphProgress,
+  enableTrails = true,
+  trailLength = 6,
+  trailOpacity = 0.5
+}, ref) => {
   return (
-    <div className="w-full h-full min-w-[200px] min-h-[200px]">
+    <div ref={ref} className="w-full h-full min-w-[200px] min-h-[200px]">
       <Canvas
         camera={{ position: [0, 0, 5], fov: 50 }}
         gl={{ 
@@ -243,11 +351,18 @@ export const AtlasCoreFixed = memo(({ state, audioLevel, morphProgress }: AtlasC
         }}
         fallback={<CSSFallbackOrb state={state} audioLevel={audioLevel} />}
       >
-        <ParticleSystem state={state} audioLevel={audioLevel} morphProgress={morphProgress} />
+        <ParticleSystem 
+          state={state} 
+          audioLevel={audioLevel} 
+          morphProgress={morphProgress}
+          enableTrails={enableTrails}
+          trailLength={trailLength}
+          trailOpacity={trailOpacity}
+        />
       </Canvas>
     </div>
   );
-});
+}));
 
 AtlasCoreFixed.displayName = 'AtlasCoreFixed';
 
