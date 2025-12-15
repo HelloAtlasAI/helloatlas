@@ -147,6 +147,8 @@ const easeInOutCubic = (t: number): number => {
 // All particle calculations happen on the GPU for maximum performance
 
 const gpuParticleVertexShader = `
+  precision highp float;
+  
   // Attributes - per-particle data stored once
   attribute vec3 spherePos;
   attribute vec3 scatteredPos;
@@ -178,18 +180,20 @@ const gpuParticleVertexShader = `
   varying float vIntensity;
   varying vec3 vColor;
   
-  // Simplified 3D noise for GPU
+  // Improved continuous hash function - no discontinuities
   float hash(vec3 p) {
-    p = fract(p * vec3(443.897, 441.423, 437.195));
-    p += dot(p, p.yzx + 19.19);
-    return fract((p.x + p.y) * p.z);
+    p = fract(p * 0.3183099 + vec3(0.1, 0.2, 0.3));
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
   }
   
+  // Smooth 3D noise with proper interpolation
   float noise3D(vec3 p, float freq) {
     vec3 fp = p * freq;
     vec3 i = floor(fp);
     vec3 f = fract(fp);
-    f = f * f * (3.0 - 2.0 * f); // smoothstep
+    // Smoother Hermite interpolation (prevents discontinuities)
+    f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
     
     float n = mix(
       mix(
@@ -220,17 +224,17 @@ const gpuParticleVertexShader = `
     // Interpolate between scattered and sphere positions
     vec3 pos = mix(scatteredPos, spherePos, adjustedMorph);
     
-    // Calculate distance and normal for effects
-    float dist = length(pos);
-    vec3 normal = dist > 0.01 ? pos / dist : vec3(0.0, 1.0, 0.0);
+    // Calculate distance and normal with safe minimum
+    float dist = max(length(pos), 0.1);
+    vec3 normal = pos / dist;
     
     // Fluid cohesion - push toward uniform radius
-    if (uFluidCohesion > 0.0 && dist > 0.01) {
+    if (uFluidCohesion > 0.0) {
       float baseRadius = 1.8 * uDensity;
       float radiusVariation = (1.0 - uFluidCohesion) * 0.4;
       float targetRadius = baseRadius + (particleOffset - 0.2) * radiusVariation * baseRadius;
       float radiusDiff = targetRadius - dist;
-      float tensionForce = radiusDiff * uSurfaceTension * uFluidCohesion;
+      float tensionForce = clamp(radiusDiff * uSurfaceTension * uFluidCohesion, -0.5, 0.5);
       pos += normal * tensionForce;
       
       // Fluid flow
@@ -246,22 +250,23 @@ const gpuParticleVertexShader = `
       }
     }
     
-    // Audio reactive morphing
+    // Audio reactive morphing with smoothstep
     float effectiveAudio = uAudioLevel * uAudioMultiplier;
     if (effectiveAudio > 0.01) {
-      // Radial displacement
-      pos += normal * effectiveAudio * 0.4;
+      // Smooth radial displacement
+      float audioDisplacement = smoothstep(0.0, 1.0, effectiveAudio) * 0.4;
+      pos += normal * audioDisplacement;
       
-      // Audio wave ripple
+      // Smoothed audio wave ripple
       float wavePhase = uTime * 10.0 * uAudioReactivitySpeed + dist * 6.0 + particleOffset * 3.14159;
-      float audioWave = sin(wavePhase) * effectiveAudio * 0.2 * uAudioReactivitySpeed;
+      float audioWave = sin(wavePhase) * smoothstep(0.0, 0.5, effectiveAudio) * 0.2 * uAudioReactivitySpeed;
       pos += normal * audioWave;
     }
     
-    // Turbulence
+    // Turbulence with clamped output
     if (uEnableTurbulence > 0.5 && uTurbulenceAmplitude > 0.001) {
       float turbScale = 1.0 - uFluidCohesion * 0.7;
-      float audioBoost = 1.0 + effectiveAudio * 2.5;
+      float audioBoost = 1.0 + smoothstep(0.0, 1.0, effectiveAudio) * 2.5;
       float noiseTime = uTime * uTurbulenceSpeed;
       
       vec3 turbulence = vec3(
@@ -270,15 +275,17 @@ const gpuParticleVertexShader = `
         noise3D(pos + vec3(0.0, 0.0, noiseTime), uTurbulenceFrequency)
       ) * uTurbulenceAmplitude * turbScale * audioBoost;
       
+      // Clamp turbulence to prevent sudden jumps
+      turbulence = clamp(turbulence, vec3(-0.5), vec3(0.5));
       pos += turbulence;
     }
     
-    // Mouse interaction
+    // Mouse interaction with safer distance check
     if (uMouseActive > 0.5) {
       vec3 toMouse = uMousePos - pos;
-      float mouseDist = length(toMouse);
-      if (mouseDist < uMouseRadius && mouseDist > 0.01) {
-        float influence = (1.0 - mouseDist / uMouseRadius) * uMouseStrength * 0.3;
+      float mouseDist = max(length(toMouse), 0.1);
+      if (mouseDist < uMouseRadius) {
+        float influence = smoothstep(uMouseRadius, 0.0, mouseDist) * uMouseStrength * 0.3;
         pos += normalize(toMouse) * influence * uMouseMode;
       }
     }
@@ -287,17 +294,19 @@ const gpuParticleVertexShader = `
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Size attenuation
-    gl_PointSize = uParticleSize * (300.0 / -mvPosition.z);
-    gl_PointSize = clamp(gl_PointSize, 1.0, 64.0);
+    // Size attenuation with clamping
+    float baseSize = uParticleSize * (300.0 / max(-mvPosition.z, 0.1));
+    gl_PointSize = clamp(baseSize, 1.0, 64.0);
     
-    // Pass to fragment shader
-    vIntensity = 0.7 + effectiveAudio * 0.3 + (1.0 - adjustedMorph) * 0.2;
+    // Pass to fragment shader - clamped values
+    vIntensity = clamp(0.7 + effectiveAudio * 0.3 + (1.0 - adjustedMorph) * 0.2, 0.0, 1.5);
     vColor = uColor;
   }
 `;
 
 const gpuParticleFragmentShader = `
+  precision highp float;
+  
   uniform sampler2D uTexture;
   uniform float uOpacity;
   
@@ -309,12 +318,15 @@ const gpuParticleFragmentShader = `
     float dist = length(center);
     if (dist > 0.5) discard;
     
-    // Soft circular gradient
+    // Soft circular gradient with smoothstep
     float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
     alpha *= vIntensity * uOpacity;
     
-    // Add glow
-    vec3 finalColor = vColor + vColor * 0.3 * (1.0 - dist * 2.0);
+    // Prevent alpha flickering
+    alpha = clamp(alpha, 0.0, 1.0);
+    
+    // Add glow with clamped values
+    vec3 finalColor = vColor + vColor * 0.3 * max(1.0 - dist * 2.0, 0.0);
     
     gl_FragColor = vec4(finalColor, alpha);
   }
@@ -822,7 +834,7 @@ const GPUParticleSystem = memo(({
     return geo;
   }, [particleCount, density]);
 
-  // Shader material with all uniforms
+  // Shader material with all uniforms - alphaTest prevents z-fighting
   const material = useMemo(() => {
     return new THREE.ShaderMaterial({
       vertexShader: gpuParticleVertexShader,
@@ -853,7 +865,8 @@ const GPUParticleSystem = memo(({
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
-      depthWrite: false
+      depthWrite: false,
+      alphaTest: 0.01
     });
   }, []);
 
