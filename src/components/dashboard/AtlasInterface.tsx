@@ -1,9 +1,45 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AtlasCoreFixed } from './AtlasCoreFixed';
 import { AmbientAudioVisualizer } from './effects/AmbientAudioVisualizer';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 import { Mic, MicOff } from 'lucide-react';
+
+// Settings interface matching AtlasDemo
+interface AtlasSettings {
+  morphProgress?: number;
+  enableTrails?: boolean;
+  trailLength?: number;
+  trailOpacity?: number;
+  particleCount?: number;
+  particleSize?: number;
+  density?: number;
+  rotationSpeed?: number;
+  enableBloom?: boolean;
+  bloomIntensity?: number;
+  morphSpeed?: number;
+  enableRipples?: boolean;
+  rippleSpeed?: number;
+  rippleCount?: number;
+  enableTurbulence?: boolean;
+  turbulenceFrequency?: number;
+  turbulenceAmplitude?: number;
+  turbulenceSpeed?: number;
+  enableMouseInteraction?: boolean;
+  mouseMode?: 'attract' | 'repulse';
+  mouseStrength?: number;
+  mouseInfluenceRadius?: number;
+  enableCore?: boolean;
+  coreParticleCount?: number;
+  coreDensity?: number;
+  coreParticleSize?: number;
+  coreIntensity?: number;
+  corePulseSpeed?: number;
+  coreRotationOffset?: number;
+  fluidCohesion?: number;
+  surfaceTension?: number;
+  fluidFlow?: number;
+}
 
 interface AtlasInterfaceProps {
   state: WakeWordState;
@@ -54,6 +90,19 @@ const AtlasInterfaceComponent = ({
 }: AtlasInterfaceProps) => {
   const [showHint, setShowHint] = useState(true);
 
+  // Load saved Atlas settings from localStorage
+  const savedSettings = useMemo<AtlasSettings>(() => {
+    try {
+      const stored = localStorage.getItem('atlas-demo-settings');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('Failed to load Atlas settings:', e);
+    }
+    return {};
+  }, []);
+
   // Hide hint after first activation
   useEffect(() => {
     if (state === 'activated' || state === 'listening') {
@@ -91,9 +140,44 @@ const AtlasInterfaceComponent = ({
         }}
       />
 
-      {/* Atlas Core Sphere */}
+      {/* Atlas Core Sphere - using saved settings from AtlasDemo */}
       <div className="relative w-[220px] h-[220px] z-10">
-        <AtlasCoreFixed state={state} audioLevel={audioLevel} />
+        <AtlasCoreFixed 
+          state={state} 
+          audioLevel={audioLevel}
+          morphProgress={savedSettings.morphProgress}
+          enableTrails={savedSettings.enableTrails}
+          trailLength={savedSettings.trailLength}
+          trailOpacity={savedSettings.trailOpacity}
+          particleCount={savedSettings.particleCount}
+          particleSize={savedSettings.particleSize}
+          density={savedSettings.density}
+          rotationSpeed={savedSettings.rotationSpeed}
+          enableBloom={savedSettings.enableBloom}
+          bloomIntensity={savedSettings.bloomIntensity}
+          morphSpeed={savedSettings.morphSpeed}
+          enableRipples={savedSettings.enableRipples}
+          rippleSpeed={savedSettings.rippleSpeed}
+          rippleCount={savedSettings.rippleCount}
+          enableTurbulence={savedSettings.enableTurbulence}
+          turbulenceFrequency={savedSettings.turbulenceFrequency}
+          turbulenceAmplitude={savedSettings.turbulenceAmplitude}
+          turbulenceSpeed={savedSettings.turbulenceSpeed}
+          enableMouseInteraction={savedSettings.enableMouseInteraction}
+          mouseMode={savedSettings.mouseMode}
+          mouseStrength={savedSettings.mouseStrength}
+          mouseInfluenceRadius={savedSettings.mouseInfluenceRadius}
+          enableCore={savedSettings.enableCore}
+          coreParticleCount={savedSettings.coreParticleCount}
+          coreDensity={savedSettings.coreDensity}
+          coreParticleSize={savedSettings.coreParticleSize}
+          coreIntensity={savedSettings.coreIntensity}
+          corePulseSpeed={savedSettings.corePulseSpeed}
+          coreRotationOffset={savedSettings.coreRotationOffset}
+          fluidCohesion={savedSettings.fluidCohesion}
+          surfaceTension={savedSettings.surfaceTension}
+          fluidFlow={savedSettings.fluidFlow}
+        />
         
         {/* Manual activate button for unsupported browsers */}
         {!isSupported && (
