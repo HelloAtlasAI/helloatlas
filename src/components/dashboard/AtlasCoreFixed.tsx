@@ -1198,7 +1198,7 @@ export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   return (
     <div 
       ref={ref} 
-      className="w-full h-full min-w-[200px] min-h-[200px]"
+      className="w-full h-full"
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
     >
