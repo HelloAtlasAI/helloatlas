@@ -145,6 +145,17 @@ const Dashboard = () => {
     onCardFocus: setFocusedCard,
   });
 
+  // Wake word callbacks - defined before useWakeWord hook
+  const handleWakeWordDetected = useCallback(() => {
+    console.log('Wake word detected!');
+    stopCurrentAudio();
+    startRecording();
+  }, [stopCurrentAudio, startRecording]);
+
+  const handleWakeWordTimeout = useCallback(() => {
+    console.log('Wake word timeout');
+  }, []);
+
   // Wake word detection
   const {
     state: wakeWordState,
@@ -155,14 +166,8 @@ const Dashboard = () => {
     resetToPassive,
   } = useWakeWord({
     keyword: 'atlas',
-    onWakeWordDetected: useCallback(() => {
-      console.log('Wake word detected!');
-      stopCurrentAudio();
-      startRecording();
-    }, [stopCurrentAudio, startRecording]),
-    onTimeout: useCallback(() => {
-      console.log('Wake word timeout');
-    }, []),
+    onWakeWordDetected: handleWakeWordDetected,
+    onTimeout: handleWakeWordTimeout,
   });
 
   // Start passive listening on mount
