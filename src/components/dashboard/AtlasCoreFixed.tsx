@@ -387,42 +387,46 @@ const CoreParticleSystem = memo(({
   
   const config = STATE_CONFIGS[state];
   
-  // Generate core particle positions with exponential distribution for density
-  const { geometry, spherePositions, scatteredPositions } = useMemo(() => {
+  // Generate core particle positions - using same morphing logic as main particles for consistency
+  const { geometry, spherePositions, scatteredPositions, particleOffsets } = useMemo(() => {
     const count = coreParticleCount;
     const sphere = new Float32Array(count * 3);
     const scattered = new Float32Array(count * 3);
     const positions = new Float32Array(count * 3);
+    const offsets = new Float32Array(count);
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
       
-      // Exponential distribution for core density - more particles near center
+      // Use consistent theta/phi for both states so particles follow same path
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const baseR = Math.pow(Math.random(), 0.5); // Square root for more uniform volume distribution
-      const r = baseR * coreDensity * 1.5;
       
-      sphere[i3] = r * Math.sin(phi) * Math.cos(theta);
-      sphere[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      sphere[i3 + 2] = r * Math.cos(phi);
+      // Sphere state - dense core with exponential distribution
+      const baseR = Math.pow(Math.random(), 0.5);
+      const sphereR = baseR * coreDensity * 1.5;
       
-      // Scattered core - use spherical distribution for consistent shape
-      const scatterTheta = Math.random() * Math.PI * 2;
-      const scatterPhi = Math.acos(2 * Math.random() - 1);
-      const scatterR = (0.5 + Math.random() * 0.5) * coreDensity * 2;
-      scattered[i3] = scatterR * Math.sin(scatterPhi) * Math.cos(scatterTheta);
-      scattered[i3 + 1] = scatterR * Math.sin(scatterPhi) * Math.sin(scatterTheta);
-      scattered[i3 + 2] = scatterR * Math.cos(scatterPhi);
+      sphere[i3] = sphereR * Math.sin(phi) * Math.cos(theta);
+      sphere[i3 + 1] = sphereR * Math.sin(phi) * Math.sin(theta);
+      sphere[i3 + 2] = sphereR * Math.cos(phi);
+      
+      // Scattered state - same direction, larger radius for consistent morphing path
+      const scatterR = (1.5 + Math.random() * 1.5) * coreDensity;
+      scattered[i3] = scatterR * Math.sin(phi) * Math.cos(theta);
+      scattered[i3 + 1] = scatterR * Math.sin(phi) * Math.sin(theta);
+      scattered[i3 + 2] = scatterR * Math.cos(phi);
       
       positions[i3] = sphere[i3];
       positions[i3 + 1] = sphere[i3 + 1];
       positions[i3 + 2] = sphere[i3 + 2];
+      
+      // Same offset logic as main particles
+      offsets[i] = Math.random() * 0.4;
     }
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return { geometry: geo, spherePositions: sphere, scatteredPositions: scattered };
+    return { geometry: geo, spherePositions: sphere, scatteredPositions: scattered, particleOffsets: offsets };
   }, [coreParticleCount, coreDensity]);
 
   useFrame((_, delta) => {
@@ -433,16 +437,20 @@ const CoreParticleSystem = memo(({
       const count = positions.length / 3;
       const time = timeRef.current;
       
-      // Core morphs with main but can lead or lag
-      const coreMorph = easeInOutCubic(Math.max(0, Math.min(1, morphProgress)));
-      
+      // Core uses same morphing logic as main particles for consistency
       for (let i = 0; i < count; i++) {
         const i3 = i * 3;
         
-        // Base interpolated position
-        let px = scatteredPositions[i3] + (spherePositions[i3] - scatteredPositions[i3]) * coreMorph;
-        let py = scatteredPositions[i3 + 1] + (spherePositions[i3 + 1] - scatteredPositions[i3 + 1]) * coreMorph;
-        let pz = scatteredPositions[i3 + 2] + (spherePositions[i3 + 2] - scatteredPositions[i3 + 2]) * coreMorph;
+        // Use same offset-based timing as main particles
+        const particleOffset = particleOffsets[i];
+        const adjustedMorph = easeInOutCubic(
+          Math.max(0, Math.min(1, morphProgress * (1 + particleOffset) - particleOffset * 0.5))
+        );
+        
+        // Base interpolated position along consistent path
+        let px = scatteredPositions[i3] + (spherePositions[i3] - scatteredPositions[i3]) * adjustedMorph;
+        let py = scatteredPositions[i3 + 1] + (spherePositions[i3 + 1] - scatteredPositions[i3 + 1]) * adjustedMorph;
+        let pz = scatteredPositions[i3 + 2] + (spherePositions[i3 + 2] - scatteredPositions[i3 + 2]) * adjustedMorph;
         
         // Core-specific turbulence - faster, smaller scale
         const turbTime = time * 2;
@@ -587,21 +595,21 @@ const ParticleSystem = memo(({
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
       
+      // Use same theta/phi for both states so particles morph along consistent paths
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = (1.8 * density) + (Math.random() - 0.5) * 0.4 * density;
       
-      sphere[i3] = r * Math.sin(phi) * Math.cos(theta);
-      sphere[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      sphere[i3 + 2] = r * Math.cos(phi);
+      // Sphere state - tight formation
+      const sphereR = (1.8 * density) + (Math.random() - 0.5) * 0.4 * density;
+      sphere[i3] = sphereR * Math.sin(phi) * Math.cos(theta);
+      sphere[i3 + 1] = sphereR * Math.sin(phi) * Math.sin(theta);
+      sphere[i3 + 2] = sphereR * Math.cos(phi);
       
-      // Scattered positions - use spherical distribution with larger radius for organic look
-      const scatterTheta = Math.random() * Math.PI * 2;
-      const scatterPhi = Math.acos(2 * Math.random() - 1);
-      const scatterR = (3 + Math.random() * 3) * density; // Larger, varied radius
-      scattered[i3] = scatterR * Math.sin(scatterPhi) * Math.cos(scatterTheta);
-      scattered[i3 + 1] = scatterR * Math.sin(scatterPhi) * Math.sin(scatterTheta);
-      scattered[i3 + 2] = scatterR * Math.cos(scatterPhi);
+      // Scattered state - same direction, larger radius for consistent morphing path
+      const scatterR = (3 + Math.random() * 3) * density;
+      scattered[i3] = scatterR * Math.sin(phi) * Math.cos(theta);
+      scattered[i3 + 1] = scatterR * Math.sin(phi) * Math.sin(theta);
+      scattered[i3 + 2] = scatterR * Math.cos(phi);
       
       positions[i3] = sphere[i3];
       positions[i3 + 1] = sphere[i3 + 1];
@@ -832,75 +840,7 @@ const CSSFallbackOrb = memo(({ state, audioLevel }: { state: WakeWordState; audi
 
 CSSFallbackOrb.displayName = 'CSSFallbackOrb';
 
-// Edge glow sphere component
-const EdgeGlow = memo(({ state, audioLevel }: { state: WakeWordState; audioLevel: number }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const config = STATE_CONFIGS[state];
-  
-  const glowMaterial = useMemo(() => {
-    return new THREE.ShaderMaterial({
-      uniforms: {
-        uColor: { value: config.primary.clone() },
-        uIntensity: { value: 0.6 },
-        uTime: { value: 0 }
-      },
-      vertexShader: `
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        void main() {
-          vNormal = normalize(normalMatrix * normal);
-          vPosition = position;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform vec3 uColor;
-        uniform float uIntensity;
-        uniform float uTime;
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        
-        void main() {
-          vec3 viewDirection = normalize(cameraPosition - vPosition);
-          float fresnel = pow(1.0 - abs(dot(viewDirection, vNormal)), 3.0);
-          
-          // Animated shimmer
-          float shimmer = 0.8 + 0.2 * sin(uTime * 2.0 + vPosition.y * 3.0);
-          
-          vec3 glowColor = uColor * (1.0 + fresnel * 0.5);
-          float alpha = fresnel * uIntensity * shimmer;
-          
-          gl_FragColor = vec4(glowColor, alpha);
-        }
-      `,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      side: THREE.BackSide,
-      depthWrite: false
-    });
-  }, []);
-
-  useFrame((_, delta) => {
-    if (materialRef.current) {
-      materialRef.current.uniforms.uColor.value.lerp(config.primary, 0.1);
-      materialRef.current.uniforms.uIntensity.value = 0.4 + audioLevel * 0.4;
-      materialRef.current.uniforms.uTime.value += delta;
-    }
-    if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.1;
-    }
-  });
-
-  return (
-    <mesh ref={meshRef} scale={1.8}>
-      <sphereGeometry args={[1, 32, 32]} />
-      <primitive object={glowMaterial} ref={materialRef} attach="material" />
-    </mesh>
-  );
-});
-
-EdgeGlow.displayName = 'EdgeGlow';
+// Edge glow removed - glow effect is now applied directly to particles via bloom
 
 // Bloom wrapper component
 const BloomEffect = memo(({ intensity }: { intensity: number }) => (
@@ -1019,7 +959,7 @@ export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           coreRotationOffset={coreRotationOffset}
           mousePosition={mousePositionRef}
         />
-        <EdgeGlow state={state} audioLevel={audioLevel} />
+        
         {enableBloom && <BloomEffect intensity={bloomIntensity} />}
       </Canvas>
     </div>
