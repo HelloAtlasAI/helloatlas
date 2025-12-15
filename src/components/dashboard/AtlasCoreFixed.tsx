@@ -11,6 +11,9 @@ interface AtlasCoreProps {
   enableTrails?: boolean;
   trailLength?: number;
   trailOpacity?: number;
+  trailColorGradient?: boolean;
+  trailStartColor?: string;
+  trailEndColor?: string;
   particleCount?: number;
   particleSize?: number;
   density?: number;
@@ -225,8 +228,10 @@ const trailVertexShader = `
 `;
 
 const trailFragmentShader = `
-  uniform vec3 uColor;
+  uniform vec3 uColorStart;
+  uniform vec3 uColorEnd;
   uniform float uBaseOpacity;
+  uniform float uEnableGradient;
   varying float vOpacity;
   varying float vTrailIndex;
   varying float vGlow;
@@ -243,8 +248,11 @@ const trailFragmentShader = `
     // Combine for soft glow effect
     float intensity = mix(outerFalloff, coreFalloff, vGlow * 0.5);
     
-    // Color with slight brightness boost for newer trails
-    vec3 glowColor = uColor + vec3(0.15, 0.1, 0.05) * vGlow;
+    // Color gradient from start to end based on trail position
+    vec3 baseColor = mix(uColorStart, uColorEnd, vTrailIndex * uEnableGradient);
+    
+    // Add glow boost for newer trails
+    vec3 glowColor = baseColor + vec3(0.15, 0.1, 0.05) * vGlow;
     
     // Smooth exponential opacity falloff
     float trailFade = pow(vOpacity, 0.7);
@@ -259,13 +267,17 @@ const OptimizedParticleTrails = memo(({
   particleCount,
   trailLength, 
   trailOpacity, 
-  color,
+  colorStart,
+  colorEnd,
+  enableGradient,
   geometryRef
 }: { 
   particleCount: number;
   trailLength: number;
   trailOpacity: number;
-  color: THREE.Color;
+  colorStart: THREE.Color;
+  colorEnd: THREE.Color;
+  enableGradient: boolean;
   geometryRef: React.MutableRefObject<THREE.BufferGeometry | null>;
 }) => {
   const pointsRef = useRef<THREE.Points>(null);
@@ -314,8 +326,10 @@ const OptimizedParticleTrails = memo(({
       vertexShader: trailVertexShader,
       fragmentShader: trailFragmentShader,
       uniforms: {
-        uColor: { value: color.clone() },
-        uBaseOpacity: { value: trailOpacity }
+        uColorStart: { value: colorStart.clone() },
+        uColorEnd: { value: colorEnd.clone() },
+        uBaseOpacity: { value: trailOpacity },
+        uEnableGradient: { value: enableGradient ? 1.0 : 0.0 }
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -326,8 +340,10 @@ const OptimizedParticleTrails = memo(({
   // Update color and opacity uniforms
   useFrame(() => {
     if (materialRef.current) {
-      materialRef.current.uniforms.uColor.value.lerp(color, 0.1);
+      materialRef.current.uniforms.uColorStart.value.lerp(colorStart, 0.1);
+      materialRef.current.uniforms.uColorEnd.value.lerp(colorEnd, 0.1);
       materialRef.current.uniforms.uBaseOpacity.value = trailOpacity;
+      materialRef.current.uniforms.uEnableGradient.value = enableGradient ? 1.0 : 0.0;
     }
   });
 
@@ -483,6 +499,9 @@ const ParticleSystem = memo(({
   enableTrails = true, 
   trailLength = 6,
   trailOpacity = 0.5,
+  trailColorGradient = false,
+  trailStartColor = '#ffffff',
+  trailEndColor = '#1a1a2e',
   particleCount = 2000,
   particleSize = 0.08,
   density = 1.0,
@@ -734,7 +753,9 @@ const ParticleSystem = memo(({
           particleCount={particleCount}
           trailLength={trailLength}
           trailOpacity={trailOpacity}
-          color={config.secondary}
+          colorStart={trailColorGradient ? new THREE.Color(trailStartColor) : config.secondary}
+          colorEnd={trailColorGradient ? new THREE.Color(trailEndColor) : config.secondary}
+          enableGradient={trailColorGradient}
           geometryRef={trailGeometryRef}
         />
       )}
