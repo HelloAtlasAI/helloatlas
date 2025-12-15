@@ -749,13 +749,40 @@ const ParticleSystem = memo(({
           }
         }
         
-        // Apply Perlin noise turbulence (reduced when cohesion is high)
+        // AUDIO-REACTIVE MORPHING: Intense radial displacement when speaking
+        const audioMultiplier = state === 'speaking' ? 2.5 : (state === 'thinking' ? 1.5 : 1.0);
+        const effectiveAudio = audioLevel * audioMultiplier;
+        
+        if (effectiveAudio > 0.01) {
+          const currentDist = Math.sqrt(px * px + py * py + pz * pz);
+          if (currentDist > 0.01) {
+            const nx = px / currentDist;
+            const ny = py / currentDist;
+            const nz = pz / currentDist;
+            
+            // Radial audio pulse - push particles outward with audio
+            const audioDisplacement = effectiveAudio * 0.4;
+            px += nx * audioDisplacement;
+            py += ny * audioDisplacement;
+            pz += nz * audioDisplacement;
+            
+            // Audio wave effect - creates rippling motion
+            const wavePhase = time * 10 + currentDist * 6 + particleOffset * Math.PI;
+            const audioWave = Math.sin(wavePhase) * effectiveAudio * 0.2;
+            px += nx * audioWave;
+            py += ny * audioWave;
+            pz += nz * audioWave;
+          }
+        }
+        
+        // Apply Perlin noise turbulence (boosted by audio, reduced by cohesion)
         if (enableTurbulence) {
-          const turbulenceScale = 1 - fluidCohesion * 0.7; // Reduce turbulence with cohesion
+          const turbulenceScale = 1 - fluidCohesion * 0.7;
+          const audioTurbulenceBoost = 1 + effectiveAudio * 2.5; // Up to 3.5x turbulence at max audio
           const noiseTime = time * turbulenceSpeed;
-          const nx = noise3D(px + noiseTime, py, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale;
-          const ny = noise3D(px, py + noiseTime, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale;
-          const nz = noise3D(px, py, pz + noiseTime, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale;
+          const nx = noise3D(px + noiseTime, py, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
+          const ny = noise3D(px, py + noiseTime, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
+          const nz = noise3D(px, py, pz + noiseTime, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
           
           px += nx;
           py += ny;
@@ -797,10 +824,14 @@ const ParticleSystem = memo(({
       }
       geometry.attributes.position.needsUpdate = true;
       
-      pointsRef.current.rotation.y += delta * rotationSpeed * (0.2 + config.intensity * 0.3);
-      pointsRef.current.rotation.x += delta * rotationSpeed * 0.05;
+      // Enhanced rotation during speaking
+      const audioRotationBoost = state === 'speaking' ? 1 + audioLevel * 2 : 1;
+      pointsRef.current.rotation.y += delta * rotationSpeed * (0.2 + config.intensity * 0.3) * audioRotationBoost;
+      pointsRef.current.rotation.x += delta * rotationSpeed * 0.05 * audioRotationBoost;
       
-      const pulse = 1 + audioLevel * 0.15 + Math.sin(timeRef.current * 2) * 0.02;
+      // Intense audio-reactive scale pulse
+      const audioScaleMultiplier = state === 'speaking' ? 0.4 : 0.15;
+      const pulse = 1 + audioLevel * audioScaleMultiplier + Math.sin(timeRef.current * 2) * 0.02;
       pointsRef.current.scale.setScalar(pulse);
       
       // Store trail positions - copy final rendered positions (optimized: no re-morph needed)
