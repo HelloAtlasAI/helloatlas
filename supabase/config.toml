@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.stocks-realtime]
 verify_jwt = false
+
+[functions.atlas-knowledge]
+verify_jwt = false

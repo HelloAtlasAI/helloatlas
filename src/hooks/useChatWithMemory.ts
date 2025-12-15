@@ -8,9 +8,10 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-me
 
 interface UseChatWithMemoryOptions {
   onCardFocus?: (cardId: string | null) => void;
+  source?: 'text_chat' | 'voice_chat';
 }
 
-export const useChatWithMemory = ({ onCardFocus }: UseChatWithMemoryOptions = {}) => {
+export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChatWithMemoryOptions = {}) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [aiState, setAiState] = useState<AIState>("idle");
   const [isLoading, setIsLoading] = useState(false);
@@ -93,6 +94,7 @@ export const useChatWithMemory = ({ onCardFocus }: UseChatWithMemoryOptions = {}
         body: JSON.stringify({ 
           messages: chatMessages,
           userId: user.id,
+          source,
         }),
       });
 
