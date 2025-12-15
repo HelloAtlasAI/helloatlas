@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.atlas-knowledge]
 verify_jwt = false
+
+[functions.atlas-research]
+verify_jwt = false

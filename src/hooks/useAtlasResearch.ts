@@ -70,20 +70,36 @@ export const useAtlasResearch = () => {
   const startResearch = useCallback(async (topic: string, description?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
 
-    const { data, error } = await supabase
-      .from('atlas_research_topics')
-      .insert({
-        user_id: user?.id,
-        topic,
-        description,
-        status: 'queued',
-        depth_level: 0,
-        priority: 5,
-      })
-      .select()
-      .single();
+    toast({
+      title: 'Starting Research',
+      description: `Initiating deep research on: ${topic}`,
+    });
 
-    if (error) {
+    // Use the edge function to create and start research
+    try {
+      const { data, error } = await supabase.functions.invoke('atlas-research', {
+        body: { 
+          action: 'create',
+          topic, 
+          description,
+          userId: user?.id,
+          autoDeepen: true,
+          maxDepth: 3
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Research Started',
+        description: `Atlas is now researching: ${topic}`,
+      });
+
+      // Refetch to get the new topic
+      fetchTopics();
+      return data;
+    } catch (e) {
+      console.error('Research start failed:', e);
       toast({
         title: 'Error',
         description: 'Failed to start research',
@@ -91,23 +107,7 @@ export const useAtlasResearch = () => {
       });
       return null;
     }
-
-    toast({
-      title: 'Research Started',
-      description: `Now researching: ${topic}`,
-    });
-
-    // Trigger the research edge function
-    try {
-      await supabase.functions.invoke('atlas-research', {
-        body: { topicId: data.id, action: 'start' },
-      });
-    } catch (e) {
-      console.log('Research function not available yet');
-    }
-
-    return data;
-  }, [toast]);
+  }, [toast, fetchTopics]);
 
   const pauseResearch = useCallback(async (id: string) => {
     const { error } = await supabase
