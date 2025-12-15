@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers } from 'lucide-react';
+import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer } from 'lucide-react';
 import { AtlasCoreFixed } from '@/components/dashboard/AtlasCoreFixed';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
@@ -136,6 +136,23 @@ export default function AtlasDemo() {
   
   // Animation controls
   const [morphSpeed, setMorphSpeed] = useState(1.5);
+  
+  // Ring Ripple controls
+  const [enableRipples, setEnableRipples] = useState(true);
+  const [rippleSpeed, setRippleSpeed] = useState(1.5);
+  const [rippleCount, setRippleCount] = useState(2);
+  
+  // Turbulence controls
+  const [enableTurbulence, setEnableTurbulence] = useState(true);
+  const [turbulenceFrequency, setTurbulenceFrequency] = useState(0.5);
+  const [turbulenceAmplitude, setTurbulenceAmplitude] = useState(0.08);
+  const [turbulenceSpeed, setTurbulenceSpeed] = useState(0.3);
+  
+  // Mouse Interaction controls
+  const [enableMouseInteraction, setEnableMouseInteraction] = useState(true);
+  const [mouseMode, setMouseMode] = useState<'attract' | 'repulse'>('attract');
+  const [mouseStrength, setMouseStrength] = useState(0.5);
+  const [mouseInfluenceRadius, setMouseInfluenceRadius] = useState(2.5);
 
   // Simulate audio levels
   useEffect(() => {
@@ -192,6 +209,18 @@ export default function AtlasDemo() {
     setEnableBloom(true);
     setBloomIntensity(0.8);
     setMorphSpeed(1.5);
+    // Reset new controls
+    setEnableRipples(true);
+    setRippleSpeed(1.5);
+    setRippleCount(2);
+    setEnableTurbulence(true);
+    setTurbulenceFrequency(0.5);
+    setTurbulenceAmplitude(0.08);
+    setTurbulenceSpeed(0.3);
+    setEnableMouseInteraction(true);
+    setMouseMode('attract');
+    setMouseStrength(0.5);
+    setMouseInfluenceRadius(2.5);
   };
 
   return (
@@ -209,7 +238,7 @@ export default function AtlasDemo() {
               Atlas Core Demo
             </h1>
           </div>
-          <div className="w-32" /> {/* Spacer for centering */}
+          <div className="w-32" />
         </div>
       </header>
 
@@ -232,6 +261,17 @@ export default function AtlasDemo() {
                 enableBloom={enableBloom}
                 bloomIntensity={bloomIntensity}
                 morphSpeed={morphSpeed}
+                enableRipples={enableRipples}
+                rippleSpeed={rippleSpeed}
+                rippleCount={rippleCount}
+                enableTurbulence={enableTurbulence}
+                turbulenceFrequency={turbulenceFrequency}
+                turbulenceAmplitude={turbulenceAmplitude}
+                turbulenceSpeed={turbulenceSpeed}
+                enableMouseInteraction={enableMouseInteraction}
+                mouseMode={mouseMode}
+                mouseStrength={mouseStrength}
+                mouseInfluenceRadius={mouseInfluenceRadius}
               />
             </div>
           </div>
@@ -344,6 +384,214 @@ export default function AtlasDemo() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Ring Ripples Controls */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
+                  <Waves className="w-4 h-4 text-teal-400" />
+                  Ring Ripples
+                </h3>
+                <button
+                  onClick={() => setEnableRipples(!enableRipples)}
+                  className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                    enableRipples
+                      ? 'bg-teal-500/20 border border-teal-500/50 text-teal-300'
+                      : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                  }`}
+                >
+                  {enableRipples ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              
+              {enableRipples && (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Ripple Speed</span>
+                      <span className="text-xs font-mono text-teal-400">{rippleSpeed.toFixed(1)}</span>
+                    </div>
+                    <Slider
+                      value={[rippleSpeed]}
+                      onValueChange={([v]) => setRippleSpeed(v)}
+                      min={0.5}
+                      max={3}
+                      step={0.1}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Ripples per Change</span>
+                      <span className="text-xs font-mono text-teal-400">{rippleCount}</span>
+                    </div>
+                    <Slider
+                      value={[rippleCount]}
+                      onValueChange={([v]) => setRippleCount(v)}
+                      min={1}
+                      max={5}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Turbulence Controls */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
+                  <Wind className="w-4 h-4 text-emerald-400" />
+                  Turbulence
+                </h3>
+                <button
+                  onClick={() => setEnableTurbulence(!enableTurbulence)}
+                  className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                    enableTurbulence
+                      ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300'
+                      : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                  }`}
+                >
+                  {enableTurbulence ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              
+              {enableTurbulence && (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Frequency</span>
+                      <span className="text-xs font-mono text-emerald-400">{turbulenceFrequency.toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={[turbulenceFrequency]}
+                      onValueChange={([v]) => setTurbulenceFrequency(v)}
+                      min={0.1}
+                      max={2}
+                      step={0.05}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Smooth</span>
+                      <span>Chunky</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Amplitude</span>
+                      <span className="text-xs font-mono text-emerald-400">{turbulenceAmplitude.toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={[turbulenceAmplitude]}
+                      onValueChange={([v]) => setTurbulenceAmplitude(v)}
+                      min={0.01}
+                      max={0.3}
+                      step={0.01}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Subtle</span>
+                      <span>Strong</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Speed</span>
+                      <span className="text-xs font-mono text-emerald-400">{turbulenceSpeed.toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={[turbulenceSpeed]}
+                      onValueChange={([v]) => setTurbulenceSpeed(v)}
+                      min={0.1}
+                      max={1}
+                      step={0.05}
+                      className="w-full"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Mouse Interaction Controls */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
+                  <MousePointer className="w-4 h-4 text-rose-400" />
+                  Mouse Interaction
+                </h3>
+                <button
+                  onClick={() => setEnableMouseInteraction(!enableMouseInteraction)}
+                  className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                    enableMouseInteraction
+                      ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
+                      : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                  }`}
+                >
+                  {enableMouseInteraction ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              
+              {enableMouseInteraction && (
+                <>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setMouseMode('attract')}
+                      className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                        mouseMode === 'attract'
+                          ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
+                          : 'bg-muted/20 border border-border/30 text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      🧲 Attract
+                    </button>
+                    <button
+                      onClick={() => setMouseMode('repulse')}
+                      className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                        mouseMode === 'repulse'
+                          ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
+                          : 'bg-muted/20 border border-border/30 text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      💨 Repulse
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Strength</span>
+                      <span className="text-xs font-mono text-rose-400">{mouseStrength.toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={[mouseStrength]}
+                      onValueChange={([v]) => setMouseStrength(v)}
+                      min={0.1}
+                      max={2}
+                      step={0.05}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Influence Radius</span>
+                      <span className="text-xs font-mono text-rose-400">{mouseInfluenceRadius.toFixed(1)}</span>
+                    </div>
+                    <Slider
+                      value={[mouseInfluenceRadius]}
+                      onValueChange={([v]) => setMouseInfluenceRadius(v)}
+                      min={1}
+                      max={5}
+                      step={0.1}
+                      className="w-full"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Animation Controls */}
@@ -579,20 +827,24 @@ export default function AtlasDemo() {
               <h3 className="text-sm font-medium text-foreground/80">About Atlas Core</h3>
               <ul className="text-xs text-muted-foreground space-y-2">
                 <li className="flex items-start gap-2">
+                  <span className="text-teal-400">•</span>
+                  <span>Ring ripples expand on state changes</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">•</span>
+                  <span>Perlin noise turbulence for organic movement</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-rose-400">•</span>
+                  <span>Mouse interaction with attract/repulse modes</span>
+                </li>
+                <li className="flex items-start gap-2">
                   <span className="text-amber-400">•</span>
-                  <span>Circular particle texture for smooth rendering</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-cyan-400">•</span>
-                  <span>Bloom post-processing for enhanced glow</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-400">•</span>
-                  <span>Fluid easing with per-particle offsets</span>
+                  <span>Particle trails with configurable length</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-pink-400">•</span>
-                  <span>Additive blending for light accumulation</span>
+                  <span>Bloom post-processing for enhanced glow</span>
                 </li>
               </ul>
             </div>
