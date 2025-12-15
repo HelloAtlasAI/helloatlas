@@ -143,6 +143,183 @@ const easeInOutCubic = (t: number): number => {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 };
 
+// ============= GPU PARTICLE SHADERS =============
+// All particle calculations happen on the GPU for maximum performance
+
+const gpuParticleVertexShader = `
+  // Attributes - per-particle data stored once
+  attribute vec3 spherePos;
+  attribute vec3 scatteredPos;
+  attribute float particleOffset;
+  attribute float randomSeed;
+  
+  // Uniforms - updated each frame
+  uniform float uTime;
+  uniform float uMorphProgress;
+  uniform float uAudioLevel;
+  uniform float uAudioMultiplier;
+  uniform float uAudioReactivitySpeed;
+  uniform float uParticleSize;
+  uniform float uDensity;
+  uniform float uFluidCohesion;
+  uniform float uSurfaceTension;
+  uniform float uFluidFlow;
+  uniform float uTurbulenceFrequency;
+  uniform float uTurbulenceAmplitude;
+  uniform float uTurbulenceSpeed;
+  uniform float uEnableTurbulence;
+  uniform vec3 uMousePos;
+  uniform float uMouseActive;
+  uniform float uMouseStrength;
+  uniform float uMouseRadius;
+  uniform float uMouseMode; // 1.0 = attract, -1.0 = repulse
+  uniform vec3 uColor;
+  
+  varying float vIntensity;
+  varying vec3 vColor;
+  
+  // Simplified 3D noise for GPU
+  float hash(vec3 p) {
+    p = fract(p * vec3(443.897, 441.423, 437.195));
+    p += dot(p, p.yzx + 19.19);
+    return fract((p.x + p.y) * p.z);
+  }
+  
+  float noise3D(vec3 p, float freq) {
+    vec3 fp = p * freq;
+    vec3 i = floor(fp);
+    vec3 f = fract(fp);
+    f = f * f * (3.0 - 2.0 * f); // smoothstep
+    
+    float n = mix(
+      mix(
+        mix(hash(i), hash(i + vec3(1,0,0)), f.x),
+        mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x),
+        f.y
+      ),
+      mix(
+        mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+        mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x),
+        f.y
+      ),
+      f.z
+    );
+    return n * 2.0 - 1.0;
+  }
+  
+  // Easing function
+  float easeInOutCubic(float t) {
+    return t < 0.5 ? 4.0 * t * t * t : 1.0 - pow(-2.0 * t + 2.0, 3.0) / 2.0;
+  }
+  
+  void main() {
+    // Morphing with per-particle offset for organic feel
+    float adjustedMorph = clamp(uMorphProgress * (1.0 + particleOffset) - particleOffset * 0.5, 0.0, 1.0);
+    adjustedMorph = easeInOutCubic(adjustedMorph);
+    
+    // Interpolate between scattered and sphere positions
+    vec3 pos = mix(scatteredPos, spherePos, adjustedMorph);
+    
+    // Calculate distance and normal for effects
+    float dist = length(pos);
+    vec3 normal = dist > 0.01 ? pos / dist : vec3(0.0, 1.0, 0.0);
+    
+    // Fluid cohesion - push toward uniform radius
+    if (uFluidCohesion > 0.0 && dist > 0.01) {
+      float baseRadius = 1.8 * uDensity;
+      float radiusVariation = (1.0 - uFluidCohesion) * 0.4;
+      float targetRadius = baseRadius + (particleOffset - 0.2) * radiusVariation * baseRadius;
+      float radiusDiff = targetRadius - dist;
+      float tensionForce = radiusDiff * uSurfaceTension * uFluidCohesion;
+      pos += normal * tensionForce;
+      
+      // Fluid flow
+      if (uFluidFlow > 0.0 && uFluidCohesion > 0.3) {
+        float flowSpeed = uFluidFlow * uFluidCohesion * 0.02;
+        float flowAngle = uTime * flowSpeed + particleOffset * 6.28318;
+        vec3 tangent = vec3(
+          -normal.y * cos(flowAngle) + (-normal.x * normal.z) * sin(flowAngle),
+          normal.x * cos(flowAngle) + (-normal.y * normal.z) * sin(flowAngle),
+          (normal.x * normal.x + normal.y * normal.y) * sin(flowAngle)
+        );
+        pos += tangent * flowSpeed * dist;
+      }
+    }
+    
+    // Audio reactive morphing
+    float effectiveAudio = uAudioLevel * uAudioMultiplier;
+    if (effectiveAudio > 0.01) {
+      // Radial displacement
+      pos += normal * effectiveAudio * 0.4;
+      
+      // Audio wave ripple
+      float wavePhase = uTime * 10.0 * uAudioReactivitySpeed + dist * 6.0 + particleOffset * 3.14159;
+      float audioWave = sin(wavePhase) * effectiveAudio * 0.2 * uAudioReactivitySpeed;
+      pos += normal * audioWave;
+    }
+    
+    // Turbulence
+    if (uEnableTurbulence > 0.5 && uTurbulenceAmplitude > 0.001) {
+      float turbScale = 1.0 - uFluidCohesion * 0.7;
+      float audioBoost = 1.0 + effectiveAudio * 2.5;
+      float noiseTime = uTime * uTurbulenceSpeed;
+      
+      vec3 turbulence = vec3(
+        noise3D(pos + vec3(noiseTime, 0.0, 0.0), uTurbulenceFrequency),
+        noise3D(pos + vec3(0.0, noiseTime, 0.0), uTurbulenceFrequency),
+        noise3D(pos + vec3(0.0, 0.0, noiseTime), uTurbulenceFrequency)
+      ) * uTurbulenceAmplitude * turbScale * audioBoost;
+      
+      pos += turbulence;
+    }
+    
+    // Mouse interaction
+    if (uMouseActive > 0.5) {
+      vec3 toMouse = uMousePos - pos;
+      float mouseDist = length(toMouse);
+      if (mouseDist < uMouseRadius && mouseDist > 0.01) {
+        float influence = (1.0 - mouseDist / uMouseRadius) * uMouseStrength * 0.3;
+        pos += normalize(toMouse) * influence * uMouseMode;
+      }
+    }
+    
+    // Apply model view projection
+    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    
+    // Size attenuation
+    gl_PointSize = uParticleSize * (300.0 / -mvPosition.z);
+    gl_PointSize = clamp(gl_PointSize, 1.0, 64.0);
+    
+    // Pass to fragment shader
+    vIntensity = 0.7 + effectiveAudio * 0.3 + (1.0 - adjustedMorph) * 0.2;
+    vColor = uColor;
+  }
+`;
+
+const gpuParticleFragmentShader = `
+  uniform sampler2D uTexture;
+  uniform float uOpacity;
+  
+  varying float vIntensity;
+  varying vec3 vColor;
+  
+  void main() {
+    vec2 center = gl_PointCoord - vec2(0.5);
+    float dist = length(center);
+    if (dist > 0.5) discard;
+    
+    // Soft circular gradient
+    float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+    alpha *= vIntensity * uOpacity;
+    
+    // Add glow
+    vec3 finalColor = vColor + vColor * 0.3 * (1.0 - dist * 2.0);
+    
+    gl_FragColor = vec4(finalColor, alpha);
+  }
+`;
+
 // Ripple interface
 interface Ripple {
   id: number;
@@ -551,7 +728,212 @@ const CoreParticleSystem = memo(({
 
 CoreParticleSystem.displayName = 'CoreParticleSystem';
 
-// Main particle system
+// ============= GPU-BASED PARTICLE SYSTEM =============
+// All calculations happen on the GPU via vertex shader
+const GPUParticleSystem = memo(({
+  state,
+  audioLevel,
+  morphProgress,
+  particleCount = 5000,
+  particleSize = 0.08,
+  density = 1.0,
+  rotationSpeed = 0.5,
+  morphSpeed = 1.5,
+  enableTurbulence = true,
+  turbulenceFrequency = 0.5,
+  turbulenceAmplitude = 0.08,
+  turbulenceSpeed = 0.3,
+  enableMouseInteraction = true,
+  mouseMode = 'attract' as const,
+  mouseStrength = 0.5,
+  mouseInfluenceRadius = 2.5,
+  fluidCohesion = 0,
+  surfaceTension = 0.5,
+  fluidFlow = 0.3,
+  audioReactivitySpeed = 1.0,
+  mousePosition
+}: {
+  state: WakeWordState;
+  audioLevel: number;
+  morphProgress: number;
+  particleCount?: number;
+  particleSize?: number;
+  density?: number;
+  rotationSpeed?: number;
+  morphSpeed?: number;
+  enableTurbulence?: boolean;
+  turbulenceFrequency?: number;
+  turbulenceAmplitude?: number;
+  turbulenceSpeed?: number;
+  enableMouseInteraction?: boolean;
+  mouseMode?: 'attract' | 'repulse';
+  mouseStrength?: number;
+  mouseInfluenceRadius?: number;
+  fluidCohesion?: number;
+  surfaceTension?: number;
+  fluidFlow?: number;
+  audioReactivitySpeed?: number;
+  mousePosition: React.MutableRefObject<{ x: number; y: number; active: boolean }>;
+}) => {
+  const pointsRef = useRef<THREE.Points>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const currentMorphRef = useRef(morphProgress);
+  
+  const config = STATE_CONFIGS[state];
+  const circleTexture = useMemo(() => generateCircleTexture(), []);
+
+  // Create geometry with all attributes for GPU calculations
+  const geometry = useMemo(() => {
+    const count = particleCount;
+    const spherePos = new Float32Array(count * 3);
+    const scatteredPos = new Float32Array(count * 3);
+    const particleOffset = new Float32Array(count);
+    const randomSeed = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      
+      // Sphere positions
+      const sphereR = (1.8 * density) + (Math.random() - 0.5) * 0.4 * density;
+      spherePos[i3] = sphereR * Math.sin(phi) * Math.cos(theta);
+      spherePos[i3 + 1] = sphereR * Math.sin(phi) * Math.sin(theta);
+      spherePos[i3 + 2] = sphereR * Math.cos(phi);
+      
+      // Scattered positions
+      const scatterR = (3 + Math.random() * 3) * density;
+      scatteredPos[i3] = scatterR * Math.sin(phi) * Math.cos(theta);
+      scatteredPos[i3 + 1] = scatterR * Math.sin(phi) * Math.sin(theta);
+      scatteredPos[i3 + 2] = scatterR * Math.cos(phi);
+      
+      particleOffset[i] = Math.random() * 0.4;
+      randomSeed[i] = Math.random();
+    }
+
+    const geo = new THREE.BufferGeometry();
+    // Position attribute is required but values come from shader
+    geo.setAttribute('position', new THREE.BufferAttribute(spherePos.slice(), 3));
+    geo.setAttribute('spherePos', new THREE.BufferAttribute(spherePos, 3));
+    geo.setAttribute('scatteredPos', new THREE.BufferAttribute(scatteredPos, 3));
+    geo.setAttribute('particleOffset', new THREE.BufferAttribute(particleOffset, 1));
+    geo.setAttribute('randomSeed', new THREE.BufferAttribute(randomSeed, 1));
+    
+    return geo;
+  }, [particleCount, density]);
+
+  // Shader material with all uniforms
+  const material = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      vertexShader: gpuParticleVertexShader,
+      fragmentShader: gpuParticleFragmentShader,
+      uniforms: {
+        uTime: { value: 0 },
+        uMorphProgress: { value: morphProgress },
+        uAudioLevel: { value: 0 },
+        uAudioMultiplier: { value: 1.0 },
+        uAudioReactivitySpeed: { value: audioReactivitySpeed },
+        uParticleSize: { value: particleSize },
+        uDensity: { value: density },
+        uFluidCohesion: { value: fluidCohesion },
+        uSurfaceTension: { value: surfaceTension },
+        uFluidFlow: { value: fluidFlow },
+        uTurbulenceFrequency: { value: turbulenceFrequency },
+        uTurbulenceAmplitude: { value: turbulenceAmplitude },
+        uTurbulenceSpeed: { value: turbulenceSpeed },
+        uEnableTurbulence: { value: enableTurbulence ? 1.0 : 0.0 },
+        uMousePos: { value: new THREE.Vector3(0, 0, 0) },
+        uMouseActive: { value: 0.0 },
+        uMouseStrength: { value: mouseStrength },
+        uMouseRadius: { value: mouseInfluenceRadius },
+        uMouseMode: { value: mouseMode === 'attract' ? 1.0 : -1.0 },
+        uColor: { value: config.primary.clone() },
+        uTexture: { value: circleTexture },
+        uOpacity: { value: 0.85 }
+      },
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+  }, []);
+
+  const targetMorph = morphProgress;
+
+  // Animation loop - only updates uniforms (very fast!)
+  useFrame((_, delta) => {
+    if (!materialRef.current) return;
+    
+    const uniforms = materialRef.current.uniforms;
+    
+    // Update time
+    uniforms.uTime.value += delta;
+    
+    // Smooth morph interpolation
+    currentMorphRef.current = THREE.MathUtils.lerp(
+      currentMorphRef.current,
+      targetMorph,
+      delta * morphSpeed * 2
+    );
+    uniforms.uMorphProgress.value = currentMorphRef.current;
+    
+    // Update audio
+    uniforms.uAudioLevel.value = audioLevel;
+    uniforms.uAudioMultiplier.value = state === 'speaking' ? 2.5 : (state === 'thinking' ? 1.5 : 1.0);
+    uniforms.uAudioReactivitySpeed.value = audioReactivitySpeed;
+    
+    // Update fluid dynamics
+    uniforms.uFluidCohesion.value = fluidCohesion;
+    uniforms.uSurfaceTension.value = surfaceTension;
+    uniforms.uFluidFlow.value = fluidFlow;
+    
+    // Update turbulence
+    uniforms.uEnableTurbulence.value = enableTurbulence ? 1.0 : 0.0;
+    uniforms.uTurbulenceFrequency.value = turbulenceFrequency;
+    uniforms.uTurbulenceAmplitude.value = turbulenceAmplitude;
+    uniforms.uTurbulenceSpeed.value = turbulenceSpeed;
+    
+    // Update mouse
+    if (enableMouseInteraction && mousePosition.current.active) {
+      uniforms.uMousePos.value.set(
+        mousePosition.current.x * 4,
+        mousePosition.current.y * 4,
+        0
+      );
+      uniforms.uMouseActive.value = 1.0;
+    } else {
+      uniforms.uMouseActive.value = 0.0;
+    }
+    uniforms.uMouseStrength.value = mouseStrength;
+    uniforms.uMouseRadius.value = mouseInfluenceRadius;
+    uniforms.uMouseMode.value = mouseMode === 'attract' ? 1.0 : -1.0;
+    
+    // Update color
+    uniforms.uColor.value.lerp(config.primary, 0.08);
+    uniforms.uParticleSize.value = particleSize;
+    
+    // Rotate the points object
+    if (pointsRef.current) {
+      const audioRotationBoost = state === 'speaking' ? 1 + audioLevel * 2 : 1;
+      pointsRef.current.rotation.y += delta * rotationSpeed * 0.3 * audioRotationBoost;
+      pointsRef.current.rotation.x += delta * rotationSpeed * 0.05 * audioRotationBoost;
+      
+      // Audio-reactive scale
+      const audioScaleMultiplier = state === 'speaking' ? 0.4 : 0.15;
+      const pulse = 1 + audioLevel * audioScaleMultiplier + Math.sin(uniforms.uTime.value * 2) * 0.02;
+      pointsRef.current.scale.setScalar(pulse);
+    }
+  });
+
+  return (
+    <points ref={pointsRef} geometry={geometry}>
+      <primitive object={material} ref={materialRef} attach="material" />
+    </points>
+  );
+});
+
+GPUParticleSystem.displayName = 'GPUParticleSystem';
+
+// Main particle system - now uses GPU-based rendering
 const ParticleSystem = memo(({ 
   state, 
   audioLevel, 
@@ -591,11 +973,6 @@ const ParticleSystem = memo(({
   audioReactivitySpeed = 1.0,
   mousePosition
 }: AtlasCoreProps & { mousePosition: React.MutableRefObject<{ x: number; y: number; active: boolean }> }) => {
-  const pointsRef = useRef<THREE.Points>(null);
-  const materialRef = useRef<THREE.PointsMaterial>(null);
-  const timeRef = useRef(0);
-  const currentColorRef = useRef(new THREE.Color(1.0, 0.5, 0.2));
-  const frameCountRef = useRef(0);
   const currentMorphRef = useRef(morphProgress ?? 1);
   const prevStateRef = useRef(state);
   
@@ -603,11 +980,11 @@ const ParticleSystem = memo(({
   const [ripples, setRipples] = useState<Ripple[]>([]);
   const rippleIdRef = useRef(0);
   
-  // Trail history - stores final rendered positions (optimized)
-  const trailHistoryRef = useRef<Float32Array[]>([]);
+  // Trail geometry ref for updating positions
   const trailGeometryRef = useRef<THREE.BufferGeometry | null>(null);
   
   const config = STATE_CONFIGS[state];
+  const circleTexture = useMemo(() => generateCircleTexture(), []);
 
   // Trigger ripples on state change
   useEffect(() => {
@@ -635,259 +1012,7 @@ const ParticleSystem = memo(({
     return () => clearInterval(interval);
   }, []);
 
-  // Create circular texture once
-  const circleTexture = useMemo(() => generateCircleTexture(), []);
-
-  // Store both sphere and scattered positions
-  const { geometry, spherePositions, scatteredPositions, particleOffsets } = useMemo(() => {
-    const count = particleCount;
-    const sphere = new Float32Array(count * 3);
-    const scattered = new Float32Array(count * 3);
-    const positions = new Float32Array(count * 3);
-    const offsets = new Float32Array(count);
-
-    for (let i = 0; i < count; i++) {
-      const i3 = i * 3;
-      
-      // Use same theta/phi for both states so particles morph along consistent paths
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      
-      // Sphere state - tight formation
-      const sphereR = (1.8 * density) + (Math.random() - 0.5) * 0.4 * density;
-      sphere[i3] = sphereR * Math.sin(phi) * Math.cos(theta);
-      sphere[i3 + 1] = sphereR * Math.sin(phi) * Math.sin(theta);
-      sphere[i3 + 2] = sphereR * Math.cos(phi);
-      
-      // Scattered state - same direction, larger radius for consistent morphing path
-      const scatterR = (3 + Math.random() * 3) * density;
-      scattered[i3] = scatterR * Math.sin(phi) * Math.cos(theta);
-      scattered[i3 + 1] = scatterR * Math.sin(phi) * Math.sin(theta);
-      scattered[i3 + 2] = scatterR * Math.cos(phi);
-      
-      positions[i3] = sphere[i3];
-      positions[i3 + 1] = sphere[i3 + 1];
-      positions[i3 + 2] = sphere[i3 + 2];
-      
-      offsets[i] = Math.random() * 0.4;
-    }
-
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return { geometry: geo, spherePositions: sphere, scatteredPositions: scattered, particleOffsets: offsets };
-  }, [particleCount, density]);
-
   const targetMorph = morphProgress ?? 1;
-
-  // Animation loop
-  useFrame((state3D, delta) => {
-    timeRef.current += delta;
-    frameCountRef.current++;
-    
-    currentMorphRef.current = THREE.MathUtils.lerp(
-      currentMorphRef.current,
-      targetMorph,
-      delta * morphSpeed * 2
-    );
-    
-    const smoothMorph = currentMorphRef.current;
-    
-    if (pointsRef.current && geometry) {
-      const positions = geometry.attributes.position.array as Float32Array;
-      const count = positions.length / 3;
-      const time = timeRef.current;
-      
-      // Target radius for fluid cohesion (when cohesion is high, all particles aim for same radius)
-      const baseRadius = 1.8 * density;
-      
-      // Pre-compute values outside loop for performance
-      const hasFluidCohesion = fluidCohesion > 0;
-      const hasFluidFlow = fluidFlow > 0 && fluidCohesion > 0.3;
-      const audioMultiplier = state === 'speaking' ? 2.5 : (state === 'thinking' ? 1.5 : 1.0);
-      const effectiveAudio = audioLevel * audioMultiplier;
-      const hasAudioEffect = effectiveAudio > 0.01;
-      const hasTurbulence = enableTurbulence && turbulenceAmplitude > 0.001;
-      const hasMouseInteraction = enableMouseInteraction && mousePosition.current.active;
-      
-      // Pre-compute turbulence values if needed
-      const turbulenceScale = hasTurbulence ? (1 - fluidCohesion * 0.7) : 0;
-      const audioTurbulenceBoost = hasTurbulence ? (1 + effectiveAudio * 2.5) : 0;
-      const noiseTime = hasTurbulence ? time * turbulenceSpeed : 0;
-      
-      // Pre-compute mouse values if needed
-      const mouseX = hasMouseInteraction ? mousePosition.current.x * 4 : 0;
-      const mouseY = hasMouseInteraction ? mousePosition.current.y * 4 : 0;
-      
-      for (let i = 0; i < count; i++) {
-        const i3 = i * 3;
-        
-        const particleOffset = particleOffsets[i];
-        const adjustedMorph = easeInOutCubic(
-          Math.max(0, Math.min(1, smoothMorph * (1 + particleOffset) - particleOffset * 0.5))
-        );
-        
-        // Base interpolated position
-        let px = scatteredPositions[i3] + (spherePositions[i3] - scatteredPositions[i3]) * adjustedMorph;
-        let py = scatteredPositions[i3 + 1] + (spherePositions[i3 + 1] - scatteredPositions[i3 + 1]) * adjustedMorph;
-        let pz = scatteredPositions[i3 + 2] + (spherePositions[i3 + 2] - scatteredPositions[i3 + 2]) * adjustedMorph;
-        
-        // Apply fluid cohesion - push particles toward uniform radius (EARLY EXIT if disabled)
-        if (hasFluidCohesion) {
-          const currentDist = Math.sqrt(px * px + py * py + pz * pz);
-          if (currentDist > 0.01) {
-            const invDist = 1 / currentDist;
-            const nx = px * invDist;
-            const ny = py * invDist;
-            const nz = pz * invDist;
-            
-            const radiusVariation = (1 - fluidCohesion) * 0.4;
-            const targetRadius = baseRadius + (particleOffset - 0.2) * radiusVariation * baseRadius;
-            const radiusDiff = targetRadius - currentDist;
-            const tensionForce = radiusDiff * surfaceTension * fluidCohesion;
-            
-            px += nx * tensionForce;
-            py += ny * tensionForce;
-            pz += nz * tensionForce;
-            
-            // Fluid flow (EARLY EXIT if disabled)
-            if (hasFluidFlow) {
-              const flowSpeed = fluidFlow * fluidCohesion * 0.02;
-              const flowAngle = time * flowSpeed + particleOffset * Math.PI * 2;
-              const cosFlow = Math.cos(flowAngle);
-              const sinFlow = Math.sin(flowAngle);
-              
-              const tangentX = -ny * cosFlow + (-nx * nz) * sinFlow;
-              const tangentY = nx * cosFlow + (-ny * nz) * sinFlow;
-              const tangentZ = (nx * nx + ny * ny) * sinFlow;
-              
-              const flowMagnitude = flowSpeed * currentDist;
-              px += tangentX * flowMagnitude;
-              py += tangentY * flowMagnitude;
-              pz += tangentZ * flowMagnitude;
-            }
-          }
-        }
-        
-        // AUDIO-REACTIVE MORPHING (EARLY EXIT if no audio)
-        if (hasAudioEffect) {
-          const currentDist = Math.sqrt(px * px + py * py + pz * pz);
-          if (currentDist > 0.01) {
-            const invDist = 1 / currentDist;
-            const nx = px * invDist;
-            const ny = py * invDist;
-            const nz = pz * invDist;
-            
-            const audioDisplacement = effectiveAudio * 0.4;
-            px += nx * audioDisplacement;
-            py += ny * audioDisplacement;
-            pz += nz * audioDisplacement;
-            
-            const wavePhase = time * (10 * audioReactivitySpeed) + currentDist * 6 + particleOffset * Math.PI;
-            const audioWave = Math.sin(wavePhase) * effectiveAudio * 0.2 * audioReactivitySpeed;
-            px += nx * audioWave;
-            py += ny * audioWave;
-            pz += nz * audioWave;
-          }
-        }
-        
-        // Apply turbulence (EARLY EXIT if disabled)
-        if (hasTurbulence) {
-          const tnx = noise3D(px + noiseTime, py, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
-          const tny = noise3D(px, py + noiseTime, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
-          const tnz = noise3D(px, py, pz + noiseTime, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale * audioTurbulenceBoost;
-          
-          px += tnx;
-          py += tny;
-          pz += tnz;
-        }
-        
-        // Apply mouse interaction (EARLY EXIT if inactive)
-        if (hasMouseInteraction) {
-          const dx = mouseX - px;
-          const dy = mouseY - py;
-          const dz = -pz;
-          const distSq = dx * dx + dy * dy + dz * dz;
-          const radiusSq = mouseInfluenceRadius * mouseInfluenceRadius;
-          
-          if (distSq < radiusSq && distSq > 0.0001) {
-            const dist = Math.sqrt(distSq);
-            const influence = (1 - dist / mouseInfluenceRadius) * mouseStrength * 0.3;
-            const invDist = 1 / dist;
-            const dirX = dx * invDist;
-            const dirY = dy * invDist;
-            const dirZ = dz * invDist;
-            
-            if (mouseMode === 'attract') {
-              px += dirX * influence;
-              py += dirY * influence;
-              pz += dirZ * influence;
-            } else {
-              px -= dirX * influence;
-              py -= dirY * influence;
-              pz -= dirZ * influence;
-            }
-          }
-        }
-        
-        positions[i3] = px;
-        positions[i3 + 1] = py;
-        positions[i3 + 2] = pz;
-      }
-      geometry.attributes.position.needsUpdate = true;
-      
-      // Enhanced rotation during speaking
-      const audioRotationBoost = state === 'speaking' ? 1 + audioLevel * 2 : 1;
-      pointsRef.current.rotation.y += delta * rotationSpeed * (0.2 + config.intensity * 0.3) * audioRotationBoost;
-      pointsRef.current.rotation.x += delta * rotationSpeed * 0.05 * audioRotationBoost;
-      
-      // Intense audio-reactive scale pulse
-      const audioScaleMultiplier = state === 'speaking' ? 0.4 : 0.15;
-      const pulse = 1 + audioLevel * audioScaleMultiplier + Math.sin(timeRef.current * 2) * 0.02;
-      pointsRef.current.scale.setScalar(pulse);
-      
-      // Store trail positions - optimized: update every 8 frames instead of 5, skip if trails disabled
-      if (enableTrails && trailLength > 0 && frameCountRef.current % 8 === 0) {
-        // Create snapshot of current rendered positions with transform applied
-        const snapshot = new Float32Array(count * 3);
-        const quaternion = new THREE.Quaternion().setFromEuler(pointsRef.current.rotation);
-        const tempVec = new THREE.Vector3();
-        
-        for (let i = 0; i < count; i++) {
-          const i3 = i * 3;
-          tempVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-          tempVec.applyQuaternion(quaternion);
-          tempVec.multiplyScalar(pulse);
-          snapshot[i3] = tempVec.x;
-          snapshot[i3 + 1] = tempVec.y;
-          snapshot[i3 + 2] = tempVec.z;
-        }
-        
-        trailHistoryRef.current.unshift(snapshot);
-        if (trailHistoryRef.current.length > trailLength) {
-          trailHistoryRef.current.pop();
-        }
-        
-        // Update trail geometry directly (no React re-render)
-        if (trailGeometryRef.current) {
-          const trailPositions = trailGeometryRef.current.attributes.position.array as Float32Array;
-          for (let trail = 0; trail < trailLength; trail++) {
-            const historyFrame = trailHistoryRef.current[trail];
-            if (!historyFrame) continue;
-            const offset = trail * count * 3;
-            for (let i = 0; i < count * 3; i++) {
-              trailPositions[offset + i] = historyFrame[i];
-            }
-          }
-          trailGeometryRef.current.attributes.position.needsUpdate = true;
-        }
-      }
-    }
-    
-    if (materialRef.current) {
-      currentColorRef.current.lerp(config.primary, 0.08);
-      materialRef.current.color.copy(currentColorRef.current);
-    }
-  });
 
   return (
     <group>
@@ -896,8 +1021,8 @@ const ParticleSystem = memo(({
         <RingRipples ripples={ripples} rippleSpeed={rippleSpeed} />
       )}
       
-      {/* Optimized particle trails */}
-      {enableTrails && (
+      {/* Optimized particle trails - still CPU for now as trails need history */}
+      {enableTrails && trailLength > 0 && (
         <OptimizedParticleTrails
           particleCount={particleCount}
           trailLength={trailLength}
@@ -909,21 +1034,30 @@ const ParticleSystem = memo(({
         />
       )}
       
-      {/* Main particle cloud */}
-      <points ref={pointsRef} geometry={geometry}>
-        <pointsMaterial
-          ref={materialRef}
-          size={particleSize}
-          sizeAttenuation={true}
-          color={config.primary}
-          map={circleTexture}
-          alphaTest={0.01}
-          transparent
-          opacity={0.85}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </points>
+      {/* GPU-based main particle cloud */}
+      <GPUParticleSystem
+        state={state}
+        audioLevel={audioLevel}
+        morphProgress={targetMorph}
+        particleCount={particleCount}
+        particleSize={particleSize}
+        density={density}
+        rotationSpeed={rotationSpeed}
+        morphSpeed={morphSpeed}
+        enableTurbulence={enableTurbulence}
+        turbulenceFrequency={turbulenceFrequency}
+        turbulenceAmplitude={turbulenceAmplitude}
+        turbulenceSpeed={turbulenceSpeed}
+        enableMouseInteraction={enableMouseInteraction}
+        mouseMode={mouseMode}
+        mouseStrength={mouseStrength}
+        mouseInfluenceRadius={mouseInfluenceRadius}
+        fluidCohesion={fluidCohesion}
+        surfaceTension={surfaceTension}
+        fluidFlow={fluidFlow}
+        audioReactivitySpeed={audioReactivitySpeed}
+        mousePosition={mousePosition}
+      />
 
       {/* Particle-based core system */}
       {enableCore && (
@@ -1031,7 +1165,8 @@ export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   coreRotationOffset = -0.5,
   fluidCohesion = 0,
   surfaceTension = 0.5,
-  fluidFlow = 0.3
+  fluidFlow = 0.3,
+  audioReactivitySpeed = 1.0
 }, ref) => {
   // Mouse tracking ref
   const mousePositionRef = useRef({ x: 0, y: 0, active: false });
@@ -1102,6 +1237,7 @@ export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           fluidCohesion={fluidCohesion}
           surfaceTension={surfaceTension}
           fluidFlow={fluidFlow}
+          audioReactivitySpeed={audioReactivitySpeed}
           mousePosition={mousePositionRef}
         />
         
