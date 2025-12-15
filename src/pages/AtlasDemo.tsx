@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, RotateCcw, Sparkles } from 'lucide-react';
+import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap } from 'lucide-react';
 import { AtlasCore } from '@/components/dashboard/AtlasCore';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
@@ -17,28 +17,123 @@ const stateDescriptions: Record<WakeWordState, { label: string; description: str
   speaking: { label: 'Speaking', description: 'TTS playback - audio-reactive gold ripple waves', color: 'bg-amber-400' },
 };
 
+interface Preset {
+  name: string;
+  description: string;
+  state: WakeWordState;
+  morphProgress: number;
+  audioLevel: number;
+  autoAudio: boolean;
+  icon: string;
+  gradient: string;
+}
+
+const presets: Preset[] = [
+  {
+    name: 'Idle Ambient',
+    description: 'Calm, scattered particles drifting peacefully',
+    state: 'dormant',
+    morphProgress: 0.15,
+    audioLevel: 0,
+    autoAudio: false,
+    icon: '🌙',
+    gradient: 'from-slate-500/20 to-slate-600/20',
+  },
+  {
+    name: 'Awaiting Input',
+    description: 'Gentle sphere formation, ready to listen',
+    state: 'passive',
+    morphProgress: 0.5,
+    audioLevel: 0.05,
+    autoAudio: false,
+    icon: '👂',
+    gradient: 'from-orange-500/20 to-amber-500/20',
+  },
+  {
+    name: 'Wake Word Detected',
+    description: 'Bright activation burst, particles converge',
+    state: 'activated',
+    morphProgress: 1.0,
+    audioLevel: 0.3,
+    autoAudio: false,
+    icon: '⚡',
+    gradient: 'from-yellow-400/20 to-amber-400/20',
+  },
+  {
+    name: 'Active Listening',
+    description: 'Cyan vortex formation, audio-reactive',
+    state: 'listening',
+    morphProgress: 1.0,
+    audioLevel: 0.4,
+    autoAudio: true,
+    icon: '🎙️',
+    gradient: 'from-cyan-500/20 to-blue-500/20',
+  },
+  {
+    name: 'Deep Processing',
+    description: 'Purple pulsing sphere, rapid internal rotation',
+    state: 'thinking',
+    morphProgress: 1.0,
+    audioLevel: 0.2,
+    autoAudio: false,
+    icon: '🧠',
+    gradient: 'from-purple-500/20 to-violet-500/20',
+  },
+  {
+    name: 'Speaking Response',
+    description: 'Gold ripples emanating with voice output',
+    state: 'speaking',
+    morphProgress: 1.0,
+    audioLevel: 0.6,
+    autoAudio: true,
+    icon: '🔊',
+    gradient: 'from-amber-400/20 to-orange-400/20',
+  },
+  {
+    name: 'Scattered Chaos',
+    description: 'Maximum dispersion with audio reactivity',
+    state: 'passive',
+    morphProgress: 0.0,
+    audioLevel: 0.8,
+    autoAudio: true,
+    icon: '🌀',
+    gradient: 'from-red-500/20 to-pink-500/20',
+  },
+  {
+    name: 'Perfect Sphere',
+    description: 'Tight formation, minimal movement',
+    state: 'listening',
+    morphProgress: 1.0,
+    audioLevel: 0.0,
+    autoAudio: false,
+    icon: '🔮',
+    gradient: 'from-teal-500/20 to-cyan-500/20',
+  },
+];
+
 export default function AtlasDemo() {
   const [state, setState] = useState<WakeWordState>('dormant');
   const [morphProgress, setMorphProgress] = useState(0.2);
   const [audioLevel, setAudioLevel] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [autoAudio, setAutoAudio] = useState(false);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
 
   // Simulate audio levels
-  useState(() => {
+  useEffect(() => {
+    if (!autoAudio) return;
+    
     let frame: number;
     const animate = () => {
-      if (autoAudio) {
-        setAudioLevel(prev => {
-          const noise = Math.sin(Date.now() * 0.005) * 0.3 + Math.random() * 0.4;
-          return Math.max(0, Math.min(1, noise));
-        });
-      }
+      setAudioLevel(() => {
+        const noise = Math.sin(Date.now() * 0.005) * 0.3 + Math.random() * 0.4;
+        return Math.max(0, Math.min(1, noise));
+      });
       frame = requestAnimationFrame(animate);
     };
-    if (autoAudio) animate();
+    animate();
     return () => cancelAnimationFrame(frame);
-  });
+  }, [autoAudio]);
 
   // Cycle through states automatically
   const startStateAnimation = () => {
@@ -55,11 +150,20 @@ export default function AtlasDemo() {
     }, 2000);
   };
 
+  const applyPreset = (preset: Preset) => {
+    setState(preset.state);
+    setMorphProgress(preset.morphProgress);
+    setAudioLevel(preset.audioLevel);
+    setAutoAudio(preset.autoAudio);
+    setActivePreset(preset.name);
+  };
+
   const resetToDefaults = () => {
     setState('dormant');
     setMorphProgress(0.2);
     setAudioLevel(0);
     setAutoAudio(false);
+    setActivePreset(null);
   };
 
   return (
@@ -120,6 +224,42 @@ export default function AtlasDemo() {
               <p className="text-sm text-muted-foreground">Adjust parameters to see how Atlas Core responds to different states and inputs.</p>
             </div>
 
+            {/* Preset Configurations */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  Presets
+                </h3>
+                {activePreset && (
+                  <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                    {activePreset}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                {presets.map((preset) => (
+                  <motion.button
+                    key={preset.name}
+                    onClick={() => applyPreset(preset)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`p-3 rounded-xl text-left transition-all ${
+                      activePreset === preset.name
+                        ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 ring-1 ring-amber-500/30'
+                        : `bg-gradient-to-r ${preset.gradient} border border-border/30 hover:border-border/50`
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-base">{preset.icon}</span>
+                      <span className="text-xs font-medium text-foreground truncate">{preset.name}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground line-clamp-2">{preset.description}</p>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
             {/* Quick Actions */}
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">Quick Actions</h3>
@@ -130,11 +270,12 @@ export default function AtlasDemo() {
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 hover:border-amber-500/50 transition-all disabled:opacity-50"
                 >
                   {isAnimating ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                  <span className="text-sm">{isAnimating ? 'Playing...' : 'Play All States'}</span>
+                  <span className="text-sm">{isAnimating ? 'Playing...' : 'Cycle States'}</span>
                 </button>
                 <button
                   onClick={resetToDefaults}
                   className="px-4 py-2.5 rounded-xl bg-muted/30 border border-border/30 hover:border-border/50 transition-all"
+                  title="Reset to defaults"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
@@ -148,7 +289,10 @@ export default function AtlasDemo() {
                 {states.map((s) => (
                   <button
                     key={s}
-                    onClick={() => setState(s)}
+                    onClick={() => {
+                      setState(s);
+                      setActivePreset(null);
+                    }}
                     className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                       state === s
                         ? 'bg-gradient-to-r from-amber-500/30 to-orange-500/30 border border-amber-500/50 text-amber-300'
