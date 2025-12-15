@@ -99,7 +99,7 @@ const AtlasInterfaceComponent = ({
   }, [state]);
 
   return (
-    <div className="relative w-full h-full min-h-[280px] flex flex-col items-center justify-center">
+    <div className="relative w-full h-full min-h-[140px] flex flex-col items-center justify-center">
       {/* Atlas Core Sphere - fills container, using saved settings from AtlasDemo */}
       <div className="relative flex-1 w-full z-10">
         <AtlasCoreFixed 
