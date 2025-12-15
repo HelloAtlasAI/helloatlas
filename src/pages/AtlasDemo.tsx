@@ -52,7 +52,7 @@ const defaultSettings: AtlasDemoSettings = {
   audioLevel: 0,
   autoAudio: false,
   enableTrails: true,
-  trailLength: 6,
+  trailLength: 4,
   trailOpacity: 0.5,
   particleCount: 2000,
   particleSize: 0.08,

@@ -197,90 +197,115 @@ const RingRipples = memo(({
 
 RingRipples.displayName = 'RingRipples';
 
-// Trail data structure that includes morph info
-interface TrailFrame {
-  spherePositions: Float32Array;
-  scatteredPositions: Float32Array;
-  morphProgress: number;
-  rotation: THREE.Euler;
-  scale: number;
-}
+// Optimized trail shader - single pass with built-in fading
+const trailVertexShader = `
+  attribute float trailIndex;
+  attribute float opacity;
+  varying float vOpacity;
+  varying float vTrailIndex;
+  
+  void main() {
+    vOpacity = opacity;
+    vTrailIndex = trailIndex;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    gl_PointSize = (0.08 - trailIndex * 0.01) * (300.0 / -mvPosition.z);
+  }
+`;
 
-// Morphing trail system component - trails now follow the morphing animation
-const MorphingParticleTrails = memo(({ 
-  trailHistory, 
+const trailFragmentShader = `
+  uniform vec3 uColor;
+  uniform float uBaseOpacity;
+  varying float vOpacity;
+  varying float vTrailIndex;
+  
+  void main() {
+    float dist = length(gl_PointCoord - vec2(0.5));
+    if (dist > 0.5) discard;
+    
+    float alpha = (1.0 - smoothstep(0.0, 0.5, dist)) * vOpacity * uBaseOpacity;
+    gl_FragColor = vec4(uColor, alpha);
+  }
+`;
+
+// Optimized particle trails - single buffer, no React re-renders
+const OptimizedParticleTrails = memo(({ 
+  particleCount,
   trailLength, 
   trailOpacity, 
   color,
-  circleTexture,
-  currentMorphProgress
+  geometryRef
 }: { 
-  trailHistory: TrailFrame[];
+  particleCount: number;
   trailLength: number;
   trailOpacity: number;
   color: THREE.Color;
-  circleTexture: THREE.CanvasTexture;
-  currentMorphProgress: number;
+  geometryRef: React.MutableRefObject<THREE.BufferGeometry | null>;
 }) => {
-  const trailGeometries = useMemo(() => {
-    return trailHistory.slice(0, trailLength).map((frame, index) => {
-      const count = frame.spherePositions.length / 3;
-      const positions = new Float32Array(count * 3);
-      
-      // Calculate trail morph with lag (trails morph slower than main)
-      const trailMorphLag = Math.max(0, currentMorphProgress - (index + 1) * 0.08);
-      const trailMorph = easeInOutCubic(Math.max(0, Math.min(1, trailMorphLag)));
-      
-      // Create quaternion from rotation
-      const quaternion = new THREE.Quaternion().setFromEuler(frame.rotation);
-      const tempVec = new THREE.Vector3();
-      
-      for (let i = 0; i < count; i++) {
-        const i3 = i * 3;
-        
-        // Interpolate between scattered and sphere based on trail morph
-        const px = frame.scatteredPositions[i3] + (frame.spherePositions[i3] - frame.scatteredPositions[i3]) * trailMorph;
-        const py = frame.scatteredPositions[i3 + 1] + (frame.spherePositions[i3 + 1] - frame.scatteredPositions[i3 + 1]) * trailMorph;
-        const pz = frame.scatteredPositions[i3 + 2] + (frame.spherePositions[i3 + 2] - frame.scatteredPositions[i3 + 2]) * trailMorph;
-        
-        // Apply rotation and scale
-        tempVec.set(px, py, pz);
-        tempVec.applyQuaternion(quaternion);
-        tempVec.multiplyScalar(frame.scale);
-        
-        positions[i3] = tempVec.x;
-        positions[i3 + 1] = tempVec.y;
-        positions[i3 + 2] = tempVec.z;
+  const pointsRef = useRef<THREE.Points>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
+  
+  // Pre-allocate single geometry for all trails
+  const geometry = useMemo(() => {
+    const totalParticles = particleCount * trailLength;
+    const positions = new Float32Array(totalParticles * 3);
+    const indices = new Float32Array(totalParticles);
+    const opacityArray = new Float32Array(totalParticles);
+    
+    // Initialize attributes
+    for (let trail = 0; trail < trailLength; trail++) {
+      for (let i = 0; i < particleCount; i++) {
+        const idx = trail * particleCount + i;
+        indices[idx] = trail / trailLength;
+        opacityArray[idx] = (1 - (trail + 1) / (trailLength + 1));
       }
-      
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      return { geo, opacity: (1 - (index + 1) / (trailLength + 1)) * trailOpacity };
+    }
+    
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('trailIndex', new THREE.BufferAttribute(indices, 1));
+    geo.setAttribute('opacity', new THREE.BufferAttribute(opacityArray, 1));
+    
+    return geo;
+  }, [particleCount, trailLength]);
+
+  // Store geometry ref for parent to update positions directly
+  useEffect(() => {
+    geometryRef.current = geometry;
+    return () => { geometryRef.current = null; };
+  }, [geometry, geometryRef]);
+
+  // Shader material - created once
+  const material = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      vertexShader: trailVertexShader,
+      fragmentShader: trailFragmentShader,
+      uniforms: {
+        uColor: { value: color.clone() },
+        uBaseOpacity: { value: trailOpacity }
+      },
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
     });
-  }, [trailHistory, trailLength, trailOpacity, currentMorphProgress]);
+  }, []);
+
+  // Update color and opacity uniforms
+  useFrame(() => {
+    if (materialRef.current) {
+      materialRef.current.uniforms.uColor.value.lerp(color, 0.1);
+      materialRef.current.uniforms.uBaseOpacity.value = trailOpacity;
+    }
+  });
 
   return (
-    <group>
-      {trailGeometries.map((trail, index) => (
-        <points key={index} geometry={trail.geo}>
-          <pointsMaterial
-            size={0.06 + (trailLength - index) * 0.008}
-            sizeAttenuation={true}
-            color={color}
-            map={circleTexture}
-            alphaTest={0.01}
-            transparent
-            opacity={trail.opacity * 0.5}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </points>
-      ))}
-    </group>
+    <points ref={pointsRef} geometry={geometry}>
+      <primitive object={material} ref={materialRef} attach="material" />
+    </points>
   );
 });
 
-MorphingParticleTrails.displayName = 'MorphingParticleTrails';
+OptimizedParticleTrails.displayName = 'OptimizedParticleTrails';
 
 // Core particle system - dense inner particles with independent behavior
 const CoreParticleSystem = memo(({
@@ -462,9 +487,9 @@ const ParticleSystem = memo(({
   const [ripples, setRipples] = useState<Ripple[]>([]);
   const rippleIdRef = useRef(0);
   
-  // Trail history with morph data
-  const trailHistoryRef = useRef<TrailFrame[]>([]);
-  const [, forceUpdate] = useState(0);
+  // Trail history - stores final rendered positions (optimized)
+  const trailHistoryRef = useRef<Float32Array[]>([]);
+  const trailGeometryRef = useRef<THREE.BufferGeometry | null>(null);
   
   const config = STATE_CONFIGS[state];
 
@@ -619,25 +644,41 @@ const ParticleSystem = memo(({
       const pulse = 1 + audioLevel * 0.15 + Math.sin(timeRef.current * 2) * 0.02;
       pointsRef.current.scale.setScalar(pulse);
       
-      // Store trail frame with morph data for morphing trails
-      if (enableTrails && frameCountRef.current % 3 === 0) {
-        const trailFrame: TrailFrame = {
-          spherePositions: new Float32Array(spherePositions),
-          scatteredPositions: new Float32Array(scatteredPositions),
-          morphProgress: smoothMorph,
-          rotation: new THREE.Euler(
-            pointsRef.current.rotation.x,
-            pointsRef.current.rotation.y,
-            pointsRef.current.rotation.z
-          ),
-          scale: pulse
-        };
+      // Store trail positions - copy final rendered positions (optimized: no re-morph needed)
+      if (enableTrails && frameCountRef.current % 5 === 0) {
+        // Create snapshot of current rendered positions with transform applied
+        const snapshot = new Float32Array(count * 3);
+        const quaternion = new THREE.Quaternion().setFromEuler(pointsRef.current.rotation);
+        const tempVec = new THREE.Vector3();
         
-        trailHistoryRef.current.unshift(trailFrame);
+        for (let i = 0; i < count; i++) {
+          const i3 = i * 3;
+          tempVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
+          tempVec.applyQuaternion(quaternion);
+          tempVec.multiplyScalar(pulse);
+          snapshot[i3] = tempVec.x;
+          snapshot[i3 + 1] = tempVec.y;
+          snapshot[i3 + 2] = tempVec.z;
+        }
+        
+        trailHistoryRef.current.unshift(snapshot);
         if (trailHistoryRef.current.length > trailLength) {
           trailHistoryRef.current.pop();
         }
-        forceUpdate(f => f + 1);
+        
+        // Update trail geometry directly (no React re-render)
+        if (trailGeometryRef.current) {
+          const trailPositions = trailGeometryRef.current.attributes.position.array as Float32Array;
+          for (let trail = 0; trail < trailLength; trail++) {
+            const historyFrame = trailHistoryRef.current[trail];
+            if (!historyFrame) continue;
+            const offset = trail * count * 3;
+            for (let i = 0; i < count * 3; i++) {
+              trailPositions[offset + i] = historyFrame[i];
+            }
+          }
+          trailGeometryRef.current.attributes.position.needsUpdate = true;
+        }
       }
     }
     
@@ -654,15 +695,14 @@ const ParticleSystem = memo(({
         <RingRipples ripples={ripples} rippleSpeed={rippleSpeed} />
       )}
       
-      {/* Morphing particle trails */}
-      {enableTrails && trailHistoryRef.current.length > 0 && (
-        <MorphingParticleTrails
-          trailHistory={trailHistoryRef.current}
+      {/* Optimized particle trails */}
+      {enableTrails && (
+        <OptimizedParticleTrails
+          particleCount={particleCount}
           trailLength={trailLength}
           trailOpacity={trailOpacity}
           color={config.secondary}
-          circleTexture={circleTexture}
-          currentMorphProgress={currentMorphRef.current}
+          geometryRef={trailGeometryRef}
         />
       )}
       
