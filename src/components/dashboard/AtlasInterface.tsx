@@ -99,9 +99,9 @@ const AtlasInterfaceComponent = ({
   }, [state]);
 
   return (
-    <div className="relative w-full h-full min-h-[140px] flex flex-col items-center justify-center">
-      {/* Atlas Core Sphere - fills container, using saved settings from AtlasDemo */}
-      <div className="relative flex-1 w-full z-10">
+    <div className="relative w-full h-full flex items-center justify-center gap-4 px-4">
+      {/* Atlas Core Sphere - centered, fixed size */}
+      <div className="relative flex-shrink-0 w-32 h-32 z-10">
         <AtlasCoreFixed 
           state={state} 
           audioLevel={audioLevel}
@@ -138,76 +138,61 @@ const AtlasInterfaceComponent = ({
           surfaceTension={savedSettings.surfaceTension}
           fluidFlow={savedSettings.fluidFlow}
         />
-      </div>
-
-      {/* Controls area - below sphere, not overlapping */}
-      <div className="relative z-20 pb-4 flex flex-col items-center gap-3">
-        {/* Manual activate button for unsupported browsers */}
+        
+        {/* Mic button positioned below the sphere */}
         {!isSupported && (
           <motion.button
             onClick={onManualActivate}
-            className="p-4 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 hover:bg-primary/30 transition-colors"
+            className="absolute -bottom-2 left-1/2 -translate-x-1/2 p-2 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 hover:bg-primary/30 transition-colors z-20"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Mic className="w-6 h-6 text-primary" />
+            <Mic className="w-4 h-4 text-primary" />
           </motion.button>
         )}
+      </div>
 
+      {/* Status and info - to the right */}
+      <div className="flex flex-col items-start justify-center gap-1 flex-1 min-w-0">
+        {/* Greeting */}
+        {userName && state === 'dormant' && (
+          <p className="text-xs text-muted-foreground truncate">
+            Hello, {userName}
+          </p>
+        )}
+        
         {/* Status hint */}
         <AnimatePresence mode="wait">
           <motion.div
             key={state}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="text-center"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
           >
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              {!isSupported && <MicOff className="w-4 h-4" />}
-              <span>{getStatusMessage(state, isSupported)}</span>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {!isSupported && <MicOff className="w-4 h-4 flex-shrink-0" />}
+              <span className="truncate">{getStatusMessage(state, isSupported)}</span>
             </div>
           </motion.div>
         </AnimatePresence>
-      </div>
 
-      {/* Greeting */}
-      {userName && state === 'dormant' && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute top-4 left-0 right-0 text-center"
-        >
-          <p className="text-xs text-muted-foreground">
-            Hello, {userName}
-          </p>
-        </motion.div>
-      )}
-
-      {/* Live transcript */}
-      <AnimatePresence>
-        {transcript && state === 'listening' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute top-4 left-4 right-4 text-center"
-          >
-            <p className="text-sm text-foreground/80 bg-background/50 backdrop-blur-sm rounded-lg px-3 py-2">
+        {/* Live transcript - compact */}
+        <AnimatePresence>
+          {transcript && state === 'listening' && (
+            <motion.p
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className="text-xs text-foreground/80 bg-background/50 backdrop-blur-sm rounded px-2 py-1 truncate max-w-full"
+            >
               "{transcript}"
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.p>
+          )}
+        </AnimatePresence>
 
-      {/* Conversation history - compact */}
-      {(lastMessage || lastResponse) && state === 'dormant' && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute bottom-16 left-4 right-4 max-w-full"
-        >
-          <div className="text-xs text-muted-foreground/70 space-y-1 bg-background/30 backdrop-blur-sm rounded-lg p-2">
+        {/* Last conversation - compact */}
+        {(lastMessage || lastResponse) && state === 'dormant' && (
+          <div className="text-xs text-muted-foreground/70 space-y-0.5 max-w-full">
             {lastMessage && (
               <p className="truncate">
                 <span className="text-foreground/60">You:</span> {lastMessage}
@@ -219,8 +204,8 @@ const AtlasInterfaceComponent = ({
               </p>
             )}
           </div>
-        </motion.div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

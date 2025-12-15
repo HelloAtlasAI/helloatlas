@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,17 +21,6 @@ import { NotesCard } from '@/components/dashboard/NotesCard';
 import { TasksCard } from '@/components/dashboard/TasksCard';
 import { NewsCard } from '@/components/dashboard/NewsCard';
 import { ConversationDrawer } from '@/components/dashboard/ConversationDrawer';
-import { 
-  ExpandedNotesCard, 
-  ExpandedTasksCard, 
-  ExpandedCalendarCard,
-  ExpandedWeatherCard,
-  ExpandedStocksCard,
-  ExpandedNewsCard,
-  ExpandedEmailCard,
-  ExpandedTravelCard,
-  ExpandedDocumentsCard
-} from '@/components/dashboard/expanded';
 import {
   EmailAtmosphere,
   StocksAtmosphere,
@@ -43,9 +32,31 @@ import {
   TravelAtmosphere,
 } from '@/components/dashboard/effects/CardAtmospheres';
 
+// Lazy load expanded card components for code splitting
+const ExpandedNotesCard = lazy(() => import('@/components/dashboard/expanded/ExpandedNotesCard').then(m => ({ default: m.ExpandedNotesCard })));
+const ExpandedTasksCard = lazy(() => import('@/components/dashboard/expanded/ExpandedTasksCard').then(m => ({ default: m.ExpandedTasksCard })));
+const ExpandedCalendarCard = lazy(() => import('@/components/dashboard/expanded/ExpandedCalendarCard').then(m => ({ default: m.ExpandedCalendarCard })));
+const ExpandedWeatherCard = lazy(() => import('@/components/dashboard/expanded/ExpandedWeatherCard').then(m => ({ default: m.ExpandedWeatherCard })));
+const ExpandedStocksCard = lazy(() => import('@/components/dashboard/expanded/ExpandedStocksCard').then(m => ({ default: m.ExpandedStocksCard })));
+const ExpandedNewsCard = lazy(() => import('@/components/dashboard/expanded/ExpandedNewsCard').then(m => ({ default: m.ExpandedNewsCard })));
+const ExpandedEmailCard = lazy(() => import('@/components/dashboard/expanded/ExpandedEmailCard').then(m => ({ default: m.ExpandedEmailCard })));
+const ExpandedTravelCard = lazy(() => import('@/components/dashboard/expanded/ExpandedTravelCard').then(m => ({ default: m.ExpandedTravelCard })));
+const ExpandedDocumentsCard = lazy(() => import('@/components/dashboard/expanded/ExpandedDocumentsCard').then(m => ({ default: m.ExpandedDocumentsCard })));
+
 type AIState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
-// Card animation variants
+// Loading fallback for lazy-loaded components
+const ExpandedCardFallback = () => (
+  <div className="flex items-center justify-center h-full">
+    <motion.div
+      className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent"
+      animate={{ rotate: 360 }}
+      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+    />
+  </div>
+);
+
+// Memoized card animation variants
 const cardVariants = {
   hidden: { opacity: 0, y: 20, scale: 0.95 },
   visible: (delay: number) => ({
@@ -61,59 +72,52 @@ const cardVariants = {
   exit: { opacity: 0, scale: 0.9, transition: { duration: 0.2 } },
 };
 
-// Glow effect for focused cards
+// Memoized utility functions
 const getFocusedClasses = (cardName: string, focusedCard: string | null) => {
   if (focusedCard !== cardName) return '';
   return 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background rounded-2xl shadow-[0_0_30px_rgba(99,102,241,0.4)]';
 };
 
-// Get glow color for each card type
-const getGlowColor = (cardName: string) => {
-  const colors: Record<string, string> = {
-    notes: 'hsl(45, 93%, 47%, 0.2)',
-    tasks: 'hsl(217, 91%, 60%, 0.2)',
-    calendar: 'hsl(217, 91%, 60%, 0.2)',
-    weather: 'hsl(38, 92%, 50%, 0.2)',
-    stocks: 'hsl(160, 84%, 39%, 0.2)',
-    news: 'hsl(263, 70%, 50%, 0.2)',
-    email: 'hsl(350, 70%, 55%, 0.2)',
-    documents: 'hsl(200, 70%, 50%, 0.2)',
-    travel: 'hsl(280, 70%, 50%, 0.2)',
-  };
-  return colors[cardName] || 'hsl(var(--primary) / 0.15)';
+const GLOW_COLORS: Record<string, string> = {
+  notes: 'hsl(45, 93%, 47%, 0.2)',
+  tasks: 'hsl(217, 91%, 60%, 0.2)',
+  calendar: 'hsl(217, 91%, 60%, 0.2)',
+  weather: 'hsl(38, 92%, 50%, 0.2)',
+  stocks: 'hsl(160, 84%, 39%, 0.2)',
+  news: 'hsl(263, 70%, 50%, 0.2)',
+  email: 'hsl(350, 70%, 55%, 0.2)',
+  documents: 'hsl(200, 70%, 50%, 0.2)',
+  travel: 'hsl(280, 70%, 50%, 0.2)',
 };
 
-// Get accent color for each card type
-const getAccentColor = (cardName: string) => {
-  const colors: Record<string, string> = {
-    notes: 'hsl(45, 93%, 47%)',
-    tasks: 'hsl(217, 91%, 60%)',
-    calendar: 'hsl(217, 91%, 60%)',
-    weather: 'hsl(38, 92%, 50%)',
-    stocks: 'hsl(160, 84%, 39%)',
-    news: 'hsl(263, 70%, 50%)',
-    email: 'hsl(350, 70%, 55%)',
-    documents: 'hsl(200, 70%, 50%)',
-    travel: 'hsl(280, 70%, 50%)',
-  };
-  return colors[cardName] || 'hsl(var(--primary))';
+const ACCENT_COLORS: Record<string, string> = {
+  notes: 'hsl(45, 93%, 47%)',
+  tasks: 'hsl(217, 91%, 60%)',
+  calendar: 'hsl(217, 91%, 60%)',
+  weather: 'hsl(38, 92%, 50%)',
+  stocks: 'hsl(160, 84%, 39%)',
+  news: 'hsl(263, 70%, 50%)',
+  email: 'hsl(350, 70%, 55%)',
+  documents: 'hsl(200, 70%, 50%)',
+  travel: 'hsl(280, 70%, 50%)',
 };
 
-// Get atmospheric background for each card type
-const getCardAtmosphere = (cardName: string) => {
-  switch (cardName) {
-    case 'email': return <EmailAtmosphere />;
-    case 'stocks': return <StocksAtmosphere />;
-    case 'calendar': return <CalendarAtmosphere />;
-    case 'tasks': return <TasksAtmosphere />;
-    case 'notes': return <NotesAtmosphere />;
-    case 'news': return <NewsAtmosphere />;
-    case 'documents': return <DocumentsAtmosphere />;
-    case 'travel': return <TravelAtmosphere />;
-    // Weather has its own 3D environment built into its card
-    default: return null;
-  }
+const getGlowColor = (cardName: string) => GLOW_COLORS[cardName] || 'hsl(var(--primary) / 0.15)';
+const getAccentColor = (cardName: string) => ACCENT_COLORS[cardName] || 'hsl(var(--primary))';
+
+// Memoized atmosphere components
+const ATMOSPHERE_MAP: Record<string, React.ReactNode> = {
+  email: <EmailAtmosphere />,
+  stocks: <StocksAtmosphere />,
+  calendar: <CalendarAtmosphere />,
+  tasks: <TasksAtmosphere />,
+  notes: <NotesAtmosphere />,
+  news: <NewsAtmosphere />,
+  documents: <DocumentsAtmosphere />,
+  travel: <TravelAtmosphere />,
 };
+
+const getCardAtmosphere = (cardName: string) => ATMOSPHERE_MAP[cardName] || null;
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -151,15 +155,14 @@ const Dashboard = () => {
     resetToPassive,
   } = useWakeWord({
     keyword: 'atlas',
-    onWakeWordDetected: () => {
-      // Play activation sound (could be added later)
+    onWakeWordDetected: useCallback(() => {
       console.log('Wake word detected!');
       stopCurrentAudio();
       startRecording();
-    },
-    onTimeout: () => {
+    }, [stopCurrentAudio, startRecording]),
+    onTimeout: useCallback(() => {
       console.log('Wake word timeout');
-    },
+    }, []),
   });
 
   // Start passive listening on mount
@@ -176,23 +179,28 @@ const Dashboard = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Determine effective Atlas state
-  const effectiveAtlasState: WakeWordState = isRecording 
-    ? 'listening' 
-    : isVoiceProcessing || isLoading
-      ? 'thinking'
-      : isPlaying 
-        ? 'speaking' 
-        : wakeWordState;
+  // Memoized effective states
+  const effectiveAtlasState: WakeWordState = useMemo(() => 
+    isRecording 
+      ? 'listening' 
+      : isVoiceProcessing || isLoading
+        ? 'thinking'
+        : isPlaying 
+          ? 'speaking' 
+          : wakeWordState,
+    [isRecording, isVoiceProcessing, isLoading, isPlaying, wakeWordState]
+  );
 
-  // Determine effective AI state for legacy components
-  const effectiveAiState: AIState = isRecording 
-    ? 'listening' 
-    : isVoiceProcessing || isLoading
-      ? 'thinking'
-      : isPlaying 
-        ? 'speaking' 
-        : aiState;
+  const effectiveAiState: AIState = useMemo(() =>
+    isRecording 
+      ? 'listening' 
+      : isVoiceProcessing || isLoading
+        ? 'thinking'
+        : isPlaying 
+          ? 'speaking' 
+          : aiState,
+    [isRecording, isVoiceProcessing, isLoading, isPlaying, aiState]
+  );
 
   const handleVoicePress = useCallback(() => {
     stopCurrentAudio();
@@ -259,23 +267,31 @@ const Dashboard = () => {
     );
   }
 
-  const userName = profile?.first_name || profile?.display_name;
+  const userName = useMemo(() => profile?.first_name || profile?.display_name, [profile]);
 
-  // Render expanded card content
-  const renderExpandedContent = () => {
-    switch (expandedCard) {
-      case 'notes': return <ExpandedNotesCard />;
-      case 'tasks': return <ExpandedTasksCard />;
-      case 'calendar': return <ExpandedCalendarCard />;
-      case 'weather': return <ExpandedWeatherCard />;
-      case 'stocks': return <ExpandedStocksCard />;
-      case 'news': return <ExpandedNewsCard />;
-      case 'email': return <ExpandedEmailCard />;
-      case 'documents': return <ExpandedDocumentsCard />;
-      case 'travel': return <ExpandedTravelCard />;
-      default: return null;
-    }
-  };
+  // Render expanded card content with Suspense
+  const renderExpandedContent = useCallback(() => {
+    const content = (() => {
+      switch (expandedCard) {
+        case 'notes': return <ExpandedNotesCard />;
+        case 'tasks': return <ExpandedTasksCard />;
+        case 'calendar': return <ExpandedCalendarCard />;
+        case 'weather': return <ExpandedWeatherCard />;
+        case 'stocks': return <ExpandedStocksCard />;
+        case 'news': return <ExpandedNewsCard />;
+        case 'email': return <ExpandedEmailCard />;
+        case 'documents': return <ExpandedDocumentsCard />;
+        case 'travel': return <ExpandedTravelCard />;
+        default: return null;
+      }
+    })();
+    
+    return (
+      <Suspense fallback={<ExpandedCardFallback />}>
+        {content}
+      </Suspense>
+    );
+  }, [expandedCard]);
 
   return (
     <div className="min-h-screen bg-background">
