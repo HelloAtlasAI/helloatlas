@@ -1,7 +1,6 @@
 import { memo, useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AtlasCoreFixed } from './AtlasCoreFixed';
-import { AmbientAudioVisualizer } from './effects/AmbientAudioVisualizer';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 import { Mic, MicOff } from 'lucide-react';
 
@@ -66,17 +65,6 @@ const getStatusMessage = (state: WakeWordState, isSupported: boolean): string =>
   return messages[state];
 };
 
-const getStatusColor = (state: WakeWordState): string => {
-  const colors: Record<WakeWordState, string> = {
-    dormant: 'bg-muted-foreground/30',
-    passive: 'bg-amber-500/50',
-    activated: 'bg-amber-400',
-    listening: 'bg-cyan-400',
-    thinking: 'bg-purple-400',
-    speaking: 'bg-amber-400',
-  };
-  return colors[state];
-};
 
 const AtlasInterfaceComponent = ({
   state,
@@ -111,35 +99,7 @@ const AtlasInterfaceComponent = ({
   }, [state]);
 
   return (
-    <div className="relative w-full h-full min-h-[280px] flex flex-col items-center justify-center rounded-2xl overflow-hidden bg-gradient-to-b from-background/80 to-background/40 backdrop-blur-xl border border-border/30">
-      {/* Background glow effect */}
-      <div className="absolute inset-0 pointer-events-none">
-        <motion.div
-          className="absolute inset-0"
-          style={{
-            background: `radial-gradient(circle at 50% 50%, hsl(30, 100%, 50%, ${0.1 + audioLevel * 0.15}) 0%, transparent 60%)`,
-          }}
-          animate={{
-            opacity: state === 'dormant' ? 0.3 : 1,
-          }}
-          transition={{ duration: 0.5 }}
-        />
-      </div>
-
-      {/* Status ring around sphere area */}
-      <motion.div
-        className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] rounded-full border-2 ${getStatusColor(state)}`}
-        style={{ borderStyle: state === 'passive' ? 'dashed' : 'solid' }}
-        animate={{
-          scale: state === 'activated' ? [1, 1.1, 1] : 1,
-          opacity: state === 'dormant' ? 0.3 : 0.6,
-        }}
-        transition={{
-          scale: { duration: 0.5, repeat: state === 'activated' ? 2 : 0 },
-          opacity: { duration: 0.3 },
-        }}
-      />
-
+    <div className="relative w-full h-full min-h-[280px] flex flex-col items-center justify-center">
       {/* Atlas Core Sphere - using saved settings from AtlasDemo */}
       <div className="relative w-[220px] h-[220px] z-10">
         <AtlasCoreFixed 
@@ -194,15 +154,6 @@ const AtlasInterfaceComponent = ({
             </motion.div>
           </button>
         )}
-      </div>
-
-      {/* Ambient Audio Visualizer */}
-      <div className="absolute bottom-16 left-0 right-0 h-8">
-        <AmbientAudioVisualizer 
-          audioLevel={audioLevel} 
-          isActive={state !== 'dormant'} 
-          state={state}
-        />
       </div>
 
       {/* Status hint */}
