@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap } from 'lucide-react';
-import { AtlasCore } from '@/components/dashboard/AtlasCore';
+import { AtlasCoreFixed } from '@/components/dashboard/AtlasCoreFixed';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
 
@@ -190,7 +190,7 @@ export default function AtlasDemo() {
         <div className="flex-1 relative">
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-full max-w-2xl aspect-square">
-              <AtlasCore 
+              <AtlasCoreFixed 
                 state={state} 
                 audioLevel={audioLevel} 
                 morphProgress={morphProgress} 

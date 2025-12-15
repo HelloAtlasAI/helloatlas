@@ -62,7 +62,7 @@ const STATE_CONFIGS: Record<WakeWordState, {
 };
 
 // Simplified particle system using THREE.Points with PointsMaterial
-const ParticleSystem = memo(({ state, audioLevel }: AtlasCoreProps) => {
+const ParticleSystem = memo(({ state, audioLevel, morphProgress }: AtlasCoreProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
   const coreRef = useRef<THREE.Mesh>(null);
@@ -72,9 +72,11 @@ const ParticleSystem = memo(({ state, audioLevel }: AtlasCoreProps) => {
   
   const config = STATE_CONFIGS[state];
 
-  // Generate particle geometry with reduced count for performance
-  const geometry = useMemo(() => {
-    const count = 2000; // Reduced from 4000 for better performance
+  // Store both sphere and scattered positions
+  const { geometry, spherePositions, scatteredPositions } = useMemo(() => {
+    const count = 2000;
+    const sphere = new Float32Array(count * 3);
+    const scattered = new Float32Array(count * 3);
     const positions = new Float32Array(count * 3);
 
     for (let i = 0; i < count; i++) {
@@ -85,22 +87,46 @@ const ParticleSystem = memo(({ state, audioLevel }: AtlasCoreProps) => {
       const phi = Math.acos(2 * Math.random() - 1);
       const r = 1.8 + (Math.random() - 0.5) * 0.4;
       
-      positions[i3] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      positions[i3 + 2] = r * Math.cos(phi);
+      sphere[i3] = r * Math.sin(phi) * Math.cos(theta);
+      sphere[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      sphere[i3 + 2] = r * Math.cos(phi);
+      
+      // Scattered positions (random cloud)
+      scattered[i3] = (Math.random() - 0.5) * 6;
+      scattered[i3 + 1] = (Math.random() - 0.5) * 6;
+      scattered[i3 + 2] = (Math.random() - 0.5) * 6;
+      
+      // Initial positions
+      positions[i3] = sphere[i3];
+      positions[i3 + 1] = sphere[i3 + 1];
+      positions[i3 + 2] = sphere[i3 + 2];
     }
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return geo;
+    return { geometry: geo, spherePositions: sphere, scatteredPositions: scattered };
   }, []);
+
+  // Morph progress for interpolation
+  const morphValue = morphProgress ?? 1;
 
   // Animation loop
   useFrame((_, delta) => {
     timeRef.current += delta;
     
-    // Animate particles
-    if (pointsRef.current) {
+    // Interpolate particle positions based on morphProgress
+    if (pointsRef.current && geometry) {
+      const positions = geometry.attributes.position.array as Float32Array;
+      const count = positions.length / 3;
+      
+      for (let i = 0; i < count; i++) {
+        const i3 = i * 3;
+        positions[i3] = scatteredPositions[i3] + (spherePositions[i3] - scatteredPositions[i3]) * morphValue;
+        positions[i3 + 1] = scatteredPositions[i3 + 1] + (spherePositions[i3 + 1] - scatteredPositions[i3 + 1]) * morphValue;
+        positions[i3 + 2] = scatteredPositions[i3 + 2] + (spherePositions[i3 + 2] - scatteredPositions[i3 + 2]) * morphValue;
+      }
+      geometry.attributes.position.needsUpdate = true;
+      
       pointsRef.current.rotation.y += delta * (0.1 + config.intensity * 0.2);
       pointsRef.current.rotation.x += delta * 0.02;
       
