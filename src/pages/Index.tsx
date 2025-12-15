@@ -10,7 +10,8 @@ import { useChat } from "@/hooks/useChat";
 import { useVoice } from "@/hooks/useVoice";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Loader2, Volume2, VolumeX } from "lucide-react";
+import { LogOut, User, Loader2, Volume2, VolumeX, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -211,6 +212,13 @@ const Index = () => {
                 {action}
               </button>
             ))}
+            <Link
+              to="/atlas-demo"
+              className="px-4 py-2 text-xs rounded-full bg-amber-500/20 backdrop-blur-sm text-amber-400 hover:bg-amber-500/30 transition-all border border-amber-500/30 hover:border-amber-500/50 flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3 h-3" />
+              Atlas Demo
+            </Link>
           </div>
         </div>
       </footer>
