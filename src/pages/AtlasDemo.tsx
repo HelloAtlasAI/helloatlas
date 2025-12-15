@@ -533,6 +533,25 @@ export default function AtlasDemo() {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => {
+                const settings: AtlasDemoSettings = {
+                  state, morphProgress, audioLevel, autoAudio, enableTrails, trailLength, trailOpacity,
+                  trailColorGradient, trailStartColor, trailEndColor,
+                  particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
+                  enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
+                  turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
+                  enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+                toast.success('Settings saved!');
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 hover:border-amber-500/60 text-amber-300 transition-all"
+              title="Save Settings"
+            >
+              <Save className="w-4 h-4" />
+              <span className="text-xs font-medium">Save</span>
+            </button>
+            <button
               onClick={exportSettings}
               className="p-2 rounded-lg bg-muted/20 border border-border/30 hover:border-border/50 transition-all"
               title="Export Settings"
