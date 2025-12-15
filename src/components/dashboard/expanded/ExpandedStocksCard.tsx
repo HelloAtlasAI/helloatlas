@@ -1,14 +1,45 @@
-import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Search, RefreshCw, Star, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { useStocks } from '@/hooks/useStocks';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { TrendingUp, TrendingDown, Search, Star, ArrowUpRight, ArrowDownRight, Radio } from 'lucide-react';
+import { useStocksRealtime } from '@/hooks/useStocksRealtime';
 import { useWatchlist } from '@/hooks/useWatchlist';
+
+interface PriceFlash {
+  symbol: string;
+  direction: 'up' | 'down';
+  timestamp: number;
+}
 
 export const ExpandedStocksCard = () => {
   const { watchlist, symbols, addSymbol, removeSymbol } = useWatchlist();
-  const { stocks, isLoading, refetch } = useStocks(symbols);
+  const { stocks, isLoading, isLive } = useStocksRealtime(symbols);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
+  const [priceFlashes, setPriceFlashes] = useState<PriceFlash[]>([]);
+  const previousPrices = useRef<Record<string, number>>({});
+
+  // Track price changes for flash animations
+  useEffect(() => {
+    stocks.forEach(stock => {
+      const prevPrice = previousPrices.current[stock.symbol];
+      if (prevPrice !== undefined && prevPrice !== stock.price) {
+        const direction = stock.price > prevPrice ? 'up' : 'down';
+        setPriceFlashes(prev => [...prev, { symbol: stock.symbol, direction, timestamp: Date.now() }]);
+        
+        // Clear flash after animation
+        setTimeout(() => {
+          setPriceFlashes(prev => prev.filter(f => f.symbol !== stock.symbol || Date.now() - f.timestamp > 500));
+        }, 600);
+      }
+      previousPrices.current[stock.symbol] = stock.price;
+    });
+  }, [stocks]);
+
+  const getFlashClass = (symbol: string) => {
+    const flash = priceFlashes.find(f => f.symbol === symbol);
+    if (!flash) return '';
+    return flash.direction === 'up' ? 'animate-pulse-green' : 'animate-pulse-red';
+  };
 
   const filteredStocks = useMemo(() => {
     if (!searchQuery) return stocks;
@@ -47,9 +78,25 @@ export const ExpandedStocksCard = () => {
               </div>
               <span className="text-sm font-medium text-foreground">Watchlist</span>
             </div>
-            <button onClick={() => refetch()} className="p-2 hover:bg-muted rounded-lg">
-              <RefreshCw className="w-4 h-4 text-muted-foreground" />
-            </button>
+            {/* Live indicator */}
+            <AnimatePresence>
+              {isLive && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30"
+                >
+                  <motion.div
+                    animate={{ scale: [1, 1.3, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                    className="w-2 h-2 rounded-full bg-emerald-400"
+                  />
+                  <Radio className="w-3 h-3 text-emerald-400" />
+                  <span className="text-xs font-medium text-emerald-400">Live</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -67,6 +114,7 @@ export const ExpandedStocksCard = () => {
           {filteredStocks.map((stock, i) => {
             const isPositive = stock.change >= 0;
             const isSelected = selectedStock === stock.symbol;
+            const flashClass = getFlashClass(stock.symbol);
             
             return (
               <motion.button
@@ -75,7 +123,7 @@ export const ExpandedStocksCard = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.03 }}
                 onClick={() => setSelectedStock(stock.symbol)}
-                className={`w-full text-left p-3 rounded-xl transition-all ${
+                className={`w-full text-left p-3 rounded-xl transition-all ${flashClass} ${
                   isSelected ? 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30' : 'hover:bg-muted/50 border border-transparent'
                 }`}
               >
@@ -92,7 +140,14 @@ export const ExpandedStocksCard = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-medium text-foreground">{formatPrice(stock.price)}</div>
+                    <motion.div 
+                      key={stock.price}
+                      initial={{ opacity: 0.5 }}
+                      animate={{ opacity: 1 }}
+                      className="text-sm font-medium text-foreground"
+                    >
+                      {formatPrice(stock.price)}
+                    </motion.div>
                     <div className={`flex items-center gap-1 text-xs ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
                       {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                       {formatChange(stock.changePercent)}
@@ -129,11 +184,33 @@ export const ExpandedStocksCard = () => {
                     >
                       <Star className={`w-4 h-4 ${watchlistSymbols.has(selected.symbol) ? 'fill-amber-400' : ''}`} />
                     </button>
+                    {isLive && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20"
+                      >
+                        <motion.div
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                          className="w-1.5 h-1.5 rounded-full bg-emerald-400"
+                        />
+                        <span className="text-[10px] font-medium text-emerald-400 uppercase tracking-wider">Streaming</span>
+                      </motion.div>
+                    )}
                   </div>
                   <p className="text-muted-foreground">{selected.name || 'Company Name'}</p>
                 </div>
                 <div className="text-right">
-                  <div className="text-3xl font-bold text-foreground">{formatPrice(selected.price)}</div>
+                  <motion.div 
+                    key={selected.price}
+                    initial={{ scale: 1.05, opacity: 0.7 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`text-3xl font-bold text-foreground ${getFlashClass(selected.symbol)}`}
+                  >
+                    {formatPrice(selected.price)}
+                  </motion.div>
                   <div className={`flex items-center justify-end gap-1 text-lg ${selected.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {selected.change >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                     {formatChange(selected.changePercent)}
@@ -227,7 +304,7 @@ export const ExpandedStocksCard = () => {
               <button
                 key={stock.symbol}
                 onClick={() => setSelectedStock(stock.symbol)}
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors"
+                className={`w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors ${getFlashClass(stock.symbol)}`}
               >
                 <span className="text-sm font-medium text-foreground">{stock.symbol}</span>
                 <span className={`text-sm ${stock.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -238,6 +315,24 @@ export const ExpandedStocksCard = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Flash animation styles */}
+      <style>{`
+        @keyframes pulse-green {
+          0%, 100% { background-color: transparent; }
+          50% { background-color: rgba(16, 185, 129, 0.2); }
+        }
+        @keyframes pulse-red {
+          0%, 100% { background-color: transparent; }
+          50% { background-color: rgba(239, 68, 68, 0.2); }
+        }
+        .animate-pulse-green {
+          animation: pulse-green 0.5s ease-out;
+        }
+        .animate-pulse-red {
+          animation: pulse-red 0.5s ease-out;
+        }
+      `}</style>
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface RealtimeStock {
   symbol: string;
+  name?: string;
   price: number;
   previousPrice: number;
   change: number;
@@ -22,12 +23,14 @@ export const useStocksRealtime = (symbols: string[]) => {
   const [stocks, setStocks] = useState<Map<string, RealtimeStock>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fallbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize with baseline prices
   const initializeStocks = useCallback(async () => {
+    setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('get-stocks', {
         body: { symbols },
@@ -38,6 +41,7 @@ export const useStocksRealtime = (symbols: string[]) => {
         data.stocks.forEach((stock: any) => {
           stockMap.set(stock.symbol, {
             symbol: stock.symbol,
+            name: stock.name,
             price: stock.price,
             previousPrice: stock.price,
             change: stock.change || 0,
@@ -49,6 +53,8 @@ export const useStocksRealtime = (symbols: string[]) => {
       }
     } catch (err) {
       console.error('Failed to initialize stocks:', err);
+    } finally {
+      setIsLoading(false);
     }
   }, [symbols]);
 
@@ -199,6 +205,7 @@ export const useStocksRealtime = (symbols: string[]) => {
     stocksMap: stocks,
     isConnected,
     isLive,
+    isLoading,
     refetch: initializeStocks,
   };
 };
