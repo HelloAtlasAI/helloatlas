@@ -1,29 +1,35 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { VariantVisualization, SphereVariant } from "@/components/aria/VariantVisualization";
 import { HolographicCards, demoHolographicCards } from "@/components/aria/HolographicCard";
 import { StateIndicator } from "@/components/aria/StateIndicator";
 import { ChatInput } from "@/components/aria/ChatInput";
 import { ConversationPanel } from "@/components/aria/ConversationPanel";
-import { SettingsPanel } from "@/components/aria/SettingsPanel";
+import AtlasCoreFixed from "@/components/dashboard/AtlasCoreFixed";
 import { useChat } from "@/hooks/useChat";
 import { useVoice } from "@/hooks/useVoice";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Loader2, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
+import type { WakeWordState } from "@/hooks/useWakeWord";
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [cards, setCards] = useState(demoHolographicCards);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const [sphereVariant, setSphereVariant] = useState<SphereVariant>("classic");
-  const [showHUD, setShowHUD] = useState(false);
-  const [particleDensity, setParticleDensity] = useState(75);
-  const [trailLength, setTrailLength] = useState(6);
-  const [morphIntensity, setMorphIntensity] = useState(50);
   const APP_NAME = "Atlas";
+
+  // Load saved Atlas settings from localStorage
+  const savedSettings = useMemo(() => {
+    try {
+      const stored = localStorage.getItem('atlas-demo-settings');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+      console.warn('Failed to load Atlas settings:', e);
+    }
+    return {};
+  }, []);
 
   const {
     isRecording,
@@ -45,6 +51,17 @@ const Index = () => {
   });
 
   const effectiveAiState = isRecording ? "listening" : isPlaying ? "speaking" : aiState;
+
+  // Map AI state to WakeWordState for AtlasCoreFixed
+  const getWakeWordState = (state: string): WakeWordState => {
+    const stateMap: Record<string, WakeWordState> = {
+      'idle': 'dormant',
+      'listening': 'listening',
+      'thinking': 'thinking',
+      'speaking': 'speaking',
+    };
+    return stateMap[state] || 'dormant';
+  };
 
   const handleCardClose = (id: string) => {
     setCards((prev) => prev.filter((card) => card.id !== id));
@@ -79,33 +96,15 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background">
-      {/* FULLSCREEN 3D Canvas - covers entire viewport */}
-      <div className="fixed inset-0 z-0">
-        <VariantVisualization
-          state={effectiveAiState}
-          audioLevel={audioLevel}
-          variant={sphereVariant}
-          showHUD={showHUD}
-          particleDensity={particleDensity}
-          trailLength={trailLength}
-          morphIntensity={morphIntensity}
-        />
-      </div>
-
-      {/* Settings Panel */}
-      <div className="fixed top-20 left-4 z-30">
-        <SettingsPanel
-          sphereVariant={sphereVariant}
-          showHUD={showHUD}
-          particleDensity={particleDensity}
-          trailLength={trailLength}
-          morphIntensity={morphIntensity}
-          onVariantChange={setSphereVariant}
-          onShowHUDChange={setShowHUD}
-          onParticleDensityChange={setParticleDensity}
-          onTrailLengthChange={setTrailLength}
-          onMorphIntensityChange={setMorphIntensity}
-        />
+      {/* Atlas Sphere - centered in viewport */}
+      <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
+        <div className="w-[400px] h-[400px]">
+          <AtlasCoreFixed
+            state={getWakeWordState(effectiveAiState)}
+            audioLevel={audioLevel}
+            {...savedSettings}
+          />
+        </div>
       </div>
 
       {/* Header - on top of 3D */}
