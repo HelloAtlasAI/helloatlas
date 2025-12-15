@@ -55,18 +55,27 @@ interface AtlasDemoSettings {
   audioReactivitySpeed: number;
 }
 
+// Performance presets
+type PerformanceMode = 'performance' | 'balanced' | 'quality';
+
+const performancePresets: Record<PerformanceMode, { particleCount: number; trailLength: number; enableBloom: boolean; coreParticleCount: number; label: string }> = {
+  performance: { particleCount: 2000, trailLength: 0, enableBloom: false, coreParticleCount: 150, label: 'Performance' },
+  balanced: { particleCount: 5000, trailLength: 2, enableBloom: true, coreParticleCount: 300, label: 'Balanced' },
+  quality: { particleCount: 12000, trailLength: 4, enableBloom: true, coreParticleCount: 500, label: 'Quality' },
+};
+
 const defaultSettings: AtlasDemoSettings = {
   state: 'dormant',
   morphProgress: 0.2,
   audioLevel: 0,
   autoAudio: false,
   enableTrails: true,
-  trailLength: 4,
+  trailLength: 2,
   trailOpacity: 0.5,
   trailColorGradient: true,
   trailStartColor: '#ff9500',
   trailEndColor: '#1a0a2e',
-  particleCount: 15000,
+  particleCount: 5000,
   particleSize: 0.08,
   density: 1.0,
   rotationSpeed: 0.5,
@@ -85,7 +94,7 @@ const defaultSettings: AtlasDemoSettings = {
   mouseStrength: 0.5,
   mouseInfluenceRadius: 2.5,
   enableCore: true,
-  coreParticleCount: 400,
+  coreParticleCount: 300,
   coreDensity: 0.25,
   coreParticleSize: 0.04,
   coreIntensity: 1.2,
@@ -210,6 +219,7 @@ export default function AtlasDemo() {
   const [autoAudio, setAutoAudio] = useState(defaultSettings.autoAudio);
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [performanceMode, setPerformanceMode] = useState<PerformanceMode>('balanced');
   
   // Trail controls
   const [enableTrails, setEnableTrails] = useState(defaultSettings.enableTrails);
@@ -506,6 +516,21 @@ export default function AtlasDemo() {
     setActivePreset(preset.name);
   };
 
+  const applyPerformanceMode = (mode: PerformanceMode) => {
+    const preset = performancePresets[mode];
+    setPerformanceMode(mode);
+    setParticleCount(preset.particleCount);
+    setTrailLength(preset.trailLength);
+    setEnableBloom(preset.enableBloom);
+    setCoreParticleCount(preset.coreParticleCount);
+    if (preset.trailLength === 0) {
+      setEnableTrails(false);
+    } else {
+      setEnableTrails(true);
+    }
+    toast.success(`${preset.label} mode applied`);
+  };
+
   const resetToDefaults = () => {
     setState(defaultSettings.state);
     setMorphProgress(defaultSettings.morphProgress);
@@ -731,6 +756,34 @@ export default function AtlasDemo() {
                   <RotateCcw className="w-4 h-4" />
                 </button>
               </div>
+            </div>
+
+            {/* Performance Mode */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
+                <Zap className="w-4 h-4 text-green-400" />
+                Performance Mode
+              </h3>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.keys(performancePresets) as PerformanceMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => applyPerformanceMode(mode)}
+                    className={`px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                      performanceMode === mode
+                        ? 'bg-green-500/20 border border-green-500/50 text-green-400'
+                        : 'bg-muted/30 border border-border/30 hover:border-border/50 text-muted-foreground'
+                    }`}
+                  >
+                    {performancePresets[mode].label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {performanceMode === 'performance' && '~2K particles, no trails/bloom for smooth 60fps'}
+                {performanceMode === 'balanced' && '~5K particles, shorter trails, bloom enabled'}
+                {performanceMode === 'quality' && '~12K particles, full trails, all effects enabled'}
+              </p>
             </div>
 
             {/* AI State Selection */}
