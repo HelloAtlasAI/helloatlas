@@ -43,6 +43,10 @@ interface AtlasCoreProps {
   coreIntensity?: number;
   corePulseSpeed?: number;
   coreRotationOffset?: number;
+  // Fluid dynamics props
+  fluidCohesion?: number;
+  surfaceTension?: number;
+  fluidFlow?: number;
 }
 
 // State color configurations
@@ -535,6 +539,9 @@ const ParticleSystem = memo(({
   coreIntensity = 1.2,
   corePulseSpeed = 1.5,
   coreRotationOffset = -0.5,
+  fluidCohesion = 0,
+  surfaceTension = 0.5,
+  fluidFlow = 0.3,
   mousePosition
 }: AtlasCoreProps & { mousePosition: React.MutableRefObject<{ x: number; y: number; active: boolean }> }) => {
   const pointsRef = useRef<THREE.Points>(null);
@@ -643,6 +650,9 @@ const ParticleSystem = memo(({
       const count = positions.length / 3;
       const time = timeRef.current;
       
+      // Target radius for fluid cohesion (when cohesion is high, all particles aim for same radius)
+      const baseRadius = 1.8 * density;
+      
       for (let i = 0; i < count; i++) {
         const i3 = i * 3;
         
@@ -656,12 +666,52 @@ const ParticleSystem = memo(({
         let py = scatteredPositions[i3 + 1] + (spherePositions[i3 + 1] - scatteredPositions[i3 + 1]) * adjustedMorph;
         let pz = scatteredPositions[i3 + 2] + (spherePositions[i3 + 2] - scatteredPositions[i3 + 2]) * adjustedMorph;
         
-        // Apply Perlin noise turbulence
+        // Apply fluid cohesion - push particles toward uniform radius
+        if (fluidCohesion > 0) {
+          const currentDist = Math.sqrt(px * px + py * py + pz * pz);
+          if (currentDist > 0.01) {
+            // Normalize to unit sphere direction
+            const nx = px / currentDist;
+            const ny = py / currentDist;
+            const nz = pz / currentDist;
+            
+            // Target radius with reduced variation based on cohesion
+            const radiusVariation = (1 - fluidCohesion) * 0.4;
+            const targetRadius = baseRadius + (particleOffset - 0.2) * radiusVariation * baseRadius;
+            
+            // Surface tension pulls toward target radius
+            const radiusDiff = targetRadius - currentDist;
+            const tensionForce = radiusDiff * surfaceTension * fluidCohesion;
+            
+            px += nx * tensionForce;
+            py += ny * tensionForce;
+            pz += nz * tensionForce;
+            
+            // Fluid flow - particles glide along surface
+            if (fluidFlow > 0 && fluidCohesion > 0.3) {
+              const flowSpeed = fluidFlow * fluidCohesion * 0.02;
+              const flowAngle = time * flowSpeed + particleOffset * Math.PI * 2;
+              
+              // Tangent direction for flow (perpendicular to normal)
+              const tangentX = -ny * Math.cos(flowAngle) + (-nx * nz) * Math.sin(flowAngle);
+              const tangentY = nx * Math.cos(flowAngle) + (-ny * nz) * Math.sin(flowAngle);
+              const tangentZ = (nx * nx + ny * ny) * Math.sin(flowAngle);
+              
+              const flowMagnitude = flowSpeed * currentDist;
+              px += tangentX * flowMagnitude;
+              py += tangentY * flowMagnitude;
+              pz += tangentZ * flowMagnitude;
+            }
+          }
+        }
+        
+        // Apply Perlin noise turbulence (reduced when cohesion is high)
         if (enableTurbulence) {
+          const turbulenceScale = 1 - fluidCohesion * 0.7; // Reduce turbulence with cohesion
           const noiseTime = time * turbulenceSpeed;
-          const nx = noise3D(px + noiseTime, py, pz, turbulenceFrequency) * turbulenceAmplitude;
-          const ny = noise3D(px, py + noiseTime, pz, turbulenceFrequency) * turbulenceAmplitude;
-          const nz = noise3D(px, py, pz + noiseTime, turbulenceFrequency) * turbulenceAmplitude;
+          const nx = noise3D(px + noiseTime, py, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale;
+          const ny = noise3D(px, py + noiseTime, pz, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale;
+          const nz = noise3D(px, py, pz + noiseTime, turbulenceFrequency) * turbulenceAmplitude * turbulenceScale;
           
           px += nx;
           py += ny;
@@ -889,7 +939,10 @@ export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   coreParticleSize = 0.04,
   coreIntensity = 1.2,
   corePulseSpeed = 1.5,
-  coreRotationOffset = -0.5
+  coreRotationOffset = -0.5,
+  fluidCohesion = 0,
+  surfaceTension = 0.5,
+  fluidFlow = 0.3
 }, ref) => {
   // Mouse tracking ref
   const mousePositionRef = useRef({ x: 0, y: 0, active: false });
@@ -957,6 +1010,9 @@ export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           coreIntensity={coreIntensity}
           corePulseSpeed={corePulseSpeed}
           coreRotationOffset={coreRotationOffset}
+          fluidCohesion={fluidCohesion}
+          surfaceTension={surfaceTension}
+          fluidFlow={fluidFlow}
           mousePosition={mousePositionRef}
         />
         

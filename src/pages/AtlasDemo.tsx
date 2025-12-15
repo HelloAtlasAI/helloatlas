@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc } from 'lucide-react';
+import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc, Droplets } from 'lucide-react';
 import { AtlasCoreFixed } from '@/components/dashboard/AtlasCoreFixed';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
@@ -47,6 +47,10 @@ interface AtlasDemoSettings {
   coreIntensity: number;
   corePulseSpeed: number;
   coreRotationOffset: number;
+  // Fluid dynamics settings
+  fluidCohesion: number;
+  surfaceTension: number;
+  fluidFlow: number;
 }
 
 const defaultSettings: AtlasDemoSettings = {
@@ -85,6 +89,9 @@ const defaultSettings: AtlasDemoSettings = {
   coreIntensity: 1.2,
   corePulseSpeed: 1.5,
   coreRotationOffset: -0.5,
+  fluidCohesion: 0,
+  surfaceTension: 0.5,
+  fluidFlow: 0.3,
 };
 
 const states: WakeWordState[] = ['dormant', 'passive', 'activated', 'listening', 'thinking', 'speaking'];
@@ -247,8 +254,11 @@ export default function AtlasDemo() {
   const [coreIntensity, setCoreIntensity] = useState(defaultSettings.coreIntensity);
   const [corePulseSpeed, setCorePulseSpeed] = useState(defaultSettings.corePulseSpeed);
   const [coreRotationOffset, setCoreRotationOffset] = useState(defaultSettings.coreRotationOffset);
-
-  // Load settings from localStorage on mount
+  
+  // Fluid dynamics controls
+  const [fluidCohesion, setFluidCohesion] = useState(defaultSettings.fluidCohesion);
+  const [surfaceTension, setSurfaceTension] = useState(defaultSettings.surfaceTension);
+  const [fluidFlow, setFluidFlow] = useState(defaultSettings.fluidFlow);
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -286,6 +296,9 @@ export default function AtlasDemo() {
         setCoreIntensity(settings.coreIntensity ?? defaultSettings.coreIntensity);
         setCorePulseSpeed(settings.corePulseSpeed ?? defaultSettings.corePulseSpeed);
         setCoreRotationOffset(settings.coreRotationOffset ?? defaultSettings.coreRotationOffset);
+        setFluidCohesion(settings.fluidCohesion ?? defaultSettings.fluidCohesion);
+        setSurfaceTension(settings.surfaceTension ?? defaultSettings.surfaceTension);
+        setFluidFlow(settings.fluidFlow ?? defaultSettings.fluidFlow);
         toast.success('Settings restored');
       }
     } catch (e) {
@@ -334,6 +347,9 @@ export default function AtlasDemo() {
       coreIntensity,
       corePulseSpeed,
       coreRotationOffset,
+      fluidCohesion,
+      surfaceTension,
+      fluidFlow,
     };
     
     try {
@@ -346,7 +362,8 @@ export default function AtlasDemo() {
     particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
     enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
     turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
-    enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset
+    enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
+    fluidCohesion, surfaceTension, fluidFlow
   ]);
 
   // Export settings as JSON file
@@ -357,7 +374,8 @@ export default function AtlasDemo() {
       particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
       enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
       turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
-      enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset
+      enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
+      fluidCohesion, surfaceTension, fluidFlow
     };
     
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -374,7 +392,8 @@ export default function AtlasDemo() {
     particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
     enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
     turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
-    enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset
+    enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
+    fluidCohesion, surfaceTension, fluidFlow
   ]);
 
   // Import settings from JSON file
@@ -425,6 +444,9 @@ export default function AtlasDemo() {
           setCoreIntensity(settings.coreIntensity ?? defaultSettings.coreIntensity);
           setCorePulseSpeed(settings.corePulseSpeed ?? defaultSettings.corePulseSpeed);
           setCoreRotationOffset(settings.coreRotationOffset ?? defaultSettings.coreRotationOffset);
+          setFluidCohesion(settings.fluidCohesion ?? defaultSettings.fluidCohesion);
+          setSurfaceTension(settings.surfaceTension ?? defaultSettings.surfaceTension);
+          setFluidFlow(settings.fluidFlow ?? defaultSettings.fluidFlow);
           setActivePreset(null);
           toast.success('Settings imported');
         } catch (err) {
@@ -540,7 +562,8 @@ export default function AtlasDemo() {
                   particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
                   enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
                   turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
-                  enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset
+                  enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
+                  fluidCohesion, surfaceTension, fluidFlow
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
                 toast.success('Settings saved!');
@@ -609,6 +632,9 @@ export default function AtlasDemo() {
                 coreIntensity={coreIntensity}
                 corePulseSpeed={corePulseSpeed}
                 coreRotationOffset={coreRotationOffset}
+                fluidCohesion={fluidCohesion}
+                surfaceTension={surfaceTension}
+                fluidFlow={fluidFlow}
               />
             </div>
           </div>
@@ -974,6 +1000,63 @@ export default function AtlasDemo() {
                   </div>
                 </>
               )}
+            </div>
+
+            {/* Fluid Dynamics Controls */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
+                <Droplets className="w-4 h-4 text-sky-400" />
+                Fluid Dynamics
+              </h3>
+              
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Cohesion</span>
+                  <span className="text-xs font-mono text-sky-400">{fluidCohesion.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[fluidCohesion]}
+                  onValueChange={([v]) => setFluidCohesion(v)}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>Scattered</span>
+                  <span>Solid</span>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Surface Tension</span>
+                  <span className="text-xs font-mono text-sky-400">{surfaceTension.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[surfaceTension]}
+                  onValueChange={([v]) => setSurfaceTension(v)}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  className="w-full"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Flow Speed</span>
+                  <span className="text-xs font-mono text-sky-400">{fluidFlow.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[fluidFlow]}
+                  onValueChange={([v]) => setFluidFlow(v)}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  className="w-full"
+                />
+              </div>
             </div>
 
             {/* Mouse Interaction Controls */}
