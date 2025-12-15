@@ -51,6 +51,8 @@ interface AtlasDemoSettings {
   fluidCohesion: number;
   surfaceTension: number;
   fluidFlow: number;
+  // Audio reactivity settings
+  audioReactivitySpeed: number;
 }
 
 const defaultSettings: AtlasDemoSettings = {
@@ -92,6 +94,7 @@ const defaultSettings: AtlasDemoSettings = {
   fluidCohesion: 0,
   surfaceTension: 0.5,
   fluidFlow: 0.3,
+  audioReactivitySpeed: 1.0,
 };
 
 const states: WakeWordState[] = ['dormant', 'passive', 'activated', 'listening', 'thinking', 'speaking'];
@@ -259,6 +262,9 @@ export default function AtlasDemo() {
   const [fluidCohesion, setFluidCohesion] = useState(defaultSettings.fluidCohesion);
   const [surfaceTension, setSurfaceTension] = useState(defaultSettings.surfaceTension);
   const [fluidFlow, setFluidFlow] = useState(defaultSettings.fluidFlow);
+  
+  // Audio reactivity controls
+  const [audioReactivitySpeed, setAudioReactivitySpeed] = useState(defaultSettings.audioReactivitySpeed);
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -299,6 +305,7 @@ export default function AtlasDemo() {
         setFluidCohesion(settings.fluidCohesion ?? defaultSettings.fluidCohesion);
         setSurfaceTension(settings.surfaceTension ?? defaultSettings.surfaceTension);
         setFluidFlow(settings.fluidFlow ?? defaultSettings.fluidFlow);
+        setAudioReactivitySpeed(settings.audioReactivitySpeed ?? defaultSettings.audioReactivitySpeed);
         toast.success('Settings restored');
       }
     } catch (e) {
@@ -350,6 +357,7 @@ export default function AtlasDemo() {
       fluidCohesion,
       surfaceTension,
       fluidFlow,
+      audioReactivitySpeed,
     };
     
     try {
@@ -363,7 +371,7 @@ export default function AtlasDemo() {
     enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
     turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
     enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
-    fluidCohesion, surfaceTension, fluidFlow
+    fluidCohesion, surfaceTension, fluidFlow, audioReactivitySpeed
   ]);
 
   // Export settings as JSON file
@@ -375,7 +383,7 @@ export default function AtlasDemo() {
       enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
       turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
       enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
-      fluidCohesion, surfaceTension, fluidFlow
+      fluidCohesion, surfaceTension, fluidFlow, audioReactivitySpeed
     };
     
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -393,7 +401,7 @@ export default function AtlasDemo() {
     enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
     turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
     enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
-    fluidCohesion, surfaceTension, fluidFlow
+    fluidCohesion, surfaceTension, fluidFlow, audioReactivitySpeed
   ]);
 
   // Import settings from JSON file
@@ -447,6 +455,7 @@ export default function AtlasDemo() {
           setFluidCohesion(settings.fluidCohesion ?? defaultSettings.fluidCohesion);
           setSurfaceTension(settings.surfaceTension ?? defaultSettings.surfaceTension);
           setFluidFlow(settings.fluidFlow ?? defaultSettings.fluidFlow);
+          setAudioReactivitySpeed(settings.audioReactivitySpeed ?? defaultSettings.audioReactivitySpeed);
           setActivePreset(null);
           toast.success('Settings imported');
         } catch (err) {
@@ -563,7 +572,7 @@ export default function AtlasDemo() {
                   enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
                   turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
                   enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
-                  fluidCohesion, surfaceTension, fluidFlow
+                  fluidCohesion, surfaceTension, fluidFlow, audioReactivitySpeed
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
                 toast.success('Settings saved!');
@@ -635,6 +644,7 @@ export default function AtlasDemo() {
                 fluidCohesion={fluidCohesion}
                 surfaceTension={surfaceTension}
                 fluidFlow={fluidFlow}
+                audioReactivitySpeed={audioReactivitySpeed}
               />
             </div>
           </div>
@@ -1277,6 +1287,25 @@ export default function AtlasDemo() {
               >
                 {autoAudio ? '🔊 Simulating Audio...' : '🔇 Simulate Audio'}
               </button>
+              
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Reactivity Speed</span>
+                  <span className="text-xs font-mono text-cyan-400">{audioReactivitySpeed.toFixed(1)}x</span>
+                </div>
+                <Slider
+                  value={[audioReactivitySpeed]}
+                  onValueChange={([v]) => setAudioReactivitySpeed(v)}
+                  min={0.2}
+                  max={3.0}
+                  step={0.1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>Slow</span>
+                  <span>Fast</span>
+                </div>
+              </div>
             </div>
 
             {/* Effects Controls */}
