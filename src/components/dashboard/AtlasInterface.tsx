@@ -79,16 +79,34 @@ const AtlasInterfaceComponent = ({
   const [showHint, setShowHint] = useState(true);
 
   // Load saved Atlas settings from localStorage
+  // Dashboard-specific defaults that ensure compact sphere display
+  const dashboardDefaults: AtlasSettings = {
+    morphProgress: 1.0,       // Always show sphere (not scattered)
+    density: 0.8,             // Slightly smaller to fit container
+    particleCount: 2500,      // Optimized for small container
+    fluidCohesion: 0.4,       // Keep particles together
+    particleSize: 0.06,       // Smaller particles for compact view
+  };
+
+  // Load saved settings but override with dashboard defaults for key props
   const savedSettings = useMemo<AtlasSettings>(() => {
     try {
       const stored = localStorage.getItem('atlas-demo-settings');
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Merge with dashboard defaults, prioritizing dashboard values for critical props
+        return {
+          ...parsed,
+          morphProgress: dashboardDefaults.morphProgress, // Force sphere shape
+          density: Math.min(parsed.density ?? dashboardDefaults.density!, 1.0),
+          particleCount: Math.min(parsed.particleCount ?? dashboardDefaults.particleCount!, 3000),
+          fluidCohesion: Math.max(parsed.fluidCohesion ?? dashboardDefaults.fluidCohesion!, 0.3),
+        };
       }
     } catch (e) {
       console.warn('Failed to load Atlas settings:', e);
     }
-    return {};
+    return dashboardDefaults;
   }, []);
 
   // Hide hint after first activation
