@@ -2,7 +2,6 @@ import { memo, useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AtlasCoreFixed } from './AtlasCoreFixed';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
-import { Mic, MicOff } from 'lucide-react';
 
 // Settings interface matching AtlasDemo
 interface AtlasSettings {
@@ -51,9 +50,7 @@ interface AtlasInterfaceProps {
   onManualActivate?: () => void;
 }
 
-const getStatusMessage = (state: WakeWordState, isSupported: boolean): string => {
-  if (!isSupported) return 'Tap to activate';
-  
+const getStatusMessage = (state: WakeWordState): string => {
   const messages: Record<WakeWordState, string> = {
     dormant: "Say 'Atlas' to begin...",
     passive: "Listening for 'Atlas'...",
@@ -118,8 +115,8 @@ const AtlasInterfaceComponent = ({
 
   return (
     <div className="relative w-full h-full flex items-center justify-center gap-4 px-4">
-      {/* Atlas Core Sphere - centered, fixed size */}
-      <div className="relative flex-shrink-0 w-48 h-48 z-10">
+      {/* Atlas Core Sphere - centered, larger size */}
+      <div className="relative flex-shrink-0 w-64 h-64 z-10">
         <AtlasCoreFixed 
           state={state} 
           audioLevel={audioLevel}
@@ -156,18 +153,6 @@ const AtlasInterfaceComponent = ({
           surfaceTension={savedSettings.surfaceTension}
           fluidFlow={savedSettings.fluidFlow}
         />
-        
-        {/* Mic button positioned below the sphere */}
-        {!isSupported && (
-          <motion.button
-            onClick={onManualActivate}
-            className="absolute -bottom-2 left-1/2 -translate-x-1/2 p-2 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 hover:bg-primary/30 transition-colors z-20"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Mic className="w-4 h-4 text-primary" />
-          </motion.button>
-        )}
       </div>
 
       {/* Status and info - to the right */}
@@ -188,8 +173,7 @@ const AtlasInterfaceComponent = ({
             exit={{ opacity: 0, x: 10 }}
           >
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              {!isSupported && <MicOff className="w-4 h-4 flex-shrink-0" />}
-              <span className="truncate">{getStatusMessage(state, isSupported)}</span>
+              <span className="truncate">{getStatusMessage(state)}</span>
             </div>
           </motion.div>
         </AnimatePresence>
