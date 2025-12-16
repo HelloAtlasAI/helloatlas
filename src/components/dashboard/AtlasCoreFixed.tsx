@@ -1147,7 +1147,7 @@ BloomEffect.displayName = 'BloomEffect';
 export const AtlasCoreFixed = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({ 
   state, 
   audioLevel, 
-  morphProgress,
+  morphProgress = 1.0,
   enableTrails = true,
   trailLength = 6,
   trailOpacity = 0.5,
