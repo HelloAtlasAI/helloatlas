@@ -79,10 +79,10 @@ const AtlasInterfaceComponent = ({
   // Dashboard-specific defaults that ensure compact sphere display
   const dashboardDefaults: AtlasSettings = {
     morphProgress: 1.0,       // Always show sphere (not scattered)
-    density: 0.85,            // Optimized for 340px container
-    particleCount: 3000,      // Increased for 340px size
-    fluidCohesion: 0.4,       // Keep particles together
-    particleSize: 0.065,      // Larger particles for bigger view
+    density: 0.9,             // Optimized for 420px container
+    particleCount: 4000,      // Increased for 420px size
+    fluidCohesion: 0.35,      // Slightly looser for larger display
+    particleSize: 0.07,       // Larger particles for bigger view
   };
 
   // Load saved settings but override with dashboard defaults for key props
@@ -115,8 +115,8 @@ const AtlasInterfaceComponent = ({
 
   return (
     <div className="relative w-full h-full flex items-center justify-center gap-4 px-4">
-      {/* Atlas Core Sphere - 340px */}
-      <div className="relative flex-shrink-0 w-[340px] h-[340px] z-10">
+      {/* Atlas Core Sphere - 420px */}
+      <div className="relative flex-shrink-0 w-[420px] h-[420px] z-10">
         <AtlasCoreFixed 
           state={state} 
           audioLevel={audioLevel}
