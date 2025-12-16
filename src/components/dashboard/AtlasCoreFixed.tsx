@@ -926,14 +926,42 @@ const GPUParticleSystem = memo(({
     
     // Rotate the points object
     if (pointsRef.current) {
+      const time = uniforms.uTime.value;
       const audioRotationBoost = state === 'speaking' ? 1 + audioLevel * 2 : 1;
       pointsRef.current.rotation.y += delta * rotationSpeed * 0.3 * audioRotationBoost;
       pointsRef.current.rotation.x += delta * rotationSpeed * 0.05 * audioRotationBoost;
       
-      // Audio-reactive scale
+      // === BREATHING ANIMATION ===
+      // Breathing speed varies by state (slower when dormant, faster when active)
+      const breathingSpeed = state === 'dormant' ? 0.8 : 
+                            state === 'listening' ? 1.2 : 
+                            state === 'speaking' ? 1.5 : 1.0;
+      
+      // Primary breathing cycle (slow, organic)
+      const breathe1 = Math.sin(time * breathingSpeed) * 0.03;
+      // Secondary breathing harmonic (adds organic irregularity)
+      const breathe2 = Math.sin(time * breathingSpeed * 0.7 + 0.5) * 0.015;
+      // Tertiary micro-movement (subtle life-like tremor)
+      const breathe3 = Math.sin(time * 3.5) * 0.005;
+      
+      const breathingScale = 1 + breathe1 + breathe2 + breathe3;
+      
+      // Audio-reactive scale on top of breathing
       const audioScaleMultiplier = state === 'speaking' ? 0.4 : 0.15;
-      const pulse = 1 + audioLevel * audioScaleMultiplier + Math.sin(uniforms.uTime.value * 2) * 0.02;
-      pointsRef.current.scale.setScalar(pulse);
+      const audioScale = 1 + audioLevel * audioScaleMultiplier;
+      
+      pointsRef.current.scale.setScalar(breathingScale * audioScale);
+      
+      // === SUBTLE POSITION BOBBING ===
+      // Gentle vertical float (like hovering)
+      const floatY = Math.sin(time * 0.5) * 0.03;
+      // Subtle horizontal sway
+      const swayX = Math.sin(time * 0.3) * 0.015;
+      const swayZ = Math.cos(time * 0.4) * 0.01;
+      
+      pointsRef.current.position.y = floatY;
+      pointsRef.current.position.x = swayX;
+      pointsRef.current.position.z = swayZ;
     }
   });
 
