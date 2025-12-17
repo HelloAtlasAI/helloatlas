@@ -1,4 +1,4 @@
-import { useRef, useMemo, memo, MutableRefObject } from 'react';
+import { useRef, useMemo, memo, useEffect, MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { WakeWordState } from '@/hooks/useWakeWord';
@@ -44,7 +44,7 @@ export const GPUParticleSystem = memo(({
   
   const config = STATE_CONFIGS[state];
 
-  // Create geometry once
+  // Create geometry - only recreate on significant changes
   const geometry = useMemo(() => {
     const count = particleCount;
     const spherePos = new Float32Array(count * 3);
@@ -81,7 +81,14 @@ export const GPUParticleSystem = memo(({
     return geo;
   }, [particleCount, density]);
 
-  // Shader material
+  // Cleanup geometry on unmount or change
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+    };
+  }, [geometry]);
+
+  // Shader material - create once, update uniforms in frame loop
   const material = useMemo(() => {
     return new THREE.ShaderMaterial({
       vertexShader: gpuParticleVertexShader,
@@ -109,13 +116,20 @@ export const GPUParticleSystem = memo(({
     });
   }, []);
 
+  // Cleanup material on unmount
+  useEffect(() => {
+    return () => {
+      material.dispose();
+    };
+  }, [material]);
+
   // Optimized animation - reads audioLevel from ref (no re-renders)
   useFrame((_, delta) => {
     if (!materialRef.current || !pointsRef.current) return;
     
     frameCount.current++;
     const uniforms = materialRef.current.uniforms;
-    const audioLevel = audioLevelRef.current;
+    const audioLevel = audioLevelRef?.current ?? 0;
     
     // Always update time and morph
     uniforms.uTime.value += delta;
@@ -137,7 +151,7 @@ export const GPUParticleSystem = memo(({
     uniforms.uMouseMode.value = mouseMode === 'attract' ? 1.0 : -1.0;
     
     // Mouse - update every frame when active
-    if (enableMouseInteraction && mousePosition.current.active) {
+    if (enableMouseInteraction && mousePosition?.current?.active) {
       uniforms.uMousePos.value.set(
         mousePosition.current.x * 4,
         mousePosition.current.y * 4,
