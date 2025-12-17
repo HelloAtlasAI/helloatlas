@@ -30,6 +30,11 @@ interface NebulaFlowSystemProps {
   glowIntensity?: number;
   depthFade?: number;
   coreGlow?: number;
+  // Solid Surface props
+  solidSurface?: boolean;
+  surfaceBlend?: number;
+  uniformSize?: number;
+  coherence?: number;
 }
 
 export const NebulaFlowSystem = memo(({
@@ -55,6 +60,10 @@ export const NebulaFlowSystem = memo(({
   glowIntensity = 1.0,
   depthFade = 0.3,
   coreGlow = 1.0,
+  solidSurface = false,
+  surfaceBlend = 1.5,
+  uniformSize = 1.8,
+  coherence = 0.9,
 }: NebulaFlowSystemProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
@@ -74,36 +83,66 @@ export const NebulaFlowSystem = memo(({
     glowIntensity: glowIntensity,
   });
 
-  // Generate particle attributes with flow bands
+  // Generate particle attributes with flow bands - Fibonacci sphere for solid surface
   const attrs = useMemo(() => {
     const count = particleCount;
+    const isSolid = solidSurface;
 
     const spherePos = new Float32Array(count * 3);
     const bandIndex = new Float32Array(count);
     const flowOffset = new Float32Array(count);
     const randomSeed = new Float32Array(count);
 
-    for (let i = 0; i < count; i++) {
-      const i3 = i * 3;
+    if (isSolid) {
+      // Fibonacci sphere distribution for even spacing (solid surface)
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ~137.5 degrees
       
-      // Distribute particles in bands around the sphere
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      
-      // Assign to a band based on phi (latitude)
-      const band = Math.floor((phi / Math.PI) * bandCount);
-      bandIndex[i] = band / bandCount;
-      
-      // Radius with slight variation for shell thickness
-      const r = (1.8 + (Math.random() - 0.5) * 0.4) * density;
-      
-      spherePos[i3] = r * Math.sin(phi) * Math.cos(theta);
-      spherePos[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      spherePos[i3 + 2] = r * Math.cos(phi);
-      
-      // Flow offset for variation within bands
-      flowOffset[i] = Math.random();
-      randomSeed[i] = Math.random();
+      for (let i = 0; i < count; i++) {
+        const i3 = i * 3;
+        
+        // Fibonacci latitude distribution (even spacing)
+        const y = 1 - (i / (count - 1)) * 2; // -1 to 1
+        const radiusAtY = Math.sqrt(1 - y * y);
+        const theta = goldenAngle * i;
+        
+        // Perfect sphere shell - no thickness variation for solid surface
+        const r = 1.8 * density;
+        
+        spherePos[i3] = r * radiusAtY * Math.cos(theta);
+        spherePos[i3 + 1] = r * y;
+        spherePos[i3 + 2] = r * radiusAtY * Math.sin(theta);
+        
+        // Coherent band assignment based on latitude
+        bandIndex[i] = (y + 1) * 0.5; // 0-1 based on position
+        
+        // Minimal random variation in solid surface mode
+        flowOffset[i] = i / count;
+        randomSeed[i] = (i / count) * 0.1;
+      }
+    } else {
+      // Standard random distribution (particle cloud)
+      for (let i = 0; i < count; i++) {
+        const i3 = i * 3;
+        
+        // Distribute particles in bands around the sphere
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        
+        // Assign to a band based on phi (latitude)
+        const band = Math.floor((phi / Math.PI) * bandCount);
+        bandIndex[i] = band / bandCount;
+        
+        // Radius with slight variation for shell thickness
+        const r = (1.8 + (Math.random() - 0.5) * 0.4) * density;
+        
+        spherePos[i3] = r * Math.sin(phi) * Math.cos(theta);
+        spherePos[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+        spherePos[i3 + 2] = r * Math.cos(phi);
+        
+        // Flow offset for variation within bands
+        flowOffset[i] = Math.random();
+        randomSeed[i] = Math.random();
+      }
     }
 
     const position = spherePos.slice();
@@ -115,7 +154,7 @@ export const NebulaFlowSystem = memo(({
       flowOffset,
       randomSeed,
     };
-  }, [particleCount, density, bandCount]);
+  }, [particleCount, density, bandCount, solidSurface]);
 
   // Uniforms
   const uniforms = useMemo(() => {
@@ -138,6 +177,11 @@ export const NebulaFlowSystem = memo(({
       uGlowIntensity: { value: glowIntensity },
       uDepthFade: { value: depthFade },
       uCoreGlow: { value: coreGlow },
+      // Solid Surface uniforms
+      uSolidSurface: { value: solidSurface ? 1.0 : 0.0 },
+      uSurfaceBlend: { value: surfaceBlend },
+      uUniformSize: { value: uniformSize },
+      uCoherence: { value: coherence },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -213,6 +257,12 @@ export const NebulaFlowSystem = memo(({
     u.uParticleSize.value = particleSize;
     u.uDepthFade.value = depthFade;
     u.uCoreGlow.value = coreGlow;
+    
+    // Solid surface values
+    u.uSolidSurface.value = solidSurface ? 1.0 : 0.0;
+    u.uSurfaceBlend.value = surfaceBlend;
+    u.uUniformSize.value = uniformSize;
+    u.uCoherence.value = coherence;
 
     // Slow rotation with audio boost
     const audioBoost = state === 'speaking' ? 1 + audioLevel * 0.5 : 1;
@@ -227,7 +277,7 @@ export const NebulaFlowSystem = memo(({
   });
 
   return (
-    <points key={`nebula-flow-${particleCount}-${density}-${bandCount}`} ref={pointsRef}>
+    <points key={`nebula-flow-${particleCount}-${density}-${bandCount}-${solidSurface}`} ref={pointsRef}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[attrs.position, 3]} />
         <bufferAttribute attach="attributes-spherePos" args={[attrs.spherePos, 3]} />

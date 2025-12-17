@@ -256,6 +256,10 @@ export default function AtlasDemo() {
                 nebulaGlowIntensity={settings.nebulaGlowIntensity}
                 nebulaDepthFade={settings.nebulaDepthFade}
                 nebulaCoreGlow={settings.nebulaCoreGlow}
+                nebulaSolidSurface={settings.nebulaSolidSurface}
+                nebulaSurfaceBlend={settings.nebulaSurfaceBlend}
+                nebulaUniformSize={settings.nebulaUniformSize}
+                nebulaCoherence={settings.nebulaCoherence}
               />
             </div>
           </div>
@@ -378,6 +382,22 @@ export default function AtlasDemo() {
                   >
                     ✨ Ultra HD
                   </button>
+                  <button
+                    onClick={() => setMultiple({
+                      nebulaSolidSurface: true,
+                      nebulaParticleCount: 35000,
+                      nebulaParticleSize: 0.07,
+                      nebulaSurfaceBlend: 1.8,
+                      nebulaUniformSize: 1.6,
+                      nebulaCoherence: 0.95,
+                      nebulaRadiusNoise: 0.08,
+                      nebulaBreathingAmount: 0.04,
+                      nebulaGlowIntensity: 0.9,
+                    })}
+                    className="px-3 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-300 text-xs transition-all"
+                  >
+                    🔮 Solid Surface
+                  </button>
                 </div>
                 
                 {/* State Reactive Toggle */}
@@ -431,6 +451,34 @@ export default function AtlasDemo() {
                   <SliderControl label="Breathing Speed" value={settings.nebulaBreathingSpeed} onChange={(v) => setSetting('nebulaBreathingSpeed', v)} min={0.1} max={2} step={0.1} color="indigo" decimals={1} />
                   <SliderControl label="Breathing Amount" value={settings.nebulaBreathingAmount} onChange={(v) => setSetting('nebulaBreathingAmount', v)} min={0} max={0.2} step={0.01} color="indigo" decimals={2} />
                   <SliderControl label="Radius Noise" value={settings.nebulaRadiusNoise} onChange={(v) => setSetting('nebulaRadiusNoise', v)} min={0} max={0.4} step={0.02} color="indigo" decimals={2} hint={['Smooth', 'Organic']} />
+                </div>
+                
+                {/* Solid Surface Mode */}
+                <div className="space-y-3 pt-2 border-t border-emerald-500/20">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-emerald-300 font-medium">Solid Surface Mode</span>
+                      <p className="text-[10px] text-muted-foreground">Particles form continuous surface</p>
+                    </div>
+                    <button
+                      onClick={() => setSetting('nebulaSolidSurface', !settings.nebulaSolidSurface)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        settings.nebulaSolidSurface
+                          ? 'bg-emerald-500/30 border border-emerald-500/50 text-emerald-300'
+                          : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                      }`}
+                    >
+                      {settings.nebulaSolidSurface ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                  
+                  {settings.nebulaSolidSurface && (
+                    <>
+                      <SliderControl label="Surface Blend" value={settings.nebulaSurfaceBlend} onChange={(v) => setSetting('nebulaSurfaceBlend', v)} min={0.5} max={3} step={0.1} color="emerald" decimals={1} hint={['Sharp', 'Smooth']} />
+                      <SliderControl label="Uniform Size" value={settings.nebulaUniformSize} onChange={(v) => setSetting('nebulaUniformSize', v)} min={1} max={3} step={0.1} color="emerald" decimals={1} hint={['Small', 'Large']} />
+                      <SliderControl label="Coherence" value={settings.nebulaCoherence} onChange={(v) => setSetting('nebulaCoherence', v)} min={0} max={1} step={0.05} color="emerald" decimals={2} hint={['Varied', 'Unified']} />
+                    </>
+                  )}
                 </div>
                 
                 {/* Color Pickers - only show in manual mode */}
