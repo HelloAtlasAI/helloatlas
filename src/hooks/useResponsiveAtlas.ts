@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, RefObject } from 'react';
+import { useEffect, useState, RefObject } from 'react';
 
 // Reference size for which settings are optimized
 const REFERENCE_SIZE = 420;
@@ -11,12 +11,33 @@ const SIZE_TIERS = {
   ultra: { maxSize: Infinity, particleMultiplier: 1.2, sizeBoost: 1.0 },
 };
 
+// Compact mode settings optimized for small containers (< 250px)
+export const COMPACT_MODE_OVERRIDES = {
+  nebulaParticleCount: 3500,
+  nebulaParticleSize: 0.08,
+  nebulaGlowIntensity: 1.8,
+  nebulaCoreGlow: 2.0,
+  nebulaDepthFade: 0.15,
+  nebulaFlowSpeed: 0.25,
+  nebulaFlowStrength: 0.3,
+  nebulaBreathingSpeed: 0.4,
+  nebulaBreathingAmount: 0.15,
+  nebulaSolidSurface: true,
+  nebulaSurfaceBlend: 1.5,
+  nebulaUniformSize: 1.4,
+  nebulaCoherence: 0.9,
+  nebulaRimIntensity: 1.2,
+  enableBloom: true,
+  bloomIntensity: 1.0,
+} as const;
+
 export interface ResponsiveAtlasScale {
   sizeMultiplier: number;
   particleMultiplier: number;
   particleSizeBoost: number;
   containerSize: number;
   tier: 'low' | 'medium' | 'high' | 'ultra';
+  useCompactMode: boolean;
 }
 
 export function useResponsiveAtlas(containerRef: RefObject<HTMLElement | null>): ResponsiveAtlasScale {
@@ -26,6 +47,7 @@ export function useResponsiveAtlas(containerRef: RefObject<HTMLElement | null>):
     particleSizeBoost: 1,
     containerSize: REFERENCE_SIZE,
     tier: 'high',
+    useCompactMode: false,
   });
 
   useEffect(() => {
@@ -55,12 +77,16 @@ export function useResponsiveAtlas(containerRef: RefObject<HTMLElement | null>):
         tierConfig = SIZE_TIERS.ultra;
       }
 
+      // Auto-enable compact mode for small containers
+      const useCompactMode = tier === 'low';
+
       setScale({
         sizeMultiplier,
         particleMultiplier: tierConfig.particleMultiplier,
         particleSizeBoost: tierConfig.sizeBoost,
         containerSize: size,
         tier,
+        useCompactMode,
       });
     };
 
