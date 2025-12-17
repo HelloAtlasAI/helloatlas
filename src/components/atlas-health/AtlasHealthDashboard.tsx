@@ -8,7 +8,8 @@ import {
   Zap, 
   Database,
   Search,
-  RefreshCw
+  RefreshCw,
+  Bot
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -17,15 +18,23 @@ import { KnowledgeBankPanel } from './KnowledgeBankPanel';
 import { ErrorLogStream } from './ErrorLogStream';
 import { ResearchExplorer } from './ResearchExplorer';
 import { LearningFlowVisualization } from './LearningFlowVisualization';
+import { AgentRunsPanel } from './AgentRunsPanel';
+import { ToolCallsPanel } from './ToolCallsPanel';
+import { ApprovalsQueuePanel } from './ApprovalsQueuePanel';
+import { SchedulesPanel } from './SchedulesPanel';
+import { SystemStatusPanel } from './SystemStatusPanel';
+import { AgentConfigPanel } from './AgentConfigPanel';
 import { useAtlasHealth } from '@/hooks/useAtlasHealth';
 import { useAtlasKnowledge } from '@/hooks/useAtlasKnowledge';
 import { useAtlasResearch } from '@/hooks/useAtlasResearch';
+import { useApprovals } from '@/hooks/useApprovals';
 
 const AtlasHealthDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const { stats, isLoading: statsLoading, refetch: refetchStats } = useAtlasHealth();
   const { knowledge, isLoading: knowledgeLoading } = useAtlasKnowledge();
   const { topics, isLoading: researchLoading, startResearch } = useAtlasResearch();
+  const { pendingCount } = useApprovals();
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -70,7 +79,7 @@ const AtlasHealthDashboard = () => {
             value={`${stats?.errorRate ?? 0}%`}
             icon={AlertTriangle}
             trend={stats?.errorTrend}
-            color={stats?.errorRate > 5 ? 'destructive' : 'accent'}
+            color={stats?.errorRate && stats.errorRate > 5 ? 'destructive' : 'accent'}
           />
           <AtlasStatsCard
             title="System Health"
@@ -83,11 +92,20 @@ const AtlasHealthDashboard = () => {
         {/* Main Content Tabs */}
         <motion.div variants={itemVariants}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 overflow-x-auto">
               <TabsList className="glass-card">
                 <TabsTrigger value="overview" className="flex items-center gap-2">
                   <Activity className="w-4 h-4" />
                   Overview
+                </TabsTrigger>
+                <TabsTrigger value="agent" className="flex items-center gap-2 relative">
+                  <Bot className="w-4 h-4" />
+                  Agent
+                  {pendingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 text-background text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {pendingCount}
+                    </span>
+                  )}
                 </TabsTrigger>
                 <TabsTrigger value="knowledge" className="flex items-center gap-2">
                   <Brain className="w-4 h-4" />
@@ -111,7 +129,7 @@ const AtlasHealthDashboard = () => {
                 variant="outline" 
                 size="sm" 
                 onClick={() => refetchStats()}
-                className="glass-card"
+                className="glass-card ml-2 flex-shrink-0"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
@@ -146,6 +164,28 @@ const AtlasHealthDashboard = () => {
                   Recent Errors
                 </h3>
                 <ErrorLogStream compact limit={5} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="agent" className="space-y-6">
+              {/* Agent Config + System Status */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <AgentConfigPanel />
+                </div>
+                <SystemStatusPanel />
+              </div>
+              
+              {/* Runs + Approvals */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <AgentRunsPanel />
+                <ApprovalsQueuePanel />
+              </div>
+              
+              {/* Tool Calls + Schedules */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ToolCallsPanel />
+                <SchedulesPanel />
               </div>
             </TabsContent>
 
