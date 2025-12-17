@@ -426,11 +426,18 @@ const Dashboard = () => {
       />
       
       <main className="relative z-10 w-full px-4 sm:px-6 lg:px-8 py-6">
-        {/* Mosaic Grid Layout - Dynamic sizing with minmax */}
+        {/* Mosaic Grid Layout - Dense auto-fill for optimal space usage */}
         <AnimatePresence mode="wait">
           {!expandedCard ? (
         <LayoutGroup>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5 auto-rows-[minmax(140px,auto)] w-full">
+        <div 
+          className="grid gap-5 w-full"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gridAutoRows: 'minmax(140px, auto)',
+            gridAutoFlow: 'dense',
+          }}
+        >
           {/* Atlas AI Interface - Spans 2 columns, fixed height */}
           <motion.div 
             layoutId="card-assistant"
