@@ -15,11 +15,16 @@ interface GPUParticleSystemProps {
   rotationSpeed?: number;
   enableTurbulence?: boolean;
   turbulenceAmplitude?: number;
+  turbulenceFrequency?: number;
+  turbulenceSpeed?: number;
   enableMouseInteraction?: boolean;
   mouseMode?: 'attract' | 'repulse';
   mouseStrength?: number;
   mouseInfluenceRadius?: number;
   mousePosition: MutableRefObject<{ x: number; y: number; active: boolean }>;
+  fluidCohesion?: number;
+  surfaceTension?: number;
+  fluidFlow?: number;
 }
 
 export const GPUParticleSystem = memo(({
@@ -32,11 +37,16 @@ export const GPUParticleSystem = memo(({
   rotationSpeed = 0.5,
   enableTurbulence = true,
   turbulenceAmplitude = 0.08,
+  turbulenceFrequency = 0.5,
+  turbulenceSpeed = 0.3,
   enableMouseInteraction = true,
   mouseMode = 'attract',
   mouseStrength = 0.5,
   mouseInfluenceRadius = 2.5,
   mousePosition,
+  fluidCohesion = 0,
+  surfaceTension = 0.5,
+  fluidFlow = 0.3,
 }: GPUParticleSystemProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
@@ -96,6 +106,8 @@ export const GPUParticleSystem = memo(({
       uParticleSize: { value: particleSize },
       uDensity: { value: density },
       uTurbulenceAmplitude: { value: turbulenceAmplitude },
+      uTurbulenceFrequency: { value: turbulenceFrequency },
+      uTurbulenceSpeed: { value: turbulenceSpeed },
       uEnableTurbulence: { value: enableTurbulence ? 1.0 : 0.0 },
       uMousePos: { value: new THREE.Vector3(0, 0, 0) },
       uMouseActive: { value: 0.0 },
@@ -104,6 +116,9 @@ export const GPUParticleSystem = memo(({
       uMouseMode: { value: mouseMode === 'attract' ? 1.0 : -1.0 },
       uColor: { value: initialConfig.primary.clone() },
       uOpacity: { value: 0.85 },
+      uFluidCohesion: { value: fluidCohesion },
+      uSurfaceTension: { value: surfaceTension },
+      uFluidFlow: { value: fluidFlow },
     };
     // Intentionally initialize once for performance; runtime updates happen in useFrame.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,10 +142,15 @@ export const GPUParticleSystem = memo(({
     u.uParticleSize.value = particleSize;
     u.uDensity.value = density;
     u.uTurbulenceAmplitude.value = turbulenceAmplitude;
+    u.uTurbulenceFrequency.value = turbulenceFrequency;
+    u.uTurbulenceSpeed.value = turbulenceSpeed;
     u.uEnableTurbulence.value = enableTurbulence ? 1.0 : 0.0;
     u.uMouseStrength.value = mouseStrength;
     u.uMouseRadius.value = mouseInfluenceRadius;
     u.uMouseMode.value = mouseMode === 'attract' ? 1.0 : -1.0;
+    u.uFluidCohesion.value = fluidCohesion;
+    u.uSurfaceTension.value = surfaceTension;
+    u.uFluidFlow.value = fluidFlow;
 
     // Mouse - update every frame when active
     if (enableMouseInteraction && mousePosition?.current?.active) {

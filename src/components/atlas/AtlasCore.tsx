@@ -113,6 +113,8 @@ const ParticleSystem = memo(({
   rippleCount = 2,
   enableTurbulence = true,
   turbulenceAmplitude = 0.06,
+  turbulenceFrequency = 0.5,
+  turbulenceSpeed = 0.3,
   enableMouseInteraction = true,
   mouseMode = 'attract' as const,
   mouseStrength = 0.4,
@@ -124,8 +126,11 @@ const ParticleSystem = memo(({
   coreIntensity = 1.0,
   corePulseSpeed = 1.5,
   coreRotationOffset = -0.5,
+  fluidCohesion = 0,
+  surfaceTension = 0.5,
+  fluidFlow = 0.3,
   mousePosition
-}: Omit<AtlasCoreProps, 'audioLevel'> & { 
+}: Omit<AtlasCoreProps, 'audioLevel'> & {
   audioLevelRef: MutableRefObject<number>;
   mousePosition: MutableRefObject<{ x: number; y: number; active: boolean }>;
 }) => {
@@ -166,11 +171,16 @@ const ParticleSystem = memo(({
         rotationSpeed={rotationSpeed}
         enableTurbulence={enableTurbulence}
         turbulenceAmplitude={turbulenceAmplitude}
+        turbulenceFrequency={turbulenceFrequency}
+        turbulenceSpeed={turbulenceSpeed}
         enableMouseInteraction={enableMouseInteraction}
         mouseMode={mouseMode}
         mouseStrength={mouseStrength}
         mouseInfluenceRadius={mouseInfluenceRadius}
         mousePosition={mousePosition}
+        fluidCohesion={fluidCohesion}
+        surfaceTension={surfaceTension}
+        fluidFlow={fluidFlow}
       />
 
       {/* GPU-based core system */}
@@ -305,6 +315,8 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           rippleCount={rippleCount}
           enableTurbulence={enableTurbulence}
           turbulenceAmplitude={turbulenceAmplitude}
+          turbulenceFrequency={turbulenceFrequency}
+          turbulenceSpeed={turbulenceSpeed}
           enableMouseInteraction={enableMouseInteraction}
           mouseMode={mouseMode}
           mouseStrength={mouseStrength}
@@ -316,6 +328,9 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           coreIntensity={coreIntensity}
           corePulseSpeed={corePulseSpeed}
           coreRotationOffset={coreRotationOffset}
+          fluidCohesion={fluidCohesion}
+          surfaceTension={surfaceTension}
+          fluidFlow={fluidFlow}
           mousePosition={mousePositionRef}
         />
         
