@@ -54,8 +54,8 @@ const AtlasInterfaceComponent = ({
   }, [canActivate, onManualActivate]);
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center gap-4 px-4">
-      {/* Atlas Core Sphere - container with overflow visible for glow */}
+    <div className="relative w-full h-full flex items-center justify-center">
+      {/* Atlas Core Sphere - centered container with overflow visible for glow */}
       <motion.div 
         className={`relative flex-shrink-0 w-[140px] h-[140px] z-10 ${canActivate ? 'cursor-pointer' : ''}`}
         onClick={handleClick}
@@ -83,20 +83,6 @@ const AtlasInterfaceComponent = ({
             className="w-full h-full"
           />
         </div>
-        
-        {/* Click hint - show when dormant/passive and hint is visible */}
-        <AnimatePresence>
-          {showHint && canActivate && isSupported && (
-            <motion.p
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap"
-            >
-              Click or say "Atlas"
-            </motion.p>
-          )}
-        </AnimatePresence>
       </motion.div>
 
       {/* Status and info - to the right */}
