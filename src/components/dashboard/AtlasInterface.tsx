@@ -46,15 +46,20 @@ const AtlasInterfaceComponent = ({
   }, [state]);
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center gap-4 px-4 overflow-hidden">
-      {/* Atlas Core Sphere - responsive sizing with particle optimization */}
-      <UnifiedAtlasSphere 
-        state={state}
-        audioLevel={audioLevel}
-        overrideMorphProgress={1.0} // Always show sphere shape on dashboard
-        responsive={true} // Enable dynamic particle scaling
-        className="relative flex-shrink-0 w-full h-full max-w-[420px] max-h-[420px] aspect-square z-10"
-      />
+    <div className="relative w-full h-full flex items-center justify-center gap-4 px-4">
+      {/* Atlas Core Sphere - responsive sizing with extended canvas for glow */}
+      <div className="relative flex-shrink-0 w-full h-full max-w-[200px] max-h-[200px] aspect-square z-10">
+        {/* Extended canvas container for glow effect - overflow visible */}
+        <div className="absolute inset-[-50%] pointer-events-none">
+          <UnifiedAtlasSphere 
+            state={state}
+            audioLevel={audioLevel}
+            overrideMorphProgress={1.0}
+            responsive={true}
+            className="w-full h-full"
+          />
+        </div>
+      </div>
 
       {/* Status and info - to the right */}
       <div className="flex flex-col items-start justify-center gap-1 flex-1 min-w-0">
