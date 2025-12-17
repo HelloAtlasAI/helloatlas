@@ -17,27 +17,227 @@ interface ToolCallRequest {
 // Define which tools are considered risky and require approval
 const RISKY_TOOLS = ["file_write", "shell_exec", "api_call", "database_write", "send_email"];
 
+// Model configuration for different providers
+const PROVIDERS = {
+  perplexity: {
+    url: "https://api.perplexity.ai/chat/completions",
+    models: {
+      fast: "sonar",
+      deep: "sonar-pro",
+      reasoning: "sonar-reasoning",
+    }
+  },
+  lovable: {
+    url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+    models: {
+      fast: "google/gemini-2.5-flash",
+      standard: "google/gemini-2.5-pro",
+      reasoning: "openai/gpt-5",
+    }
+  },
+  jina: {
+    url: "https://r.jina.ai",
+  }
+};
+
 // Tool implementations
 const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: any) => Promise<unknown>> = {
+  // Web search using Perplexity Sonar (fast, grounded search with citations)
   web_search: async (args) => {
     const query = args.query as string;
-    // Use Lovable AI for search via Perplexity-style response
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+    
+    if (!PERPLEXITY_API_KEY) {
+      console.log("[web_search] Perplexity API key not configured, falling back to Lovable AI");
+      // Fallback to Lovable AI
+      const response = await fetch(PROVIDERS.lovable.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: PROVIDERS.lovable.models.fast,
+          messages: [
+            { role: "system", content: "You are a web search assistant. Provide accurate, well-structured information based on your training data. Always be clear about the limitations of your knowledge." },
+            { role: "user", content: `Search and summarize information about: ${query}` },
+          ],
+        }),
+      });
+      const data = await response.json();
+      return { 
+        result: data.choices?.[0]?.message?.content || "No results found",
+        citations: [],
+        provider: "lovable_fallback"
+      };
+    }
+
+    console.log(`[web_search] Searching with Perplexity sonar: ${query}`);
+    
+    const response = await fetch(PROVIDERS.perplexity.url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
+        Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: PROVIDERS.perplexity.models.fast,
         messages: [
-          { role: "system", content: "You are a web search assistant. Provide accurate, cited information." },
-          { role: "user", content: `Search and summarize: ${query}` },
+          { role: "system", content: "Be precise and concise. Provide well-sourced information." },
+          { role: "user", content: query },
         ],
       }),
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[web_search] Perplexity API error:", errorText);
+      throw new Error(`Search failed: ${response.status}`);
+    }
+
     const data = await response.json();
-    return { result: data.choices?.[0]?.message?.content || "No results found" };
+    return { 
+      result: data.choices?.[0]?.message?.content || "No results found",
+      citations: data.citations || [],
+      provider: "perplexity_sonar"
+    };
+  },
+
+  // Deep research using Perplexity Sonar Pro (multi-step reasoning, 2x citations)
+  deep_research: async (args) => {
+    const topic = args.topic as string;
+    const depth = (args.depth as string) || "comprehensive";
+    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+    
+    if (!PERPLEXITY_API_KEY) {
+      console.log("[deep_research] Perplexity API key not configured, falling back to Lovable AI");
+      const response = await fetch(PROVIDERS.lovable.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: PROVIDERS.lovable.models.standard,
+          messages: [
+            { role: "system", content: "You are an expert researcher. Provide comprehensive, well-organized research findings with clear sections for key insights, supporting evidence, and conclusions." },
+            { role: "user", content: `Research thoroughly: ${topic}\n\nProvide a ${depth} analysis.` },
+          ],
+        }),
+      });
+      const data = await response.json();
+      return { 
+        result: data.choices?.[0]?.message?.content || "Research failed",
+        citations: [],
+        provider: "lovable_fallback"
+      };
+    }
+
+    console.log(`[deep_research] Deep research with Perplexity sonar-pro: ${topic}`);
+    
+    const response = await fetch(PROVIDERS.perplexity.url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: PROVIDERS.perplexity.models.deep,
+        messages: [
+          { 
+            role: "system", 
+            content: "You are an expert research assistant. Provide comprehensive, well-sourced research with detailed analysis. Structure your response with clear sections." 
+          },
+          { 
+            role: "user", 
+            content: `Research this topic thoroughly: ${topic}\n\nDepth level: ${depth}\n\nProvide:\n1. Key findings and insights\n2. Supporting evidence\n3. Different perspectives if applicable\n4. Conclusions and implications` 
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[deep_research] Perplexity API error:", errorText);
+      throw new Error(`Research failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { 
+      result: data.choices?.[0]?.message?.content || "Research failed",
+      citations: data.citations || [],
+      provider: "perplexity_sonar_pro"
+    };
+  },
+
+  // Web scraping using Jina AI Reader (free, no API key required)
+  web_scrape: async (args) => {
+    const url = args.url as string;
+    
+    if (!url || !url.startsWith("http")) {
+      throw new Error("Invalid URL provided");
+    }
+
+    console.log(`[web_scrape] Scraping with Jina Reader: ${url}`);
+    
+    // Jina AI Reader - converts any URL to clean markdown
+    const jinaUrl = `${PROVIDERS.jina.url}/${url}`;
+    
+    const response = await fetch(jinaUrl, {
+      method: "GET",
+      headers: {
+        "Accept": "text/markdown",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[web_scrape] Jina Reader error:", errorText);
+      throw new Error(`Scraping failed: ${response.status}`);
+    }
+
+    const markdown = await response.text();
+    
+    return { 
+      content: markdown,
+      url: url,
+      content_type: "markdown",
+      provider: "jina_reader",
+      length: markdown.length
+    };
+  },
+
+  // Combined search + scrape for comprehensive results
+  deep_search: async (args, supabase) => {
+    const query = args.query as string;
+    const scrapeFirst = args.scrape_results as boolean || false;
+    
+    console.log(`[deep_search] Combined search + scrape for: ${query}`);
+    
+    // First, perform web search
+    const searchResult = await AVAILABLE_TOOLS.web_search({ query }, supabase) as { result: string; citations: string[] };
+    
+    // If scrape_results is true and we have citations, scrape the first few
+    let scrapedContent: { url: string; content: string }[] = [];
+    if (scrapeFirst && searchResult.citations && searchResult.citations.length > 0) {
+      const urlsToScrape = searchResult.citations.slice(0, 3); // Scrape top 3 sources
+      
+      for (const url of urlsToScrape) {
+        try {
+          const scraped = await AVAILABLE_TOOLS.web_scrape({ url }, supabase) as { content: string; url: string };
+          scrapedContent.push({ url, content: scraped.content.slice(0, 5000) }); // Limit content length
+        } catch (e) {
+          console.log(`[deep_search] Failed to scrape ${url}:`, e);
+        }
+      }
+    }
+    
+    return {
+      search_result: searchResult.result,
+      citations: searchResult.citations,
+      scraped_sources: scrapedContent,
+      provider: "combined"
+    };
   },
   
   calculate: async (args) => {
@@ -181,6 +381,12 @@ serve(async (req) => {
     // Determine if tool requires approval
     const requiresApproval = RISKY_TOOLS.includes(tool_name) && settings?.require_approval_for_risky;
 
+    // Estimate cost based on tool type
+    let costEstimate = 0.001;
+    if (tool_name === "deep_research") costEstimate = 0.01;
+    else if (tool_name === "web_search") costEstimate = 0.005;
+    else if (tool_name === "deep_search") costEstimate = 0.015;
+
     // Create tool_call record
     const { data: toolCall, error: insertError } = await supabase
       .from("tool_calls")
@@ -192,7 +398,7 @@ serve(async (req) => {
         args_json: args,
         status: requiresApproval ? "awaiting_approval" : "running",
         requires_approval: requiresApproval,
-        cost_estimate: 0.001, // Estimated cost per call
+        cost_estimate: costEstimate,
       })
       .select()
       .single();

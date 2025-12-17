@@ -16,6 +16,7 @@ interface ResearchFinding {
   summary: string;
   details: string;
   confidence: number;
+  source_url?: string;
 }
 
 interface SubTopic {
@@ -24,21 +25,159 @@ interface SubTopic {
   priority: number;
 }
 
-// Perform AI-powered research on a topic
+interface PerplexityResponse {
+  choices: Array<{
+    message: {
+      content: string;
+      tool_calls?: Array<{
+        function: {
+          arguments: string;
+        };
+      }>;
+    };
+  }>;
+  citations?: string[];
+}
+
+// Provider configuration
+const PROVIDERS = {
+  perplexity: {
+    url: "https://api.perplexity.ai/chat/completions",
+    model: "sonar-pro", // Deep research model with 2x citations
+  },
+  lovable: {
+    url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+    model: "google/gemini-2.5-flash",
+  },
+};
+
+// Perform research using Perplexity or fallback to Lovable AI
 async function researchTopic(
   topic: string,
   description: string | null,
   depth: number,
-  apiKey: string
-): Promise<{ findings: ResearchFinding[]; subTopics: SubTopic[] }> {
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  perplexityKey: string | null,
+  lovableKey: string
+): Promise<{ findings: ResearchFinding[]; subTopics: SubTopic[]; citations: string[] }> {
+  
+  // Try Perplexity first for grounded research with real citations
+  if (perplexityKey) {
+    console.log(`[atlas-research] Using Perplexity sonar-pro for: ${topic}`);
+    
+    try {
+      const response = await fetch(PROVIDERS.perplexity.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${perplexityKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: PROVIDERS.perplexity.model,
+          messages: [
+            {
+              role: "system",
+              content: `You are Atlas, an expert research AI. Your task is to research topics deeply and provide comprehensive, well-sourced findings.
+
+When researching:
+1. Generate 3-5 key findings with detailed insights
+2. Provide specific, factual information with high confidence
+3. Identify 2-4 sub-topics that warrant deeper investigation (only if depth < 3)
+
+Current research depth: ${depth} (0 = root topic, higher = more specific)
+
+Be thorough, accurate, and cite specific facts and figures when available.`
+            },
+            {
+              role: "user",
+              content: `Research this topic comprehensively: "${topic}"${description ? `\n\nContext: ${description}` : ''}
+
+Provide your findings in this exact JSON format:
+{
+  "findings": [
+    {
+      "title": "Finding title",
+      "summary": "One-sentence summary",
+      "details": "Detailed explanation with specific facts",
+      "confidence": 0.85
+    }
+  ],
+  "subTopics": [
+    {
+      "topic": "Sub-topic to research",
+      "description": "Why this is worth exploring",
+      "priority": 8
+    }
+  ]
+}
+
+Only include subTopics if depth < 3. Be precise and factual.`
+            }
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[atlas-research] Perplexity API error:", errorText);
+        throw new Error(`Perplexity API failed: ${response.status}`);
+      }
+
+      const data: PerplexityResponse = await response.json();
+      const content = data.choices?.[0]?.message?.content || "";
+      const citations = data.citations || [];
+
+      console.log(`[atlas-research] Perplexity response received, citations: ${citations.length}`);
+
+      // Parse the JSON response
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          
+          // Add citations to findings
+          const findingsWithSources = (parsed.findings || []).map((f: ResearchFinding, idx: number) => ({
+            ...f,
+            source_url: citations[idx] || citations[0] || null
+          }));
+
+          return {
+            findings: findingsWithSources,
+            subTopics: depth < 3 ? (parsed.subTopics || []) : [],
+            citations
+          };
+        }
+      } catch (parseError) {
+        console.error("[atlas-research] Failed to parse Perplexity response:", parseError);
+      }
+
+      // If parsing failed, create a single finding from the content
+      return {
+        findings: [{
+          title: topic,
+          summary: content.slice(0, 200),
+          details: content,
+          confidence: 0.8,
+          source_url: citations[0] || undefined
+        }],
+        subTopics: [],
+        citations
+      };
+    } catch (perplexityError) {
+      console.error("[atlas-research] Perplexity failed, falling back to Lovable AI:", perplexityError);
+    }
+  }
+
+  // Fallback to Lovable AI with tool calling
+  console.log(`[atlas-research] Using Lovable AI for: ${topic}`);
+  
+  const response = await fetch(PROVIDERS.lovable.url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${lovableKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: PROVIDERS.lovable.model,
       messages: [
         {
           role: "system",
@@ -109,7 +248,7 @@ Provide:
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("Research API failed:", errorText);
+    console.error("[atlas-research] Lovable AI failed:", errorText);
     throw new Error(`Research failed: ${errorText}`);
   }
 
@@ -121,14 +260,15 @@ Provide:
       const parsed = JSON.parse(toolCall.function.arguments);
       return {
         findings: parsed.findings || [],
-        subTopics: parsed.subTopics || []
+        subTopics: depth < 3 ? (parsed.subTopics || []) : [],
+        citations: []
       };
     }
   } catch (e) {
-    console.error("Failed to parse research:", e);
+    console.error("[atlas-research] Failed to parse Lovable AI response:", e);
   }
 
-  return { findings: [], subTopics: [] };
+  return { findings: [], subTopics: [], citations: [] };
 }
 
 serve(async (req) => {
@@ -140,6 +280,7 @@ serve(async (req) => {
     const { topicId, action, topic, description, userId, autoDeepen = true, maxDepth = 3 } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -148,6 +289,9 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Log provider being used
+    console.log(`[atlas-research] Provider: ${PERPLEXITY_API_KEY ? 'Perplexity sonar-pro' : 'Lovable AI (fallback)'}`);
 
     // Handle different actions
     if (action === "start" || action === "resume") {
@@ -162,7 +306,7 @@ serve(async (req) => {
         throw new Error("Topic not found");
       }
 
-      console.log(`Starting research on: ${topicData.topic} (depth: ${topicData.depth_level})`);
+      console.log(`[atlas-research] Starting research on: ${topicData.topic} (depth: ${topicData.depth_level})`);
 
       // Update status to researching
       await supabase
@@ -171,28 +315,30 @@ serve(async (req) => {
         .eq("id", topicId);
 
       // Perform research
-      const { findings, subTopics } = await researchTopic(
+      const { findings, subTopics, citations } = await researchTopic(
         topicData.topic,
         topicData.description,
         topicData.depth_level,
+        PERPLEXITY_API_KEY || null,
         LOVABLE_API_KEY
       );
 
-      console.log(`Research complete: ${findings.length} findings, ${subTopics.length} sub-topics`);
+      console.log(`[atlas-research] Research complete: ${findings.length} findings, ${subTopics.length} sub-topics, ${citations.length} citations`);
 
-      // Update topic with findings
+      // Update topic with findings and sources
       const { error: updateError } = await supabase
         .from("atlas_research_topics")
         .update({
           status: "completed",
           findings: findings,
+          sources: citations.map(url => ({ url, accessed_at: new Date().toISOString() })),
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq("id", topicId);
 
       if (updateError) {
-        console.error("Failed to update topic:", updateError);
+        console.error("[atlas-research] Failed to update topic:", updateError);
       }
 
       // Store findings as knowledge entries
@@ -202,16 +348,38 @@ serve(async (req) => {
           .map(f => ({
             user_id: topicData.user_id || null,
             topic: f.title,
-            content: { summary: f.summary, details: f.details },
+            content: { 
+              summary: f.summary, 
+              details: f.details,
+              source_url: f.source_url 
+            },
             category: "research_finding",
-            source: `research:${topicData.topic}`,
+            source: f.source_url || `research:${topicData.topic}`,
             confidence: f.confidence,
             relevance_score: f.confidence
           }));
 
         if (knowledgeEntries.length > 0) {
           await supabase.from("atlas_knowledge_entries").insert(knowledgeEntries);
-          console.log(`Stored ${knowledgeEntries.length} knowledge entries`);
+          console.log(`[atlas-research] Stored ${knowledgeEntries.length} knowledge entries`);
+        }
+      }
+
+      // Store citations as research citations
+      if (citations.length > 0) {
+        const citationEntries = citations.map(url => ({
+          user_id: topicData.user_id || null,
+          research_topic_id: topicId,
+          url,
+          domain: new URL(url).hostname,
+          citation_type: "web",
+          credibility_score: 0.7, // Default score, could be improved with domain analysis
+          accessed_at: new Date().toISOString()
+        }));
+
+        const { error: citationError } = await supabase.from("research_citations").insert(citationEntries);
+        if (!citationError) {
+          console.log(`[atlas-research] Stored ${citationEntries.length} citations`);
         }
       }
 
@@ -236,9 +404,9 @@ serve(async (req) => {
           .select();
 
         if (subError) {
-          console.error("Failed to create sub-topics:", subError);
+          console.error("[atlas-research] Failed to create sub-topics:", subError);
         } else if (createdSubTopics) {
-          console.log(`Created ${createdSubTopics.length} sub-topics`);
+          console.log(`[atlas-research] Created ${createdSubTopics.length} sub-topics`);
 
           // Queue up research for sub-topics (process top priority first)
           for (const subTopic of createdSubTopics.slice(0, 2)) {
@@ -256,7 +424,7 @@ serve(async (req) => {
                   autoDeepen: true,
                   maxDepth
                 })
-              }).catch(e => console.error("Sub-topic research failed:", e))
+              }).catch(e => console.error("[atlas-research] Sub-topic research failed:", e))
             );
           }
         }
@@ -266,7 +434,9 @@ serve(async (req) => {
         JSON.stringify({ 
           success: true, 
           findings: findings.length,
-          subTopics: subTopics.length
+          subTopics: subTopics.length,
+          citations: citations.length,
+          provider: PERPLEXITY_API_KEY ? "perplexity" : "lovable"
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -294,7 +464,7 @@ serve(async (req) => {
         throw new Error(`Failed to create topic: ${createError.message}`);
       }
 
-      console.log(`Created research topic: ${newTopic.id}`);
+      console.log(`[atlas-research] Created research topic: ${newTopic.id}`);
 
       // Start researching immediately
       EdgeRuntime.waitUntil(
@@ -310,7 +480,7 @@ serve(async (req) => {
             autoDeepen,
             maxDepth
           })
-        }).catch(e => console.error("Research start failed:", e))
+        }).catch(e => console.error("[atlas-research] Research start failed:", e))
       );
 
       return new Response(
@@ -321,7 +491,7 @@ serve(async (req) => {
 
     throw new Error("Invalid action or missing parameters");
   } catch (error) {
-    console.error("Atlas research error:", error);
+    console.error("[atlas-research] Error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       {
