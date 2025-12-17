@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc, Droplets, Orbit, Plus, Trash2, X } from 'lucide-react';
-import { AtlasCore } from '@/components/atlas';
+import { UnifiedAtlasSphere } from '@/components/atlas/UnifiedAtlasSphere';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
@@ -233,73 +233,12 @@ export default function AtlasDemo() {
         {/* Main visualization area */}
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-[280px] h-[280px] flex-shrink-0">
-              <AtlasCore
+            <div className="w-[420px] h-[420px] flex-shrink-0">
+              <UnifiedAtlasSphere
                 state={settings.state}
-                audioLevelRef={audioLevelRef}
-                morphProgress={settings.morphProgress}
-                enableTrails={settings.enableTrails}
-                trailLength={settings.trailLength}
-                trailOpacity={settings.trailOpacity}
-                trailColorGradient={settings.trailColorGradient}
-                trailStartColor={settings.trailStartColor}
-                trailEndColor={settings.trailEndColor}
-                particleCount={settings.particleCount}
-                particleSize={settings.particleSize}
-                density={settings.density}
-                rotationSpeed={settings.rotationSpeed}
-                enableBloom={settings.enableBloom}
-                bloomIntensity={settings.bloomIntensity}
-                morphSpeed={settings.morphSpeed}
-                enableRipples={settings.enableRipples}
-                rippleSpeed={settings.rippleSpeed}
-                rippleCount={settings.rippleCount}
-                enableTurbulence={settings.enableTurbulence}
-                turbulenceFrequency={settings.turbulenceFrequency}
-                turbulenceAmplitude={settings.turbulenceAmplitude}
-                turbulenceSpeed={settings.turbulenceSpeed}
-                enableMouseInteraction={settings.enableMouseInteraction}
-                mouseMode={settings.mouseMode}
-                mouseStrength={settings.mouseStrength}
-                mouseInfluenceRadius={settings.mouseInfluenceRadius}
-                enableCore={settings.enableCore}
-                coreParticleCount={settings.coreParticleCount}
-                coreDensity={settings.coreDensity}
-                coreParticleSize={settings.coreParticleSize}
-                coreIntensity={settings.coreIntensity}
-                corePulseSpeed={settings.corePulseSpeed}
-                coreRotationOffset={settings.coreRotationOffset}
-                fluidCohesion={settings.fluidCohesion}
-                surfaceTension={settings.surfaceTension}
-                fluidFlow={settings.fluidFlow}
-                audioReactivitySpeed={settings.audioReactivitySpeed}
-                visualizationMode={settings.visualizationMode}
-                nebulaFlowStrength={settings.nebulaFlowStrength}
-                nebulaFlowSpeed={settings.nebulaFlowSpeed}
-                nebulaBandCount={settings.nebulaBandCount}
-                nebulaRimIntensity={settings.nebulaRimIntensity}
-                nebulaHotSpotIntensity={settings.nebulaHotSpotIntensity}
-                nebulaBreathingSpeed={settings.nebulaBreathingSpeed}
-                nebulaBreathingAmount={settings.nebulaBreathingAmount}
-                nebulaRadiusNoise={settings.nebulaRadiusNoise}
-                nebulaColorStart={settings.nebulaColorStart}
-                nebulaColorMid={settings.nebulaColorMid}
-                nebulaColorEnd={settings.nebulaColorEnd}
-                nebulaParticleCount={settings.nebulaParticleCount}
-                nebulaParticleSize={settings.nebulaParticleSize}
-                nebulaDensity={settings.nebulaDensity}
-                nebulaRotationSpeed={settings.nebulaRotationSpeed}
-                nebulaStateReactive={settings.nebulaStateReactive}
-                nebulaGlowIntensity={settings.nebulaGlowIntensity}
-                nebulaDepthFade={settings.nebulaDepthFade}
-                nebulaCoreGlow={settings.nebulaCoreGlow}
-                nebulaSolidSurface={settings.nebulaSolidSurface}
-                nebulaSurfaceBlend={settings.nebulaSurfaceBlend}
-                nebulaUniformSize={settings.nebulaUniformSize}
-                nebulaCoherence={settings.nebulaCoherence}
-                nebulaThinkingRetraction={settings.nebulaThinkingRetraction}
-                nebulaAudioBreathingIntensity={settings.nebulaAudioBreathingIntensity}
-                nebulaTransitionSpeed={settings.nebulaTransitionSpeed}
+                audioLevel={displayAudioLevel}
+                responsive={false}
+                className="w-full h-full"
               />
             </div>
           </div>
