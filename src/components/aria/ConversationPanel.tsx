@@ -1,17 +1,79 @@
 import { cn } from "@/lib/utils";
-import { Bot, User } from "lucide-react";
+import { Bot, User, ExternalLink } from "lucide-react";
+
+export interface Citation {
+  url: string;
+  title?: string;
+  domain?: string;
+}
 
 export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  citations?: Citation[];
 }
 
 interface ConversationPanelProps {
   messages: Message[];
   className?: string;
 }
+
+const extractDomain = (url: string): string => {
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return url;
+  }
+};
+
+const getFaviconUrl = (url: string): string => {
+  try {
+    const domain = new URL(url).hostname;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
+  } catch {
+    return '';
+  }
+};
+
+const InlineCitations = ({ citations }: { citations: Citation[] }) => {
+  if (!citations || citations.length === 0) return null;
+  
+  return (
+    <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-border/30">
+      {citations.slice(0, 4).map((citation, idx) => {
+        const domain = citation.domain || extractDomain(citation.url);
+        return (
+          <a
+            key={idx}
+            href={citation.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-primary/10 hover:bg-primary/20 text-primary/80 transition-colors"
+            title={citation.title || citation.url}
+          >
+            <img 
+              src={getFaviconUrl(citation.url)} 
+              alt=""
+              className="w-2.5 h-2.5"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+            <span className="truncate max-w-[60px]">{domain}</span>
+            <ExternalLink className="w-2 h-2 opacity-50" />
+          </a>
+        );
+      })}
+      {citations.length > 4 && (
+        <span className="text-[10px] text-muted-foreground px-1">
+          +{citations.length - 4}
+        </span>
+      )}
+    </div>
+  );
+};
 
 export const ConversationPanel = ({ messages, className }: ConversationPanelProps) => {
   if (messages.length === 0) {
@@ -51,6 +113,9 @@ export const ConversationPanel = ({ messages, className }: ConversationPanelProp
             )}
           >
             {message.content}
+            {message.role === "assistant" && message.citations && message.citations.length > 0 && (
+              <InlineCitations citations={message.citations} />
+            )}
           </div>
 
           {message.role === "user" && (

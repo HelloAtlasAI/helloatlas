@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Message } from "@/components/aria/ConversationPanel";
+import { Message, Citation } from "@/components/aria/ConversationPanel";
 import { AIState } from "@/components/aria/AIOrb";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -22,6 +22,24 @@ const CARD_KEYWORDS: Record<string, string[]> = {
   tasks: ['task', 'todo', 'to-do', 'reminder', 'deadline'],
   notes: ['note', 'notes', 'memo', 'jot'],
   news: ['news', 'headline', 'article', 'breaking'],
+};
+
+// Extract URLs from text and convert to citations
+const extractUrlsAsCitations = (text: string): Citation[] => {
+  const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
+  const matches = text.match(urlRegex) || [];
+  const uniqueUrls = [...new Set(matches)];
+  
+  return uniqueUrls.map(url => ({
+    url,
+    domain: (() => {
+      try {
+        return new URL(url).hostname.replace('www.', '');
+      } catch {
+        return url;
+      }
+    })()
+  }));
 };
 
 export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChatWithMemoryOptions = {}) => {
@@ -62,14 +80,22 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
     detectCardFocus(content);
 
     let assistantContent = "";
+    let collectedCitations: Citation[] = [];
 
-    const updateAssistantMessage = (chunk: string) => {
+    const updateAssistantMessage = (chunk: string, citations?: Citation[]) => {
       assistantContent += chunk;
+      
+      // Extract URLs from content as fallback citations
+      const extractedCitations = extractUrlsAsCitations(assistantContent);
+      const allCitations = citations?.length ? citations : extractedCitations;
+      
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last?.role === "assistant") {
           return prev.map((m, i) =>
-            i === prev.length - 1 ? { ...m, content: assistantContent } : m
+            i === prev.length - 1 
+              ? { ...m, content: assistantContent, citations: allCitations.length > 0 ? allCitations : undefined } 
+              : m
           );
         }
         return [
@@ -79,6 +105,7 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
             role: "assistant" as const,
             content: assistantContent,
             timestamp: new Date(),
+            citations: allCitations.length > 0 ? allCitations : undefined,
           },
         ];
       });
@@ -106,6 +133,7 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
           messages: chatMessages,
           userId: user.id,
           source,
+          enableTools: true,
         }),
       });
 
@@ -151,14 +179,40 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
 
           try {
             const parsed = JSON.parse(jsonStr);
+            
+            // Handle regular content
             const chunkContent = parsed.choices?.[0]?.delta?.content;
             if (chunkContent) {
-              updateAssistantMessage(chunkContent);
+              updateAssistantMessage(chunkContent, collectedCitations);
+            }
+            
+            // Handle custom citations event (if backend sends it)
+            if (parsed.citations) {
+              collectedCitations = parsed.citations.map((c: string | Citation) => 
+                typeof c === 'string' ? { url: c } : c
+              );
+              updateAssistantMessage("", collectedCitations);
             }
           } catch {
             buffer = line + "\n" + buffer;
             break;
           }
+        }
+      }
+
+      // Final update with extracted citations if no explicit citations received
+      if (collectedCitations.length === 0) {
+        const extractedCitations = extractUrlsAsCitations(assistantContent);
+        if (extractedCitations.length > 0) {
+          setMessages((prev) => {
+            const lastIdx = prev.length - 1;
+            if (prev[lastIdx]?.role === "assistant") {
+              return prev.map((m, i) =>
+                i === lastIdx ? { ...m, citations: extractedCitations } : m
+              );
+            }
+            return prev;
+          });
         }
       }
 
