@@ -1,4 +1,4 @@
-import { useRef, memo, useEffect, useState } from 'react';
+import { useRef, memo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { WakeWordState } from '@/hooks/useWakeWord';
@@ -8,6 +8,8 @@ interface Ripple {
   id: number;
   startTime: number;
   color: THREE.Color;
+  scale: number;
+  opacity: number;
 }
 
 interface RippleSystemProps {
@@ -17,8 +19,10 @@ interface RippleSystemProps {
   rippleCount: number;
 }
 
+const MAX_RIPPLES = 6;
+
 /**
- * Ring ripples that expand on state changes
+ * Ref-based ring ripples - no React state re-renders
  */
 export const RippleSystem = memo(({ 
   state,
@@ -26,74 +30,102 @@ export const RippleSystem = memo(({
   rippleSpeed,
   rippleCount
 }: RippleSystemProps) => {
-  const [ripples, setRipples] = useState<Ripple[]>([]);
   const prevStateRef = useRef(state);
   const rippleIdRef = useRef(0);
-  const ripplesRef = useRef<THREE.Group>(null);
-  const materialsRef = useRef<Map<number, THREE.MeshBasicMaterial>>(new Map());
+  const ripplesRef = useRef<Ripple[]>([]);
+  const meshRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const materialRefs = useRef<(THREE.MeshBasicMaterial | null)[]>([]);
+  const groupRef = useRef<THREE.Group>(null);
   
   const config = STATE_CONFIGS[state];
 
-  // Trigger ripples on state change
+  // Initialize mesh refs array
+  useEffect(() => {
+    meshRefs.current = new Array(MAX_RIPPLES).fill(null);
+    materialRefs.current = new Array(MAX_RIPPLES).fill(null);
+  }, []);
+
+  // Trigger ripples on state change - no setState!
   useEffect(() => {
     if (prevStateRef.current !== state && enabled) {
-      const newRipples: Ripple[] = [];
-      for (let i = 0; i < rippleCount; i++) {
+      const now = performance.now() / 1000;
+      const count = Math.min(rippleCount, 2); // Limit ripples
+      
+      for (let i = 0; i < count; i++) {
         rippleIdRef.current++;
-        newRipples.push({
+        ripplesRef.current.push({
           id: rippleIdRef.current,
-          startTime: performance.now() / 1000 + i * 0.15,
-          color: config.primary.clone()
+          startTime: now + i * 0.15,
+          color: config.primary.clone(),
+          scale: 0.5,
+          opacity: 0.6
         });
       }
-      setRipples(prev => [...prev.slice(-5), ...newRipples]);
+      
+      // Keep only recent ripples
+      if (ripplesRef.current.length > MAX_RIPPLES) {
+        ripplesRef.current = ripplesRef.current.slice(-MAX_RIPPLES);
+      }
+      
       prevStateRef.current = state;
     }
   }, [state, enabled, rippleCount, config.primary]);
 
-  // Clean up old ripples
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = performance.now() / 1000;
-      setRipples(prev => prev.filter(r => now - r.startTime < 2));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   useFrame(({ clock }) => {
-    if (!ripplesRef.current) return;
+    const now = clock.getElapsedTime();
+    const toRemove: number[] = [];
     
-    ripplesRef.current.children.forEach((child, index) => {
-      const ripple = ripples[index];
-      if (!ripple) return;
+    ripplesRef.current.forEach((ripple, index) => {
+      const elapsed = now - ripple.startTime;
+      if (elapsed < 0) return; // Not started yet
       
-      const elapsed = clock.getElapsedTime() - ripple.startTime;
       const progress = Math.min(elapsed * rippleSpeed, 1);
       
-      const radius = 0.5 + progress * 3.5;
-      child.scale.setScalar(radius);
+      if (progress >= 1) {
+        toRemove.push(index);
+        return;
+      }
       
-      const material = materialsRef.current.get(ripple.id);
-      if (material) {
-        material.opacity = (1 - progress) * 0.6;
+      // Update mesh directly
+      const mesh = meshRefs.current[index];
+      const material = materialRefs.current[index];
+      
+      if (mesh && material) {
+        const radius = 0.5 + progress * 3;
+        mesh.scale.setScalar(radius);
+        mesh.visible = true;
+        material.opacity = (1 - progress) * 0.5;
+        material.color.copy(ripple.color);
       }
     });
+    
+    // Remove completed ripples
+    if (toRemove.length > 0) {
+      toRemove.reverse().forEach(idx => {
+        ripplesRef.current.splice(idx, 1);
+        const mesh = meshRefs.current[idx];
+        if (mesh) mesh.visible = false;
+      });
+    }
   });
 
-  if (!enabled || ripples.length === 0) return null;
+  if (!enabled) return null;
 
   return (
-    <group ref={ripplesRef}>
-      {ripples.map((ripple) => (
-        <mesh key={ripple.id} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[1, 0.02, 8, 64]} />
+    <group ref={groupRef}>
+      {Array.from({ length: MAX_RIPPLES }).map((_, i) => (
+        <mesh 
+          key={i} 
+          ref={(el) => { meshRefs.current[i] = el; }}
+          rotation={[Math.PI / 2, 0, 0]}
+          visible={false}
+        >
+          <torusGeometry args={[1, 0.015, 6, 32]} />
           <meshBasicMaterial
-            ref={(mat) => {
-              if (mat) materialsRef.current.set(ripple.id, mat);
-            }}
-            color={ripple.color}
+            ref={(el) => { materialRefs.current[i] = el; }}
+            color={config.primary}
             transparent
-            opacity={0.6}
+            opacity={0}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
           />

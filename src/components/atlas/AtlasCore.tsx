@@ -47,14 +47,14 @@ export interface AtlasCoreProps {
   audioReactivitySpeed?: number;
 }
 
-// Bloom wrapper component
+// Bloom wrapper - lower quality for performance
 const BloomEffect = memo(({ intensity }: { intensity: number }) => (
-  <EffectComposer>
+  <EffectComposer multisampling={0}>
     <Bloom
       intensity={intensity}
-      luminanceThreshold={0.15}
-      luminanceSmoothing={0.95}
-      radius={1.0}
+      luminanceThreshold={0.2}
+      luminanceSmoothing={0.9}
+      radius={0.8}
       mipmapBlur
     />
   </EffectComposer>
@@ -92,44 +92,37 @@ const CSSFallbackOrb = memo(({ state, audioLevel }: { state: WakeWordState; audi
 
 CSSFallbackOrb.displayName = 'CSSFallbackOrb';
 
-// ParticleSystem - orchestrates all particle systems
+// ParticleSystem - orchestrates all systems
 const ParticleSystem = memo(({
   state,
   audioLevel,
   morphProgress = 1,
-  enableTrails = true,
-  trailLength = 6,
-  trailOpacity = 0.5,
+  enableTrails = false,
+  trailLength = 4,
+  trailOpacity = 0.4,
   trailColorGradient = true,
   trailStartColor = '#ff9500',
   trailEndColor = '#1a0a2e',
-  particleCount = 5000,
+  particleCount = 1500,
   particleSize = 0.08,
   density = 1.0,
   rotationSpeed = 0.5,
-  morphSpeed = 1.5,
   enableRipples = true,
   rippleSpeed = 1.5,
   rippleCount = 2,
   enableTurbulence = true,
-  turbulenceFrequency = 0.5,
-  turbulenceAmplitude = 0.08,
-  turbulenceSpeed = 0.3,
+  turbulenceAmplitude = 0.06,
   enableMouseInteraction = true,
   mouseMode = 'attract' as const,
-  mouseStrength = 0.5,
-  mouseInfluenceRadius = 2.5,
+  mouseStrength = 0.4,
+  mouseInfluenceRadius = 2.0,
   enableCore = true,
-  coreParticleCount = 400,
+  coreParticleCount = 120,
   coreDensity = 0.25,
   coreParticleSize = 0.04,
-  coreIntensity = 1.2,
+  coreIntensity = 1.0,
   corePulseSpeed = 1.5,
   coreRotationOffset = -0.5,
-  fluidCohesion = 0,
-  surfaceTension = 0.5,
-  fluidFlow = 0.3,
-  audioReactivitySpeed = 1.0,
   mousePosition
 }: AtlasCoreProps & { mousePosition: React.MutableRefObject<{ x: number; y: number; active: boolean }> }) => {
   const trailGeometryRef = useRef<THREE.BufferGeometry | null>(null);
@@ -145,10 +138,10 @@ const ParticleSystem = memo(({
         rippleCount={rippleCount}
       />
       
-      {/* Optimized particle trails */}
+      {/* Particle trails - disabled by default for performance */}
       {enableTrails && trailLength > 0 && (
         <TrailSystem
-          particleCount={particleCount}
+          particleCount={Math.min(particleCount, 1000)}
           trailLength={trailLength}
           trailOpacity={trailOpacity}
           colorStart={trailColorGradient ? new THREE.Color(trailStartColor) : config.secondary}
@@ -167,19 +160,12 @@ const ParticleSystem = memo(({
         particleSize={particleSize}
         density={density}
         rotationSpeed={rotationSpeed}
-        morphSpeed={morphSpeed}
         enableTurbulence={enableTurbulence}
-        turbulenceFrequency={turbulenceFrequency}
         turbulenceAmplitude={turbulenceAmplitude}
-        turbulenceSpeed={turbulenceSpeed}
         enableMouseInteraction={enableMouseInteraction}
         mouseMode={mouseMode}
         mouseStrength={mouseStrength}
         mouseInfluenceRadius={mouseInfluenceRadius}
-        fluidCohesion={fluidCohesion}
-        surfaceTension={surfaceTension}
-        fluidFlow={fluidFlow}
-        audioReactivitySpeed={audioReactivitySpeed}
         mousePosition={mousePosition}
       />
 
@@ -195,9 +181,6 @@ const ParticleSystem = memo(({
           coreIntensity={coreIntensity}
           corePulseSpeed={corePulseSpeed}
           coreRotationOffset={coreRotationOffset}
-          fluidCohesion={fluidCohesion}
-          surfaceTension={surfaceTension}
-          fluidFlow={fluidFlow}
         />
       )}
     </group>
@@ -207,45 +190,45 @@ const ParticleSystem = memo(({
 ParticleSystem.displayName = 'ParticleSystem';
 
 /**
- * AtlasCore - Main component for the Atlas sphere visualization
- * Optimized with:
- * - GPU-based particle calculations
- * - Modular system architecture
- * - Efficient memory management
+ * AtlasCore - Optimized Atlas sphere visualization
+ * - Reduced default particle counts
+ * - Simplified shaders
+ * - Lower DPR for performance
+ * - Trails disabled by default
  */
 export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({ 
   state, 
   audioLevel, 
   morphProgress = 1.0,
-  enableTrails = true,
-  trailLength = 6,
-  trailOpacity = 0.5,
+  enableTrails = false,
+  trailLength = 4,
+  trailOpacity = 0.4,
   trailColorGradient = true,
   trailStartColor = '#ff9500',
   trailEndColor = '#1a0a2e',
-  particleCount = 2000,
+  particleCount = 1500,
   particleSize = 0.08,
   density = 1.0,
   rotationSpeed = 0.5,
   enableBloom = true,
-  bloomIntensity = 0.8,
+  bloomIntensity = 0.6,
   morphSpeed = 1.5,
   enableRipples = true,
   rippleSpeed = 1.5,
   rippleCount = 2,
   enableTurbulence = true,
   turbulenceFrequency = 0.5,
-  turbulenceAmplitude = 0.08,
+  turbulenceAmplitude = 0.06,
   turbulenceSpeed = 0.3,
   enableMouseInteraction = true,
   mouseMode = 'attract',
-  mouseStrength = 0.5,
-  mouseInfluenceRadius = 2.5,
+  mouseStrength = 0.4,
+  mouseInfluenceRadius = 2.0,
   enableCore = true,
-  coreParticleCount = 400,
+  coreParticleCount = 120,
   coreDensity = 0.25,
   coreParticleSize = 0.04,
-  coreIntensity = 1.2,
+  coreIntensity = 1.0,
   corePulseSpeed = 1.5,
   coreRotationOffset = -0.5,
   fluidCohesion = 0,
@@ -276,13 +259,13 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
       <Canvas
         camera={{ position: [0, 0, 6], fov: 45 }}
         gl={{ 
-          antialias: true,
+          antialias: false,
           alpha: true,
           powerPreference: 'default',
           failIfMajorPerformanceCaveat: false,
         }}
         style={{ background: 'transparent' }}
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
         onCreated={({ gl }) => {
           gl.setClearColor(0x000000, 0);
         }}
@@ -307,9 +290,7 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           rippleSpeed={rippleSpeed}
           rippleCount={rippleCount}
           enableTurbulence={enableTurbulence}
-          turbulenceFrequency={turbulenceFrequency}
           turbulenceAmplitude={turbulenceAmplitude}
-          turbulenceSpeed={turbulenceSpeed}
           enableMouseInteraction={enableMouseInteraction}
           mouseMode={mouseMode}
           mouseStrength={mouseStrength}
@@ -321,10 +302,6 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           coreIntensity={coreIntensity}
           corePulseSpeed={corePulseSpeed}
           coreRotationOffset={coreRotationOffset}
-          fluidCohesion={fluidCohesion}
-          surfaceTension={surfaceTension}
-          fluidFlow={fluidFlow}
-          audioReactivitySpeed={audioReactivitySpeed}
           mousePosition={mousePositionRef}
         />
         

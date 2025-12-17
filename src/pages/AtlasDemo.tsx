@@ -58,48 +58,48 @@ interface AtlasDemoSettings {
 // Performance presets
 type PerformanceMode = 'performance' | 'balanced' | 'quality';
 
-// Optimized for 460px sphere
+// Performance presets - optimized for smooth 60fps
 const performancePresets: Record<PerformanceMode, { particleCount: number; trailLength: number; enableBloom: boolean; coreParticleCount: number; density: number; particleSize: number; label: string }> = {
-  performance: { particleCount: 2500, trailLength: 0, enableBloom: false, coreParticleCount: 200, density: 0.9, particleSize: 0.07, label: 'Performance' },
-  balanced: { particleCount: 5200, trailLength: 2, enableBloom: true, coreParticleCount: 350, density: 0.98, particleSize: 0.065, label: 'Balanced' },
-  quality: { particleCount: 8000, trailLength: 4, enableBloom: true, coreParticleCount: 500, density: 1.0, particleSize: 0.06, label: 'Quality' },
+  performance: { particleCount: 800, trailLength: 0, enableBloom: false, coreParticleCount: 80, density: 0.9, particleSize: 0.09, label: 'Performance' },
+  balanced: { particleCount: 1500, trailLength: 0, enableBloom: true, coreParticleCount: 120, density: 1.0, particleSize: 0.08, label: 'Balanced' },
+  quality: { particleCount: 2500, trailLength: 3, enableBloom: true, coreParticleCount: 200, density: 1.0, particleSize: 0.07, label: 'Quality' },
 };
 
-// Optimized defaults for 460px sphere
+// Optimized defaults - performance first
 const defaultSettings: AtlasDemoSettings = {
   state: 'dormant',
   morphProgress: 0.2,
   audioLevel: 0,
   autoAudio: false,
-  enableTrails: true,
-  trailLength: 2,
-  trailOpacity: 0.5,
+  enableTrails: false,       // Disabled by default for performance
+  trailLength: 3,
+  trailOpacity: 0.4,
   trailColorGradient: true,
   trailStartColor: '#ff9500',
   trailEndColor: '#1a0a2e',
-  particleCount: 5200,       // Optimized for 460px
-  particleSize: 0.065,       // Balanced size for density
-  density: 0.98,             // High density for fuller sphere
+  particleCount: 1500,       // Reduced for smooth 60fps
+  particleSize: 0.08,
+  density: 1.0,
   rotationSpeed: 0.5,
   enableBloom: true,
-  bloomIntensity: 0.8,
+  bloomIntensity: 0.6,
   morphSpeed: 1.5,
   enableRipples: true,
   rippleSpeed: 1.5,
   rippleCount: 2,
   enableTurbulence: true,
   turbulenceFrequency: 0.5,
-  turbulenceAmplitude: 0.08,
+  turbulenceAmplitude: 0.06,
   turbulenceSpeed: 0.3,
   enableMouseInteraction: true,
   mouseMode: 'attract',
-  mouseStrength: 0.5,
-  mouseInfluenceRadius: 2.5,
+  mouseStrength: 0.4,
+  mouseInfluenceRadius: 2.0,
   enableCore: true,
-  coreParticleCount: 300,
+  coreParticleCount: 120,    // Reduced for performance
   coreDensity: 0.25,
   coreParticleSize: 0.04,
-  coreIntensity: 1.2,
+  coreIntensity: 1.0,
   corePulseSpeed: 1.5,
   coreRotationOffset: -0.5,
   fluidCohesion: 0,
