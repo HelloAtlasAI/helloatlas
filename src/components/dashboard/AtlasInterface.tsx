@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UnifiedAtlasSphere } from '@/components/atlas/UnifiedAtlasSphere';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
@@ -45,13 +45,26 @@ const AtlasInterfaceComponent = ({
     }
   }, [state]);
 
+  const canActivate = state === 'dormant' || state === 'passive';
+
+  const handleClick = useCallback(() => {
+    if (canActivate && onManualActivate) {
+      onManualActivate();
+    }
+  }, [canActivate, onManualActivate]);
+
   return (
     <div className="relative w-full h-full flex items-center justify-center gap-4 px-4">
       {/* Atlas Core Sphere - container with overflow visible for glow */}
-      <div className="relative flex-shrink-0 w-[140px] h-[140px] z-10">
+      <motion.div 
+        className={`relative flex-shrink-0 w-[140px] h-[140px] z-10 ${canActivate ? 'cursor-pointer' : ''}`}
+        onClick={handleClick}
+        whileHover={canActivate ? { scale: 1.05 } : {}}
+        whileTap={canActivate ? { scale: 0.95 } : {}}
+      >
         {/* Extended canvas wrapper - 200% size, centered, for glow room */}
         <div 
-          className="absolute pointer-events-none"
+          className="absolute"
           style={{
             width: '200%',
             height: '200%',
@@ -70,7 +83,21 @@ const AtlasInterfaceComponent = ({
             className="w-full h-full"
           />
         </div>
-      </div>
+        
+        {/* Click hint - show when dormant/passive and hint is visible */}
+        <AnimatePresence>
+          {showHint && canActivate && isSupported && (
+            <motion.p
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap"
+            >
+              Click or say "Atlas"
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
       {/* Status and info - to the right */}
       <div className="flex flex-col items-start justify-center gap-1 flex-1 min-w-0">
