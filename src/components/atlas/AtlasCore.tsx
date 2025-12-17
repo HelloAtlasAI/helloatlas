@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { WakeWordState } from '@/hooks/useWakeWord';
-import { GPUParticleSystem, GPUCoreSystem, TrailSystem, RippleSystem } from './systems';
+import { GPUParticleSystem, GPUCoreSystem, TrailSystem, RippleSystem, NebulaFlowSystem } from './systems';
 import { STATE_CONFIGS } from './utils/stateConfigs';
 
 export interface AtlasCoreProps {
@@ -46,6 +46,20 @@ export interface AtlasCoreProps {
   surfaceTension?: number;
   fluidFlow?: number;
   audioReactivitySpeed?: number;
+  // Visualization mode
+  visualizationMode?: 'classic' | 'nebulaFlow';
+  // Nebula Flow settings
+  nebulaFlowStrength?: number;
+  nebulaFlowSpeed?: number;
+  nebulaBandCount?: number;
+  nebulaRimIntensity?: number;
+  nebulaHotSpotIntensity?: number;
+  nebulaBreathingSpeed?: number;
+  nebulaBreathingAmount?: number;
+  nebulaRadiusNoise?: number;
+  nebulaColorStart?: string;
+  nebulaColorMid?: string;
+  nebulaColorEnd?: string;
 }
 
 // Bloom wrapper - lower quality for performance
@@ -129,7 +143,19 @@ const ParticleSystem = memo(({
   fluidCohesion = 0,
   surfaceTension = 0.5,
   fluidFlow = 0.3,
-  mousePosition
+  mousePosition,
+  visualizationMode = 'classic',
+  nebulaFlowStrength = 0.5,
+  nebulaFlowSpeed = 0.5,
+  nebulaBandCount = 8,
+  nebulaRimIntensity = 1.2,
+  nebulaHotSpotIntensity = 0.8,
+  nebulaBreathingSpeed = 0.5,
+  nebulaBreathingAmount = 0.05,
+  nebulaRadiusNoise = 0.15,
+  nebulaColorStart = '#1a0a3e',
+  nebulaColorMid = '#8b5cf6',
+  nebulaColorEnd = '#67e8f9',
 }: Omit<AtlasCoreProps, 'audioLevel'> & {
   audioLevelRef: MutableRefObject<number>;
   mousePosition: MutableRefObject<{ x: number; y: number; active: boolean }>;
@@ -137,9 +163,37 @@ const ParticleSystem = memo(({
   const trailGeometryRef = useRef<THREE.BufferGeometry | null>(null);
   const config = STATE_CONFIGS[state];
 
+  // Nebula Flow mode
+  if (visualizationMode === 'nebulaFlow') {
+    return (
+      <group>
+        <NebulaFlowSystem
+          state={state}
+          audioLevelRef={audioLevelRef}
+          morphProgress={morphProgress}
+          particleCount={particleCount}
+          particleSize={particleSize}
+          density={density}
+          rotationSpeed={rotationSpeed}
+          flowStrength={nebulaFlowStrength}
+          flowSpeed={nebulaFlowSpeed}
+          bandCount={nebulaBandCount}
+          rimIntensity={nebulaRimIntensity}
+          hotSpotIntensity={nebulaHotSpotIntensity}
+          breathingSpeed={nebulaBreathingSpeed}
+          breathingAmount={nebulaBreathingAmount}
+          radiusNoise={nebulaRadiusNoise}
+          colorStart={nebulaColorStart}
+          colorMid={nebulaColorMid}
+          colorEnd={nebulaColorEnd}
+        />
+      </group>
+    );
+  }
+
+  // Classic mode
   return (
     <group>
-      {/* Ring ripples on state change */}
       <RippleSystem
         state={state}
         enabled={enableRipples}
@@ -147,7 +201,6 @@ const ParticleSystem = memo(({
         rippleCount={rippleCount}
       />
       
-      {/* Particle trails - disabled by default for performance */}
       {enableTrails && trailLength > 0 && (
         <TrailSystem
           particleCount={Math.min(particleCount, 1000)}
@@ -160,7 +213,6 @@ const ParticleSystem = memo(({
         />
       )}
       
-      {/* GPU-based main particle cloud */}
       <GPUParticleSystem
         state={state}
         audioLevelRef={audioLevelRef}
@@ -183,7 +235,6 @@ const ParticleSystem = memo(({
         fluidFlow={fluidFlow}
       />
 
-      {/* GPU-based core system */}
       {enableCore && (
         <GPUCoreSystem
           state={state}
@@ -249,15 +300,24 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   fluidCohesion = 0,
   surfaceTension = 0.5,
   fluidFlow = 0.3,
-  audioReactivitySpeed = 1.0
+  audioReactivitySpeed = 1.0,
+  visualizationMode = 'classic',
+  nebulaFlowStrength = 0.5,
+  nebulaFlowSpeed = 0.5,
+  nebulaBandCount = 8,
+  nebulaRimIntensity = 1.2,
+  nebulaHotSpotIntensity = 0.8,
+  nebulaBreathingSpeed = 0.5,
+  nebulaBreathingAmount = 0.05,
+  nebulaRadiusNoise = 0.15,
+  nebulaColorStart = '#1a0a3e',
+  nebulaColorMid = '#8b5cf6',
+  nebulaColorEnd = '#67e8f9',
 }, ref) => {
   const mousePositionRef = useRef({ x: 0, y: 0, active: false });
-  
-  // Use external ref if provided, otherwise create internal ref synced to audioLevel prop
   const internalAudioLevelRef = useRef(audioLevel);
   const audioLevelRefToUse = externalAudioLevelRef || internalAudioLevelRef;
   
-  // Sync internal ref with audioLevel prop if no external ref
   if (!externalAudioLevelRef) {
     internalAudioLevelRef.current = audioLevel;
   }
@@ -282,17 +342,10 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
     >
       <Canvas
         camera={{ position: [0, 0, 6], fov: 45 }}
-        gl={{ 
-          antialias: false,
-          alpha: true,
-          powerPreference: 'default',
-          failIfMajorPerformanceCaveat: false,
-        }}
+        gl={{ antialias: false, alpha: true, powerPreference: 'default', failIfMajorPerformanceCaveat: false }}
         style={{ background: 'transparent' }}
         dpr={[1, 1.5]}
-        onCreated={({ gl }) => {
-          gl.setClearColor(0x000000, 0);
-        }}
+        onCreated={({ gl }) => { gl.setClearColor(0x000000, 0); }}
         fallback={<CSSFallbackOrb state={state} audioLevel={audioLevelRefToUse.current} />}
       >
         <ParticleSystem 
@@ -332,6 +385,18 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           surfaceTension={surfaceTension}
           fluidFlow={fluidFlow}
           mousePosition={mousePositionRef}
+          visualizationMode={visualizationMode}
+          nebulaFlowStrength={nebulaFlowStrength}
+          nebulaFlowSpeed={nebulaFlowSpeed}
+          nebulaBandCount={nebulaBandCount}
+          nebulaRimIntensity={nebulaRimIntensity}
+          nebulaHotSpotIntensity={nebulaHotSpotIntensity}
+          nebulaBreathingSpeed={nebulaBreathingSpeed}
+          nebulaBreathingAmount={nebulaBreathingAmount}
+          nebulaRadiusNoise={nebulaRadiusNoise}
+          nebulaColorStart={nebulaColorStart}
+          nebulaColorMid={nebulaColorMid}
+          nebulaColorEnd={nebulaColorEnd}
         />
         
         {enableBloom && <BloomEffect intensity={bloomIntensity} />}

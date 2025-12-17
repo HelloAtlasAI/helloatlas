@@ -2,10 +2,13 @@ import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 const STORAGE_KEY = 'atlas-demo-settings';
-const SETTINGS_VERSION = 2; // Bump this to force reset of corrupted settings
+const SETTINGS_VERSION = 3; // Bump this to force reset of corrupted settings
 
 // Complete settings interface for Atlas visualization
 export interface AtlasSettings {
+  // Visualization mode
+  visualizationMode: 'classic' | 'nebulaFlow';
+  
   // Core state
   state: WakeWordState;
   morphProgress: number;
@@ -64,10 +67,24 @@ export interface AtlasSettings {
   
   // Audio reactivity
   audioReactivitySpeed: number;
+  
+  // Nebula Flow settings
+  nebulaFlowStrength: number;
+  nebulaFlowSpeed: number;
+  nebulaBandCount: number;
+  nebulaRimIntensity: number;
+  nebulaHotSpotIntensity: number;
+  nebulaBreathingSpeed: number;
+  nebulaBreathingAmount: number;
+  nebulaRadiusNoise: number;
+  nebulaColorStart: string;
+  nebulaColorMid: string;
+  nebulaColorEnd: string;
 }
 
 // Default settings - optimized for performance
 export const defaultAtlasSettings: AtlasSettings = {
+  visualizationMode: 'classic',
   state: 'dormant',
   // Default to a formed sphere so the demo never looks "broken" on load/reset
   morphProgress: 1.0,
@@ -108,6 +125,18 @@ export const defaultAtlasSettings: AtlasSettings = {
   surfaceTension: 0.5,
   fluidFlow: 0.3,
   audioReactivitySpeed: 1.0,
+  // Nebula Flow defaults
+  nebulaFlowStrength: 0.5,
+  nebulaFlowSpeed: 0.5,
+  nebulaBandCount: 8,
+  nebulaRimIntensity: 1.2,
+  nebulaHotSpotIntensity: 0.8,
+  nebulaBreathingSpeed: 0.5,
+  nebulaBreathingAmount: 0.05,
+  nebulaRadiusNoise: 0.15,
+  nebulaColorStart: '#1a0a3e',
+  nebulaColorMid: '#8b5cf6',
+  nebulaColorEnd: '#67e8f9',
 };
 
 // Action types
