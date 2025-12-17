@@ -318,9 +318,9 @@ const Dashboard = () => {
         <AnimatePresence mode="wait">
           {!expandedCard ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5 auto-rows-[minmax(140px,auto)] w-full">
-          {/* Atlas AI Interface - Spans 2 columns, row-span-2 for sphere */}
+          {/* Atlas AI Interface - Spans 2 columns, 2 rows for proper sphere sizing */}
           <motion.div 
-            className={`md:col-span-2 xl:col-span-2 h-[200px] ${getFocusedClasses('assistant', focusedCard)}`}
+            className={`md:col-span-2 xl:col-span-2 row-span-2 overflow-hidden ${getFocusedClasses('assistant', focusedCard)}`}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
