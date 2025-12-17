@@ -1,4 +1,4 @@
-import { useRef, useMemo, memo, useEffect, MutableRefObject } from 'react';
+import { useRef, useMemo, memo, MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { WakeWordState } from '@/hooks/useWakeWord';
@@ -73,12 +73,6 @@ export const GPUCoreSystem = memo(({
     return geo;
   }, [coreParticleCount, coreDensity]);
 
-  // Cleanup geometry on unmount or change
-  useEffect(() => {
-    return () => {
-      geometry.dispose();
-    };
-  }, [geometry]);
 
   // Shader material
   const material = useMemo(() => {
@@ -100,12 +94,6 @@ export const GPUCoreSystem = memo(({
     });
   }, []);
 
-  // Cleanup material on unmount
-  useEffect(() => {
-    return () => {
-      material.dispose();
-    };
-  }, [material]);
 
   useFrame((_, delta) => {
     if (!materialRef.current || !pointsRef.current) return;

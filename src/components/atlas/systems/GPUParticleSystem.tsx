@@ -1,4 +1,4 @@
-import { useRef, useMemo, memo, useEffect, MutableRefObject } from 'react';
+import { useRef, useMemo, memo, MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { WakeWordState } from '@/hooks/useWakeWord';
@@ -81,12 +81,6 @@ export const GPUParticleSystem = memo(({
     return geo;
   }, [particleCount, density]);
 
-  // Cleanup geometry on unmount or change
-  useEffect(() => {
-    return () => {
-      geometry.dispose();
-    };
-  }, [geometry]);
 
   // Shader material - create once, update uniforms in frame loop
   const material = useMemo(() => {
@@ -116,12 +110,6 @@ export const GPUParticleSystem = memo(({
     });
   }, []);
 
-  // Cleanup material on unmount
-  useEffect(() => {
-    return () => {
-      material.dispose();
-    };
-  }, [material]);
 
   // Optimized animation - reads audioLevel from ref (no re-renders)
   useFrame((_, delta) => {

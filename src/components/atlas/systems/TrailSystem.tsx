@@ -58,12 +58,6 @@ export const TrailSystem = memo(({
     return geo;
   }, [particleCount, trailLength]);
 
-  // Cleanup geometry on unmount or change
-  useEffect(() => {
-    return () => {
-      geometry.dispose();
-    };
-  }, [geometry]);
 
   // Store geometry ref for parent to update positions
   useEffect(() => {
@@ -88,12 +82,6 @@ export const TrailSystem = memo(({
     });
   }, []);
 
-  // Cleanup material on unmount
-  useEffect(() => {
-    return () => {
-      material.dispose();
-    };
-  }, [material]);
 
   // Update uniforms only (not geometry)
   useFrame(() => {
