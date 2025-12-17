@@ -79,10 +79,10 @@ const AtlasInterfaceComponent = ({
   // Dashboard-specific defaults that ensure compact sphere display
   const dashboardDefaults: AtlasSettings = {
     morphProgress: 1.0,       // Always show sphere (not scattered)
-    density: 0.9,             // Optimized for 420px container
-    particleCount: 4000,      // Increased for 420px size
-    fluidCohesion: 0.35,      // Slightly looser for larger display
-    particleSize: 0.07,       // Larger particles for bigger view
+    density: 0.95,            // Higher density for fuller 420px sphere
+    particleCount: 4500,      // Optimal count for 420px size
+    fluidCohesion: 0.38,      // Balanced cohesion for smooth appearance
+    particleSize: 0.068,      // Slightly smaller for denser appearance
   };
 
   // Load saved settings but override with dashboard defaults for key props
