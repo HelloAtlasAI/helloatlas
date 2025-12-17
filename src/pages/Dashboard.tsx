@@ -76,12 +76,17 @@ const getDimClasses = (cardName: string, focusedCards: string[], isSpeaking: boo
   return 'opacity-40 scale-[0.98] blur-[1px]';
 };
 
+// Get compact classes for empty cards
+const getEmptyClasses = (isEmpty: boolean) => {
+  if (!isEmpty) return '';
+  return 'row-span-1 !h-[60px] opacity-60';
+};
+
 // Get empty card styles
 const getEmptyStyles = (isEmpty: boolean) => {
   if (!isEmpty) return {};
   return {
-    opacity: 0.5,
-    transform: 'scale(0.98)',
+    opacity: 0.6,
   };
 };
 
@@ -347,7 +352,7 @@ const Dashboard = () => {
         <AnimatePresence mode="wait">
           {!expandedCard ? (
         <LayoutGroup>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5 auto-rows-[minmax(140px,auto)] w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5 auto-rows-[minmax(140px,auto)] w-full">
           {/* Atlas AI Interface - Spans 2 columns, fixed height */}
           <motion.div 
             layoutId="card-assistant"
@@ -387,7 +392,7 @@ const Dashboard = () => {
           {/* Travel - 2 rows with morphable shape */}
           <motion.div 
             layoutId="card-travel"
-            className={`row-span-2 transition-all duration-300 ${getFocusedClasses('travel', focusedCards, isSpeakingWithFocus)} ${getDimClasses('travel', focusedCards, isSpeakingWithFocus)}`}
+            className={`${cardMeta['travel']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('travel', focusedCards, isSpeakingWithFocus)} ${getDimClasses('travel', focusedCards, isSpeakingWithFocus)}`}
             style={getEmptyStyles(cardMeta['travel']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
@@ -415,7 +420,7 @@ const Dashboard = () => {
           {/* Calendar - 3 rows tall */}
           <motion.div 
             layoutId="card-calendar"
-            className={`row-span-3 transition-all duration-300 ${getFocusedClasses('calendar', focusedCards, isSpeakingWithFocus)} ${getDimClasses('calendar', focusedCards, isSpeakingWithFocus)}`}
+            className={`${cardMeta['calendar']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-3'} transition-all duration-300 ${getFocusedClasses('calendar', focusedCards, isSpeakingWithFocus)} ${getDimClasses('calendar', focusedCards, isSpeakingWithFocus)}`}
             style={getEmptyStyles(cardMeta['calendar']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
@@ -428,7 +433,7 @@ const Dashboard = () => {
           {/* Stocks - Wide, 2-3 columns depending on screen */}
           <motion.div 
             layoutId="card-stocks"
-            className={`md:col-span-2 xl:col-span-3 2xl:col-span-2 row-span-2 transition-all duration-300 ${getFocusedClasses('stocks', focusedCards, isSpeakingWithFocus)} ${getDimClasses('stocks', focusedCards, isSpeakingWithFocus)}`}
+            className={`md:col-span-2 xl:col-span-2 2xl:col-span-2 ${cardMeta['stocks']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('stocks', focusedCards, isSpeakingWithFocus)} ${getDimClasses('stocks', focusedCards, isSpeakingWithFocus)}`}
             style={getEmptyStyles(cardMeta['stocks']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
@@ -443,7 +448,7 @@ const Dashboard = () => {
           {/* Tasks - 2 rows */}
           <motion.div 
             layoutId="card-tasks"
-            className={`row-span-2 transition-all duration-300 ${getFocusedClasses('tasks', focusedCards, isSpeakingWithFocus)} ${getDimClasses('tasks', focusedCards, isSpeakingWithFocus)}`}
+            className={`${cardMeta['tasks']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('tasks', focusedCards, isSpeakingWithFocus)} ${getDimClasses('tasks', focusedCards, isSpeakingWithFocus)}`}
             style={getEmptyStyles(cardMeta['tasks']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
@@ -456,7 +461,7 @@ const Dashboard = () => {
           {/* Notes - 2 rows */}
           <motion.div 
             layoutId="card-notes"
-            className={`row-span-2 transition-all duration-300 ${getFocusedClasses('notes', focusedCards, isSpeakingWithFocus)} ${getDimClasses('notes', focusedCards, isSpeakingWithFocus)}`}
+            className={`${cardMeta['notes']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('notes', focusedCards, isSpeakingWithFocus)} ${getDimClasses('notes', focusedCards, isSpeakingWithFocus)}`}
             style={getEmptyStyles(cardMeta['notes']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
@@ -469,7 +474,7 @@ const Dashboard = () => {
           {/* News - Wide, 2-3 columns depending on screen */}
           <motion.div 
             layoutId="card-news"
-            className={`md:col-span-2 xl:col-span-3 2xl:col-span-3 row-span-2 transition-all duration-300 ${getFocusedClasses('news', focusedCards, isSpeakingWithFocus)} ${getDimClasses('news', focusedCards, isSpeakingWithFocus)}`}
+            className={`md:col-span-2 xl:col-span-2 2xl:col-span-3 ${cardMeta['news']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('news', focusedCards, isSpeakingWithFocus)} ${getDimClasses('news', focusedCards, isSpeakingWithFocus)}`}
             style={getEmptyStyles(cardMeta['news']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
@@ -482,7 +487,7 @@ const Dashboard = () => {
           {/* Documents - Wide, 2-3 columns depending on screen */}
           <motion.div 
             layoutId="card-documents"
-            className={`md:col-span-2 xl:col-span-2 2xl:col-span-3 row-span-2 transition-all duration-300 ${getFocusedClasses('documents', focusedCards, isSpeakingWithFocus)} ${getDimClasses('documents', focusedCards, isSpeakingWithFocus)}`}
+            className={`md:col-span-2 xl:col-span-2 2xl:col-span-2 ${cardMeta['documents']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('documents', focusedCards, isSpeakingWithFocus)} ${getDimClasses('documents', focusedCards, isSpeakingWithFocus)}`}
             style={getEmptyStyles(cardMeta['documents']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
