@@ -14,10 +14,10 @@ interface AtlasInterfaceProps {
   onManualActivate?: () => void;
 }
 
-const getStatusMessage = (state: WakeWordState): string => {
-  const messages: Record<WakeWordState, string> = {
-    dormant: "Say 'Atlas' to begin...",
-    passive: "Listening for 'Atlas'...",
+const getStatusMessage = (state: WakeWordState): string | null => {
+  const messages: Record<WakeWordState, string | null> = {
+    dormant: null,
+    passive: null,
     activated: 'Atlas activated',
     listening: 'Listening...',
     thinking: 'Processing...',
@@ -65,18 +65,20 @@ const AtlasInterfaceComponent = ({
           </p>
         )}
         
-        {/* Status hint */}
+        {/* Status hint - only show when active */}
         <AnimatePresence mode="wait">
-          <motion.div
-            key={state}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-          >
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="truncate">{getStatusMessage(state)}</span>
-            </div>
-          </motion.div>
+          {getStatusMessage(state) && (
+            <motion.div
+              key={state}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+            >
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="truncate">{getStatusMessage(state)}</span>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
 
         {/* Live transcript - compact */}
