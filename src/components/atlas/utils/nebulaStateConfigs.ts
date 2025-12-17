@@ -12,6 +12,9 @@ export interface NebulaStateConfig {
   breathingAmount: number;
   radiusNoise: number;
   glowIntensity: number;
+  // New state behavior properties
+  coreRetraction: number;  // 0-0.5, how much particles pull toward center (thinking state)
+  audioReactive: boolean;  // Whether breathing syncs with audio (speaking state)
 }
 
 export const NEBULA_STATE_CONFIGS: Record<WakeWordState, NebulaStateConfig> = {
@@ -27,6 +30,8 @@ export const NEBULA_STATE_CONFIGS: Record<WakeWordState, NebulaStateConfig> = {
     breathingAmount: 0.02,
     radiusNoise: 0.1,
     glowIntensity: 0.6,
+    coreRetraction: 0,
+    audioReactive: false,
   },
   passive: {
     colorStart: '#1a0a3e',
@@ -40,6 +45,8 @@ export const NEBULA_STATE_CONFIGS: Record<WakeWordState, NebulaStateConfig> = {
     breathingAmount: 0.04,
     radiusNoise: 0.12,
     glowIntensity: 0.8,
+    coreRetraction: 0,
+    audioReactive: false,
   },
   activated: {
     colorStart: '#2a1550',
@@ -53,44 +60,53 @@ export const NEBULA_STATE_CONFIGS: Record<WakeWordState, NebulaStateConfig> = {
     breathingAmount: 0.12,
     radiusNoise: 0.2,
     glowIntensity: 1.5,
+    coreRetraction: 0,
+    audioReactive: false,
   },
   listening: {
+    // Optimized for calmer, less jittery animation
     colorStart: '#0a2040',
     colorMid: '#3b82f6',
     colorEnd: '#67e8f9',
-    flowSpeed: 0.6,
-    flowStrength: 0.5,
-    rimIntensity: 1.4,
-    hotSpotIntensity: 0.8,
-    breathingSpeed: 0.6,
-    breathingAmount: 0.06,
-    radiusNoise: 0.15,
+    flowSpeed: 0.35,        // Reduced from 0.6 - slower, calmer flow
+    flowStrength: 0.3,      // Reduced from 0.5 - less displacement
+    rimIntensity: 1.0,      // Reduced from 1.4 - less harsh
+    hotSpotIntensity: 0.4,  // Reduced from 0.8 - subtler hot spots
+    breathingSpeed: 0.35,   // Reduced from 0.6 - calmer breathing
+    breathingAmount: 0.035, // Reduced from 0.06 - gentler breathing
+    radiusNoise: 0.06,      // Reduced from 0.15 - much less jitter
     glowIntensity: 1.0,
+    coreRetraction: 0,
+    audioReactive: false,
   },
   thinking: {
     colorStart: '#2d1b4e',
     colorMid: '#a855f7',
     colorEnd: '#e879f9',
-    flowSpeed: 1.0,
-    flowStrength: 0.7,
-    rimIntensity: 1.8,
-    hotSpotIntensity: 1.2,
-    breathingSpeed: 0.8,
-    breathingAmount: 0.08,
-    radiusNoise: 0.18,
+    flowSpeed: 0.8,         // Slightly reduced for smoother look
+    flowStrength: 0.6,
+    rimIntensity: 1.6,
+    hotSpotIntensity: 1.0,
+    breathingSpeed: 0.7,
+    breathingAmount: 0.06,
+    radiusNoise: 0.12,
     glowIntensity: 1.2,
+    coreRetraction: 0.25,   // Particles pull toward core during thinking
+    audioReactive: false,
   },
   speaking: {
     colorStart: '#1a0a3e',
     colorMid: '#f59e0b',
     colorEnd: '#fcd34d',
-    flowSpeed: 0.8,
-    flowStrength: 0.6,
-    rimIntensity: 1.6,
-    hotSpotIntensity: 1.0,
-    breathingSpeed: 0.7,
-    breathingAmount: 0.1,
-    radiusNoise: 0.15,
+    flowSpeed: 0.6,
+    flowStrength: 0.5,
+    rimIntensity: 1.4,
+    hotSpotIntensity: 0.8,
+    breathingSpeed: 0.6,
+    breathingAmount: 0.08,
+    radiusNoise: 0.12,
     glowIntensity: 1.3,
+    coreRetraction: 0,
+    audioReactive: true,    // Audio-reactive breathing enabled
   },
 };

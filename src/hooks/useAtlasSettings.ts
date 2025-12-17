@@ -2,7 +2,7 @@ import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 const STORAGE_KEY = 'atlas-demo-settings';
-const SETTINGS_VERSION = 5; // Bump this to force reset of corrupted settings
+const SETTINGS_VERSION = 6; // Bump this to force reset of corrupted settings
 
 // Complete settings interface for Atlas visualization
 export interface AtlasSettings {
@@ -96,6 +96,11 @@ export interface AtlasSettings {
   nebulaSurfaceBlend: number;
   nebulaUniformSize: number;
   nebulaCoherence: number;
+  
+  // State behavior settings
+  nebulaThinkingRetraction: number;       // 0-0.5, how much particles pull toward center in thinking state
+  nebulaAudioBreathingIntensity: number;  // 0-0.4, audio breathing strength in speaking state
+  nebulaTransitionSpeed: number;          // 0.5-3.0, how fast states blend together
 }
 
 // Default settings - optimized for performance
@@ -167,6 +172,10 @@ export const defaultAtlasSettings: AtlasSettings = {
   nebulaSurfaceBlend: 1.5,
   nebulaUniformSize: 1.8,
   nebulaCoherence: 0.9,
+  // State behavior defaults
+  nebulaThinkingRetraction: 0.25,
+  nebulaAudioBreathingIntensity: 0.15,
+  nebulaTransitionSpeed: 1.5,
 };
 
 // Action types

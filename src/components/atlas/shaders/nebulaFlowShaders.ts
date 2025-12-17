@@ -68,34 +68,25 @@ float snoise(vec3 v) {
 }
 `;
 
-// Curl noise for divergence-free flow
-const curlNoise = `
-vec3 curlNoise(vec3 p, float time) {
-  float e = 0.1;
-  vec3 dx = vec3(e, 0.0, 0.0);
-  vec3 dy = vec3(0.0, e, 0.0);
-  vec3 dz = vec3(0.0, 0.0, e);
+// Optimized curl noise - reduced from 6 to 2 noise samples for performance
+const curlNoiseFast = `
+vec3 curlNoiseFast(vec3 p, float time) {
+  // Simplified curl approximation with only 2 noise samples
+  float slowTime = time * 0.08; // Slower for smoother animation
+  float n1 = snoise(p + vec3(0.0, 0.0, slowTime));
+  float n2 = snoise(p + vec3(0.0, slowTime, 0.0));
   
-  // Sample noise at offset positions
-  float n1 = snoise(p + dy + vec3(0.0, 0.0, time * 0.1));
-  float n2 = snoise(p - dy + vec3(0.0, 0.0, time * 0.1));
-  float n3 = snoise(p + dz + vec3(0.0, time * 0.1, 0.0));
-  float n4 = snoise(p - dz + vec3(0.0, time * 0.1, 0.0));
-  float n5 = snoise(p + dx + vec3(time * 0.1, 0.0, 0.0));
-  float n6 = snoise(p - dx + vec3(time * 0.1, 0.0, 0.0));
-  
-  // Curl = nabla x F (cross product of gradient)
-  float x = (n1 - n2) - (n3 - n4);
-  float y = (n3 - n4) - (n5 - n6);
-  float z = (n5 - n6) - (n1 - n2);
-  
-  return normalize(vec3(x, y, z) / (2.0 * e));
+  return normalize(vec3(
+    n1 * 0.5 - 0.25,
+    n2 * 0.5 - 0.25,
+    (n1 + n2) * 0.25
+  ));
 }
 `;
 
 export const nebulaFlowVertexShader = `
 ${simplexNoise3D}
-${curlNoise}
+${curlNoiseFast}
 
 attribute vec3 spherePos;
 attribute float bandIndex;
@@ -115,6 +106,10 @@ uniform float uSolidSurface;
 uniform float uCoherence;
 uniform float uSurfaceBlend;
 uniform float uUniformSize;
+// New uniforms for state behaviors
+uniform float uCoreRetraction;    // 0-0.5, pulls particles toward center
+uniform float uAudioReactive;     // 1.0 when audio drives breathing
+uniform float uAudioBreathing;    // Audio-modulated breathing intensity
 
 varying float vIntensity;
 varying float vFlowPosition;
@@ -130,44 +125,61 @@ void main() {
   vec3 pos = spherePos;
   vec3 normal = normalize(spherePos);
   
+  // Core retraction - particles pull toward center during thinking state
+  float retractionAmount = uCoreRetraction * 0.4; // Max 40% pull-in
+  float baseRadius = length(spherePos) * (1.0 - retractionAmount);
+  
   // In solid surface mode, all particles breathe together uniformly
   float breathePhase = uSolidSurface > 0.5 
     ? uTime * uBreathingSpeed  // Uniform breathing for solid surface
     : uTime * uBreathingSpeed + randomSeed * 6.28;  // Per-particle variation
+  
+  // Audio-reactive breathing during speaking state
+  float effectiveBreathingAmount = uAudioReactive > 0.5 
+    ? uAudioLevel * uAudioBreathing * 2.5  // Audio drives breathing amplitude
+    : uBreathingAmount;                     // Normal breathing
     
-  float breathe = sin(breathePhase) * uBreathingAmount;
+  float breathe = sin(breathePhase) * effectiveBreathingAmount;
   float radiusMultiplier = 1.0 + breathe;
   
+  // Direct audio pulse for speaking - immediate response
+  float audioDirectPulse = uAudioReactive > 0.5 
+    ? uAudioLevel * 0.1   // Immediate audio response
+    : 0.0;
+  radiusMultiplier += audioDirectPulse;
+  
   // Mix between coherent and per-particle noise based on coherence setting
-  float coherentNoise = snoise(normal * 2.0 + uTime * 0.1);
-  float particleNoise = snoise(normal * 2.0 + uTime * 0.1 + randomSeed * 10.0);
+  // Use slower time for smoother animation
+  float slowNoiseTime = uTime * 0.15;
+  float coherentNoise = snoise(normal * 1.5 + slowNoiseTime);
+  float particleNoise = snoise(normal * 1.5 + slowNoiseTime + randomSeed * 10.0);
   float radiusNoise = mix(particleNoise, coherentNoise, uCoherence) * uRadiusNoise;
   radiusMultiplier += radiusNoise;
   
-  // Apply radius modifications
-  pos = normal * length(spherePos) * radiusMultiplier;
+  // Apply radius modifications with core retraction
+  pos = normal * baseRadius * radiusMultiplier;
   
-  // Curl noise flow - coherent in solid surface mode
-  vec3 flowPos = pos * 0.5 + vec3(uTime * uFlowSpeed * 0.1);
-  vec3 curlDir = curlNoise(flowPos, uTime * uFlowSpeed);
+  // Optimized curl noise flow - using fast version
+  vec3 flowPos = pos * 0.4 + vec3(uTime * uFlowSpeed * 0.08);
+  vec3 curlDir = curlNoiseFast(flowPos, uTime * uFlowSpeed);
   
   // Flow along surface - project curl onto tangent plane
   vec3 tangentFlow = curlDir - normal * dot(curlDir, normal);
   tangentFlow = normalize(tangentFlow) * uFlowStrength;
   
   // Apply flow displacement - in solid surface mode, more coherent
-  float bandPhase = bandIndex * 6.28 + uTime * uFlowSpeed * 0.5;
+  float bandPhase = bandIndex * 6.28 + uTime * uFlowSpeed * 0.4;
   float flowModulation = uSolidSurface > 0.5
     ? sin(bandPhase) * 0.5 + 0.5  // Coherent wave
     : sin(bandPhase + flowOffset * 3.14159) * 0.5 + 0.5;  // Per-particle variation
   
-  pos += tangentFlow * flowModulation * 0.3 * (1.0 - uSolidSurface * 0.5);
+  pos += tangentFlow * flowModulation * 0.25 * (1.0 - uSolidSurface * 0.5);
   
   // Audio reactivity with multi-layer displacement
   float audioWave = uSolidSurface > 0.5
-    ? sin(uTime * 4.0) * 0.5 + 0.5  // Uniform audio wave
-    : sin(uTime * 4.0 + randomSeed * 6.28) * 0.5 + 0.5;  // Per-particle variation
-  pos += normal * uAudioLevel * 0.25 * (0.5 + audioWave * 0.5);
+    ? sin(uTime * 3.0) * 0.5 + 0.5  // Uniform audio wave (slower)
+    : sin(uTime * 3.0 + randomSeed * 6.28) * 0.5 + 0.5;  // Per-particle variation
+  pos += normal * uAudioLevel * 0.2 * (0.5 + audioWave * 0.5);
   
   // Calculate intensity for coloring - more variation
   vIntensity = 0.5 + randomSeed * 0.5;
@@ -183,8 +195,8 @@ void main() {
   // Band value for contour coloring
   vBandValue = bandIndex;
   
-  // Hot spot noise - brighter clusters on ridges
-  float hotSpotNoise = snoise(pos * 3.0 + vec3(uTime * 0.2, 0.0, 0.0));
+  // Hot spot noise - slower, smoother (optimized frequency and speed)
+  float hotSpotNoise = snoise(pos * 1.8 + vec3(uTime * 0.12, 0.0, 0.0));
   vHotSpot = smoothstep(0.3, 0.8, hotSpotNoise);
   
   // In solid surface mode, reduce hot spot variation
@@ -227,6 +239,8 @@ uniform float uDepthFade;
 uniform float uCoreGlow;
 uniform float uAudioLevel;
 uniform float uSurfaceBlend;
+// New uniform for audio-reactive rim
+uniform float uAudioReactive;
 
 varying float vIntensity;
 varying float vFlowPosition;
@@ -265,8 +279,11 @@ void main() {
   // In solid surface mode, reduce rim for more uniform appearance
   rim *= (1.0 - vSolidSurface * 0.5);
   
-  // Audio-reactive rim boost
-  rim *= (1.0 + uAudioLevel * 0.5);
+  // Audio-reactive rim boost - stronger during speaking state
+  float audioRimBoost = uAudioReactive > 0.5 
+    ? uAudioLevel * 1.2   // Strong audio-driven rim pulse
+    : uAudioLevel * 0.3;  // Subtle audio influence
+  rim *= (1.0 + audioRimBoost);
   
   // 3-color gradient based on flow position and band
   float gradientPos = vFlowPosition * 0.7 + vBandValue * 0.3;
