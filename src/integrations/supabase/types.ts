@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      agents: {
+        Row: {
+          created_at: string | null
+          daily_budget_limit: number | null
+          description: string | null
+          enabled_tools_json: Json | null
+          id: string
+          is_active: boolean | null
+          max_steps: number | null
+          model_config_json: Json | null
+          name: string
+          risky_tools_json: Json | null
+          system_prompt: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          daily_budget_limit?: number | null
+          description?: string | null
+          enabled_tools_json?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_steps?: number | null
+          model_config_json?: Json | null
+          name: string
+          risky_tools_json?: Json | null
+          system_prompt: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          daily_budget_limit?: number | null
+          description?: string | null
+          enabled_tools_json?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_steps?: number | null
+          model_config_json?: Json | null
+          name?: string
+          risky_tools_json?: Json | null
+          system_prompt?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_insights: {
         Row: {
           content: string
@@ -102,6 +150,66 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      approvals: {
+        Row: {
+          action_summary: string
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          reason: string | null
+          risk_level: string | null
+          run_id: string | null
+          status: string
+          tool_call_id: string
+          user_id: string
+        }
+        Insert: {
+          action_summary: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          reason?: string | null
+          risk_level?: string | null
+          run_id?: string | null
+          status?: string
+          tool_call_id: string
+          user_id: string
+        }
+        Update: {
+          action_summary?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          reason?: string | null
+          risk_level?: string | null
+          run_id?: string | null
+          status?: string
+          tool_call_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approvals_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approvals_tool_call_id_fkey"
+            columns: ["tool_call_id"]
+            isOneToOne: false
+            referencedRelation: "tool_calls"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       atlas_error_logs: {
         Row: {
@@ -357,6 +465,143 @@ export type Database = {
         }
         Relationships: []
       }
+      events_inbox: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          payload_json: Json
+          processed_at: string | null
+          run_id: string | null
+          source: string | null
+          status: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          payload_json: Json
+          processed_at?: string | null
+          run_id?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          payload_json?: Json
+          processed_at?: string | null
+          run_id?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_inbox_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memory_policies: {
+        Row: {
+          auto_prune: boolean | null
+          category: string
+          created_at: string | null
+          id: string
+          importance_threshold: number | null
+          is_active: boolean | null
+          policy_name: string
+          retention_days: number | null
+          should_remember: boolean | null
+          user_id: string
+        }
+        Insert: {
+          auto_prune?: boolean | null
+          category: string
+          created_at?: string | null
+          id?: string
+          importance_threshold?: number | null
+          is_active?: boolean | null
+          policy_name: string
+          retention_days?: number | null
+          should_remember?: boolean | null
+          user_id: string
+        }
+        Update: {
+          auto_prune?: boolean | null
+          category?: string
+          created_at?: string | null
+          id?: string
+          importance_threshold?: number | null
+          is_active?: boolean | null
+          policy_name?: string
+          retention_days?: number | null
+          should_remember?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      memory_vectors: {
+        Row: {
+          chunk_text: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          knowledge_entry_id: string | null
+          memory_item_id: string | null
+          source_ref_json: Json | null
+          user_id: string
+        }
+        Insert: {
+          chunk_text: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          knowledge_entry_id?: string | null
+          memory_item_id?: string | null
+          source_ref_json?: Json | null
+          user_id: string
+        }
+        Update: {
+          chunk_text?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          knowledge_entry_id?: string | null
+          memory_item_id?: string | null
+          source_ref_json?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_vectors_knowledge_entry_id_fkey"
+            columns: ["knowledge_entry_id"]
+            isOneToOne: false
+            referencedRelation: "atlas_knowledge_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memory_vectors_memory_item_id_fkey"
+            columns: ["memory_item_id"]
+            isOneToOne: false
+            referencedRelation: "ai_memory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -388,6 +633,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      model_configs: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          max_tokens: number | null
+          model_name: string
+          temperature: number | null
+          tier: Database["public"]["Enums"]["model_tier"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          max_tokens?: number | null
+          model_name: string
+          temperature?: number | null
+          tier: Database["public"]["Enums"]["model_tier"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          max_tokens?: number | null
+          model_name?: string
+          temperature?: number | null
+          tier?: Database["public"]["Enums"]["model_tier"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -430,6 +711,316 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      research_citations: {
+        Row: {
+          accessed_at: string | null
+          citation_type: string | null
+          created_at: string | null
+          credibility_score: number | null
+          domain: string | null
+          id: string
+          raw_json: Json | null
+          research_topic_id: string | null
+          run_id: string | null
+          snippet: string | null
+          title: string | null
+          url: string
+          user_id: string | null
+        }
+        Insert: {
+          accessed_at?: string | null
+          citation_type?: string | null
+          created_at?: string | null
+          credibility_score?: number | null
+          domain?: string | null
+          id?: string
+          raw_json?: Json | null
+          research_topic_id?: string | null
+          run_id?: string | null
+          snippet?: string | null
+          title?: string | null
+          url: string
+          user_id?: string | null
+        }
+        Update: {
+          accessed_at?: string | null
+          citation_type?: string | null
+          created_at?: string | null
+          credibility_score?: number | null
+          domain?: string | null
+          id?: string
+          raw_json?: Json | null
+          research_topic_id?: string | null
+          run_id?: string | null
+          snippet?: string | null
+          title?: string | null
+          url?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_citations_research_topic_id_fkey"
+            columns: ["research_topic_id"]
+            isOneToOne: false
+            referencedRelation: "atlas_research_topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_citations_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      run_steps: {
+        Row: {
+          created_at: string | null
+          finished_at: string | null
+          id: string
+          input_json: Json | null
+          kind: string
+          model_tier: Database["public"]["Enums"]["model_tier"] | null
+          model_used: string | null
+          output_json: Json | null
+          run_id: string
+          started_at: string | null
+          step_index: number
+          tokens_used: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          finished_at?: string | null
+          id?: string
+          input_json?: Json | null
+          kind: string
+          model_tier?: Database["public"]["Enums"]["model_tier"] | null
+          model_used?: string | null
+          output_json?: Json | null
+          run_id: string
+          started_at?: string | null
+          step_index: number
+          tokens_used?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          finished_at?: string | null
+          id?: string
+          input_json?: Json | null
+          kind?: string
+          model_tier?: Database["public"]["Enums"]["model_tier"] | null
+          model_used?: string | null
+          output_json?: Json | null
+          run_id?: string
+          started_at?: string | null
+          step_index?: number
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_steps_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      runs: {
+        Row: {
+          agent_id: string
+          cost_estimate: number | null
+          created_at: string | null
+          error_message: string | null
+          finished_at: string | null
+          goal_text: string
+          id: string
+          plan_json: Json | null
+          result_json: Json | null
+          started_at: string | null
+          status: string
+          tokens_planner: number | null
+          tokens_reasoner: number | null
+          tokens_worker: number | null
+          user_id: string
+          verification_json: Json | null
+        }
+        Insert: {
+          agent_id: string
+          cost_estimate?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          finished_at?: string | null
+          goal_text: string
+          id?: string
+          plan_json?: Json | null
+          result_json?: Json | null
+          started_at?: string | null
+          status?: string
+          tokens_planner?: number | null
+          tokens_reasoner?: number | null
+          tokens_worker?: number | null
+          user_id: string
+          verification_json?: Json | null
+        }
+        Update: {
+          agent_id?: string
+          cost_estimate?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          finished_at?: string | null
+          goal_text?: string
+          id?: string
+          plan_json?: Json | null
+          result_json?: Json | null
+          started_at?: string | null
+          status?: string
+          tokens_planner?: number | null
+          tokens_reasoner?: number | null
+          tokens_worker?: number | null
+          user_id?: string
+          verification_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "runs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedules: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          cron_expression: string
+          description: string | null
+          enabled: boolean | null
+          id: string
+          last_run_at: string | null
+          last_run_id: string | null
+          last_run_status: string | null
+          name: string
+          next_run_at: string | null
+          payload_json: Json | null
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          cron_expression: string
+          description?: string | null
+          enabled?: boolean | null
+          id?: string
+          last_run_at?: string | null
+          last_run_id?: string | null
+          last_run_status?: string | null
+          name: string
+          next_run_at?: string | null
+          payload_json?: Json | null
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          cron_expression?: string
+          description?: string | null
+          enabled?: boolean | null
+          id?: string
+          last_run_at?: string | null
+          last_run_id?: string | null
+          last_run_status?: string | null
+          name?: string
+          next_run_at?: string | null
+          payload_json?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedules_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedules_last_run_id_fkey"
+            columns: ["last_run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tool_calls: {
+        Row: {
+          args_json: Json
+          completed_at: string | null
+          cost_estimate: number | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          requires_approval: boolean | null
+          result_json: Json | null
+          run_id: string | null
+          sandboxed: boolean | null
+          status: string
+          step_id: string | null
+          tool_name: string
+          user_id: string
+        }
+        Insert: {
+          args_json?: Json
+          completed_at?: string | null
+          cost_estimate?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          requires_approval?: boolean | null
+          result_json?: Json | null
+          run_id?: string | null
+          sandboxed?: boolean | null
+          status?: string
+          step_id?: string | null
+          tool_name: string
+          user_id: string
+        }
+        Update: {
+          args_json?: Json
+          completed_at?: string | null
+          cost_estimate?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          requires_approval?: boolean | null
+          result_json?: Json | null
+          run_id?: string | null
+          sandboxed?: boolean | null
+          status?: string
+          step_id?: string | null
+          tool_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_calls_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tool_calls_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "run_steps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_events: {
         Row: {
@@ -545,6 +1136,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_tasks: {
         Row: {
           completed: boolean | null
@@ -635,15 +1247,61 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_settings: {
+        Row: {
+          auto_approve_low_risk: boolean | null
+          created_at: string | null
+          daily_budget_limit: number | null
+          daily_run_limit: number | null
+          daily_tool_call_limit: number | null
+          id: string
+          require_approval_for_risky: boolean | null
+          settings_json: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auto_approve_low_risk?: boolean | null
+          created_at?: string | null
+          daily_budget_limit?: number | null
+          daily_run_limit?: number | null
+          daily_tool_call_limit?: number | null
+          id?: string
+          require_approval_for_risky?: boolean | null
+          settings_json?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auto_approve_low_risk?: boolean | null
+          created_at?: string | null
+          daily_budget_limit?: number | null
+          daily_run_limit?: number | null
+          daily_tool_call_limit?: number | null
+          id?: string
+          require_approval_for_risky?: boolean | null
+          settings_json?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
+      model_tier: "planner" | "worker" | "reasoner"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -770,6 +1428,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+      model_tier: ["planner", "worker", "reasoner"],
+    },
   },
 } as const
