@@ -34,6 +34,96 @@ interface KnowledgeEntry {
   category: string;
 }
 
+interface ToolCall {
+  id: string;
+  type: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+// Provider configuration
+const PROVIDERS = {
+  perplexity: {
+    url: "https://api.perplexity.ai/chat/completions",
+    models: {
+      fast: "sonar",
+      deep: "sonar-pro",
+    }
+  },
+  lovable: {
+    url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+    model: "google/gemini-2.5-flash",
+  },
+  jina: {
+    url: "https://r.jina.ai",
+  }
+};
+
+// Available tools that Atlas can use
+const ATLAS_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "web_search",
+      description: "Search the web for current information on a topic. Use this when the user asks about recent events, news, or information you're not certain about.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "The search query" }
+        },
+        required: ["query"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "deep_research",
+      description: "Conduct comprehensive research on a topic with multiple sources. Use for complex questions requiring detailed analysis.",
+      parameters: {
+        type: "object",
+        properties: {
+          topic: { type: "string", description: "The topic to research" },
+          depth: { type: "string", enum: ["quick", "comprehensive", "exhaustive"], description: "How deep to research" }
+        },
+        required: ["topic"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "web_scrape",
+      description: "Extract content from a specific URL. Use when the user provides a link or you need to read a specific webpage.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "The URL to scrape" }
+        },
+        required: ["url"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "memory_store",
+      description: "Store an important fact or preference about the user for future reference. Use when the user shares personal information, preferences, or important life events.",
+      parameters: {
+        type: "object",
+        properties: {
+          key: { type: "string", description: "A short identifier for this memory" },
+          value: { type: "string", description: "The information to remember" },
+          category: { type: "string", enum: ["preference", "fact", "relationship", "event", "work", "health"], description: "Category of the memory" }
+        },
+        required: ["key", "value", "category"]
+      }
+    }
+  }
+];
+
 function getTimeOfDay(timezone: string): string {
   try {
     const now = new Date();
@@ -59,7 +149,8 @@ function buildPersonalizedPrompt(
   memories: Memory[],
   upcomingEvents: LifeEvent[],
   recentEvents: LifeEvent[],
-  knowledgeBank: KnowledgeEntry[]
+  knowledgeBank: KnowledgeEntry[],
+  hasTools: boolean
 ): string {
   const userName = profile?.nickname || profile?.first_name || "there";
   const timeOfDay = profile?.timezone ? getTimeOfDay(profile.timezone) : "day";
@@ -87,6 +178,16 @@ function buildPersonalizedPrompt(
     }
   }
 
+  const toolInstructions = hasTools ? `
+## Tools Available
+You have access to powerful tools:
+- **web_search**: Search the web for current information. Use when asked about recent events, news, or facts you're uncertain about.
+- **deep_research**: Comprehensive research with citations. Use for complex topics requiring thorough analysis.
+- **web_scrape**: Read content from a specific URL. Use when given a link to analyze.
+- **memory_store**: Save important facts about the user. Use when they share personal details, preferences, or events.
+
+IMPORTANT: When you need current information or facts you're not certain about, USE the web_search tool. Don't guess or make up information.` : "";
+
   return `You are Atlas, a warm, witty, and genuinely caring AI assistant who knows ${userName} personally.
 
 ## Your Personality
@@ -106,6 +207,7 @@ ${isBirthdayToday ? "- 🎂 TODAY IS THEIR BIRTHDAY! Wish them happy birthday wa
 - Remember inside jokes but don't force them
 - Use contractions naturally ("you're", "I'd", "let's")
 - Emoji occasionally but don't overdo it
+${toolInstructions}
 ${memoryContext}
 ${knowledgeContext}
 ${eventsContext}
@@ -118,10 +220,10 @@ ${eventsContext}
 - Document management
 - General knowledge and conversation
 - Remembering personal details and following up on life events
-- Research and deep learning on topics
+- Research and deep learning on topics (use tools when needed!)
 
 ## Memory Instructions
-Pay attention to personal details mentioned:
+Pay attention to personal details mentioned and use memory_store to save:
 1. Names of family, friends, colleagues
 2. Important dates (birthdays, anniversaries)
 3. Preferences and habits
@@ -129,6 +231,114 @@ Pay attention to personal details mentioned:
 5. Inside jokes or shared references
 
 Be genuine, warm, and personable. You're not just an assistant - you're a friend who genuinely cares.`;
+}
+
+// Execute a tool call
+async function executeTool(
+  toolCall: ToolCall,
+  userId: string | null,
+  perplexityKey: string | null,
+  supabase: any
+): Promise<{ name: string; result: unknown }> {
+  const { name, arguments: argsStr } = toolCall.function;
+  const args = JSON.parse(argsStr);
+  
+  console.log(`[chat-with-memory] Executing tool: ${name}`, args);
+
+  switch (name) {
+    case "web_search": {
+      if (perplexityKey) {
+        const response = await fetch(PROVIDERS.perplexity.url, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${perplexityKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: PROVIDERS.perplexity.models.fast,
+            messages: [
+              { role: "system", content: "Be precise and concise. Provide well-sourced information." },
+              { role: "user", content: args.query },
+            ],
+          }),
+        });
+        const data = await response.json();
+        return { 
+          name, 
+          result: { 
+            content: data.choices?.[0]?.message?.content || "No results",
+            citations: data.citations || []
+          }
+        };
+      }
+      // Fallback - just return that we couldn't search
+      return { name, result: { error: "Web search not available", suggestion: "I'll answer based on my training data" } };
+    }
+
+    case "deep_research": {
+      if (perplexityKey) {
+        const response = await fetch(PROVIDERS.perplexity.url, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${perplexityKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: PROVIDERS.perplexity.models.deep,
+            messages: [
+              { role: "system", content: "Provide comprehensive, well-sourced research with detailed analysis." },
+              { role: "user", content: `Research thoroughly: ${args.topic}` },
+            ],
+          }),
+        });
+        const data = await response.json();
+        return { 
+          name, 
+          result: { 
+            content: data.choices?.[0]?.message?.content || "Research failed",
+            citations: data.citations || []
+          }
+        };
+      }
+      return { name, result: { error: "Deep research not available", suggestion: "I'll provide what I know from my training" } };
+    }
+
+    case "web_scrape": {
+      const jinaUrl = `${PROVIDERS.jina.url}/${args.url}`;
+      const response = await fetch(jinaUrl, {
+        method: "GET",
+        headers: { "Accept": "text/markdown" },
+      });
+      if (!response.ok) {
+        return { name, result: { error: `Failed to scrape: ${response.status}` } };
+      }
+      const markdown = await response.text();
+      return { name, result: { content: markdown.slice(0, 10000), url: args.url } };
+    }
+
+    case "memory_store": {
+      if (userId) {
+        const { error } = await supabase.from("ai_memory").upsert({
+          user_id: userId,
+          key: args.key,
+          value: args.value,
+          category: args.category,
+          memory_type: "fact",
+          importance: 7,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id,key" });
+        
+        if (error) {
+          return { name, result: { error: error.message } };
+        }
+        return { name, result: { success: true, message: `Remembered: ${args.key}` } };
+      }
+      return { name, result: { error: "Cannot store memory without user ID" } };
+    }
+
+    default:
+      return { name, result: { error: `Unknown tool: ${name}` } };
+  }
 }
 
 // Trigger knowledge extraction asynchronously
@@ -139,16 +349,15 @@ async function triggerKnowledgeExtraction(
   source: string
 ) {
   try {
-    // Fire and forget - don't await
     fetch(`${supabaseUrl}/functions/v1/atlas-knowledge`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ conversation, userId, source }),
-    }).catch(e => console.log("Knowledge extraction trigger failed:", e));
+    }).catch(e => console.log("[chat-with-memory] Knowledge extraction trigger failed:", e));
   } catch (e) {
-    console.log("Could not trigger knowledge extraction:", e);
+    console.log("[chat-with-memory] Could not trigger knowledge extraction:", e);
   }
 }
 
@@ -158,8 +367,9 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, userId, source = "text_chat" } = await req.json();
+    const { messages, userId, source = "text_chat", enableTools = true } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
@@ -231,46 +441,57 @@ serve(async (req) => {
       recentEvents = recentData || [];
     }
 
-    console.log("Processing chat with memory for user:", userId);
-    console.log("Profile:", profile?.first_name);
-    console.log("Memories count:", memories.length);
-    console.log("Knowledge bank count:", knowledgeBank.length);
+    console.log("[chat-with-memory] Processing chat for user:", userId);
+    console.log("[chat-with-memory] Profile:", profile?.first_name);
+    console.log("[chat-with-memory] Memories count:", memories.length);
+    console.log("[chat-with-memory] Tools enabled:", enableTools);
+    console.log("[chat-with-memory] Perplexity available:", !!PERPLEXITY_API_KEY);
 
-    const systemPrompt = buildPersonalizedPrompt(profile, memories, upcomingEvents, recentEvents, knowledgeBank);
+    const hasTools = enableTools && (!!PERPLEXITY_API_KEY || true); // Always enable tools, some work without Perplexity
+    const systemPrompt = buildPersonalizedPrompt(profile, memories, upcomingEvents, recentEvents, knowledgeBank, hasTools);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Initial request body
+    const requestBody: Record<string, unknown> = {
+      model: PROVIDERS.lovable.model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...messages,
+      ],
+      stream: true,
+    };
+
+    // Add tools if enabled
+    if (hasTools) {
+      requestBody.tools = ATLAS_TOOLS;
+      requestBody.tool_choice = "auto";
+    }
+
+    const response = await fetch(PROVIDERS.lovable.url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        stream: true,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       if (response.status === 429) {
-        console.error("Rate limit exceeded");
+        console.error("[chat-with-memory] Rate limit exceeded");
         return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
-        console.error("Payment required");
+        console.error("[chat-with-memory] Payment required");
         return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("[chat-with-memory] AI gateway error:", response.status, errorText);
       return new Response(JSON.stringify({ error: "AI gateway error" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -278,17 +499,16 @@ serve(async (req) => {
     }
 
     // Trigger knowledge extraction asynchronously (fire and forget)
-    // Only extract if we have enough conversation context
     if (messages.length >= 2 && SUPABASE_URL) {
       triggerKnowledgeExtraction(SUPABASE_URL, messages, userId, source);
     }
 
-    console.log("Streaming response from AI gateway");
+    console.log("[chat-with-memory] Streaming response from AI gateway");
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (error) {
-    console.error("Chat with memory error:", error);
+    console.error("[chat-with-memory] Error:", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
