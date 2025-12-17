@@ -1,0 +1,232 @@
+import { useReducer, useEffect, useCallback, useMemo } from 'react';
+import { WakeWordState } from '@/hooks/useWakeWordFixed';
+
+const STORAGE_KEY = 'atlas-demo-settings';
+
+// Complete settings interface for Atlas visualization
+export interface AtlasSettings {
+  // Core state
+  state: WakeWordState;
+  morphProgress: number;
+  audioLevel: number;
+  autoAudio: boolean;
+  
+  // Trail settings
+  enableTrails: boolean;
+  trailLength: number;
+  trailOpacity: number;
+  trailColorGradient: boolean;
+  trailStartColor: string;
+  trailEndColor: string;
+  
+  // Particle settings
+  particleCount: number;
+  particleSize: number;
+  density: number;
+  rotationSpeed: number;
+  
+  // Effects
+  enableBloom: boolean;
+  bloomIntensity: number;
+  morphSpeed: number;
+  
+  // Ripple settings
+  enableRipples: boolean;
+  rippleSpeed: number;
+  rippleCount: number;
+  
+  // Turbulence settings
+  enableTurbulence: boolean;
+  turbulenceFrequency: number;
+  turbulenceAmplitude: number;
+  turbulenceSpeed: number;
+  
+  // Mouse interaction
+  enableMouseInteraction: boolean;
+  mouseMode: 'attract' | 'repulse';
+  mouseStrength: number;
+  mouseInfluenceRadius: number;
+  
+  // Core system
+  enableCore: boolean;
+  coreParticleCount: number;
+  coreDensity: number;
+  coreParticleSize: number;
+  coreIntensity: number;
+  corePulseSpeed: number;
+  coreRotationOffset: number;
+  
+  // Fluid dynamics
+  fluidCohesion: number;
+  surfaceTension: number;
+  fluidFlow: number;
+  
+  // Audio reactivity
+  audioReactivitySpeed: number;
+}
+
+// Default settings - optimized for performance
+export const defaultAtlasSettings: AtlasSettings = {
+  state: 'dormant',
+  morphProgress: 0.2,
+  audioLevel: 0,
+  autoAudio: false,
+  enableTrails: false,
+  trailLength: 3,
+  trailOpacity: 0.4,
+  trailColorGradient: true,
+  trailStartColor: '#ff9500',
+  trailEndColor: '#1a0a2e',
+  particleCount: 1500,
+  particleSize: 0.08,
+  density: 1.0,
+  rotationSpeed: 0.5,
+  enableBloom: true,
+  bloomIntensity: 0.6,
+  morphSpeed: 1.5,
+  enableRipples: true,
+  rippleSpeed: 1.5,
+  rippleCount: 2,
+  enableTurbulence: true,
+  turbulenceFrequency: 0.5,
+  turbulenceAmplitude: 0.06,
+  turbulenceSpeed: 0.3,
+  enableMouseInteraction: true,
+  mouseMode: 'attract',
+  mouseStrength: 0.4,
+  mouseInfluenceRadius: 2.0,
+  enableCore: true,
+  coreParticleCount: 120,
+  coreDensity: 0.25,
+  coreParticleSize: 0.04,
+  coreIntensity: 1.0,
+  corePulseSpeed: 1.5,
+  coreRotationOffset: -0.5,
+  fluidCohesion: 0,
+  surfaceTension: 0.5,
+  fluidFlow: 0.3,
+  audioReactivitySpeed: 1.0,
+};
+
+// Action types
+type SettingsAction =
+  | { type: 'SET_SETTING'; key: keyof AtlasSettings; value: AtlasSettings[keyof AtlasSettings] }
+  | { type: 'SET_MULTIPLE'; settings: Partial<AtlasSettings> }
+  | { type: 'RESET' }
+  | { type: 'LOAD'; settings: AtlasSettings };
+
+// Reducer
+function settingsReducer(state: AtlasSettings, action: SettingsAction): AtlasSettings {
+  switch (action.type) {
+    case 'SET_SETTING':
+      return { ...state, [action.key]: action.value };
+    case 'SET_MULTIPLE':
+      return { ...state, ...action.settings };
+    case 'RESET':
+      return { ...defaultAtlasSettings };
+    case 'LOAD':
+      return { ...action.settings };
+    default:
+      return state;
+  }
+}
+
+// Load settings from localStorage
+function loadSettings(): AtlasSettings {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return { ...defaultAtlasSettings, ...parsed };
+    }
+  } catch (e) {
+    console.warn('Failed to load Atlas settings:', e);
+  }
+  return defaultAtlasSettings;
+}
+
+// Save settings to localStorage
+function saveSettings(settings: AtlasSettings) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch (e) {
+    console.error('Failed to save Atlas settings:', e);
+  }
+}
+
+export interface UseAtlasSettingsReturn {
+  settings: AtlasSettings;
+  setSetting: <K extends keyof AtlasSettings>(key: K, value: AtlasSettings[K]) => void;
+  setMultiple: (settings: Partial<AtlasSettings>) => void;
+  reset: () => void;
+  exportSettings: () => void;
+  importSettings: () => void;
+}
+
+export function useAtlasSettings(): UseAtlasSettingsReturn {
+  const [settings, dispatch] = useReducer(settingsReducer, defaultAtlasSettings, loadSettings);
+
+  // Auto-save to localStorage when settings change
+  useEffect(() => {
+    saveSettings(settings);
+  }, [settings]);
+
+  const setSetting = useCallback(<K extends keyof AtlasSettings>(key: K, value: AtlasSettings[K]) => {
+    dispatch({ type: 'SET_SETTING', key, value });
+  }, []);
+
+  const setMultiple = useCallback((newSettings: Partial<AtlasSettings>) => {
+    dispatch({ type: 'SET_MULTIPLE', settings: newSettings });
+  }, []);
+
+  const reset = useCallback(() => {
+    dispatch({ type: 'RESET' });
+    localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
+  const exportSettings = useCallback(() => {
+    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `atlas-settings-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [settings]);
+
+  const importSettings = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const imported = JSON.parse(ev.target?.result as string);
+          dispatch({ type: 'LOAD', settings: { ...defaultAtlasSettings, ...imported } });
+        } catch {
+          console.error('Invalid settings file');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }, []);
+
+  return useMemo(() => ({
+    settings,
+    setSetting,
+    setMultiple,
+    reset,
+    exportSettings,
+    importSettings,
+  }), [settings, setSetting, setMultiple, reset, exportSettings, importSettings]);
+}
+
+// Read-only hook for components that just need to display the sphere
+export function useAtlasSettingsReadOnly(): AtlasSettings {
+  return useMemo(() => loadSettings(), []);
+}

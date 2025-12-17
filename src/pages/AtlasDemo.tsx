@@ -6,106 +6,15 @@ import { AtlasCore } from '@/components/atlas';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
-
-const STORAGE_KEY = 'atlas-demo-settings';
-
-// Settings interface for persistence
-interface AtlasDemoSettings {
-  state: WakeWordState;
-  morphProgress: number;
-  audioLevel: number;
-  autoAudio: boolean;
-  enableTrails: boolean;
-  trailLength: number;
-  trailOpacity: number;
-  trailColorGradient: boolean;
-  trailStartColor: string;
-  trailEndColor: string;
-  particleCount: number;
-  particleSize: number;
-  density: number;
-  rotationSpeed: number;
-  enableBloom: boolean;
-  bloomIntensity: number;
-  morphSpeed: number;
-  enableRipples: boolean;
-  rippleSpeed: number;
-  rippleCount: number;
-  enableTurbulence: boolean;
-  turbulenceFrequency: number;
-  turbulenceAmplitude: number;
-  turbulenceSpeed: number;
-  enableMouseInteraction: boolean;
-  mouseMode: 'attract' | 'repulse';
-  mouseStrength: number;
-  mouseInfluenceRadius: number;
-  // Core settings
-  enableCore: boolean;
-  coreParticleCount: number;
-  coreDensity: number;
-  coreParticleSize: number;
-  coreIntensity: number;
-  corePulseSpeed: number;
-  coreRotationOffset: number;
-  // Fluid dynamics settings
-  fluidCohesion: number;
-  surfaceTension: number;
-  fluidFlow: number;
-  // Audio reactivity settings
-  audioReactivitySpeed: number;
-}
+import { useAtlasSettings, defaultAtlasSettings, AtlasSettings } from '@/hooks/useAtlasSettings';
 
 // Performance presets
 type PerformanceMode = 'performance' | 'balanced' | 'quality';
 
-// Performance presets - optimized for smooth 60fps
 const performancePresets: Record<PerformanceMode, { particleCount: number; trailLength: number; enableBloom: boolean; coreParticleCount: number; density: number; particleSize: number; label: string }> = {
   performance: { particleCount: 800, trailLength: 0, enableBloom: false, coreParticleCount: 80, density: 0.9, particleSize: 0.09, label: 'Performance' },
   balanced: { particleCount: 1500, trailLength: 0, enableBloom: true, coreParticleCount: 120, density: 1.0, particleSize: 0.08, label: 'Balanced' },
   quality: { particleCount: 2500, trailLength: 3, enableBloom: true, coreParticleCount: 200, density: 1.0, particleSize: 0.07, label: 'Quality' },
-};
-
-// Optimized defaults - performance first
-const defaultSettings: AtlasDemoSettings = {
-  state: 'dormant',
-  morphProgress: 0.2,
-  audioLevel: 0,
-  autoAudio: false,
-  enableTrails: false,       // Disabled by default for performance
-  trailLength: 3,
-  trailOpacity: 0.4,
-  trailColorGradient: true,
-  trailStartColor: '#ff9500',
-  trailEndColor: '#1a0a2e',
-  particleCount: 1500,       // Reduced for smooth 60fps
-  particleSize: 0.08,
-  density: 1.0,
-  rotationSpeed: 0.5,
-  enableBloom: true,
-  bloomIntensity: 0.6,
-  morphSpeed: 1.5,
-  enableRipples: true,
-  rippleSpeed: 1.5,
-  rippleCount: 2,
-  enableTurbulence: true,
-  turbulenceFrequency: 0.5,
-  turbulenceAmplitude: 0.06,
-  turbulenceSpeed: 0.3,
-  enableMouseInteraction: true,
-  mouseMode: 'attract',
-  mouseStrength: 0.4,
-  mouseInfluenceRadius: 2.0,
-  enableCore: true,
-  coreParticleCount: 120,    // Reduced for performance
-  coreDensity: 0.25,
-  coreParticleSize: 0.04,
-  coreIntensity: 1.0,
-  corePulseSpeed: 1.5,
-  coreRotationOffset: -0.5,
-  fluidCohesion: 0,
-  surfaceTension: 0.5,
-  fluidFlow: 0.3,
-  audioReactivitySpeed: 1.0,
 };
 
 const states: WakeWordState[] = ['dormant', 'passive', 'activated', 'listening', 'thinking', 'speaking'];
@@ -131,449 +40,92 @@ interface Preset {
 }
 
 const presets: Preset[] = [
-  {
-    name: 'Idle Ambient',
-    description: 'Calm, scattered particles drifting peacefully',
-    state: 'dormant',
-    morphProgress: 0.15,
-    audioLevel: 0,
-    autoAudio: false,
-    icon: '🌙',
-    gradient: 'from-slate-500/20 to-slate-600/20',
-  },
-  {
-    name: 'Awaiting Input',
-    description: 'Gentle sphere formation, ready to listen',
-    state: 'passive',
-    morphProgress: 0.5,
-    audioLevel: 0.05,
-    autoAudio: false,
-    icon: '👂',
-    gradient: 'from-orange-500/20 to-amber-500/20',
-  },
-  {
-    name: 'Wake Word Detected',
-    description: 'Bright activation burst, particles converge',
-    state: 'activated',
-    morphProgress: 1.0,
-    audioLevel: 0.3,
-    autoAudio: false,
-    icon: '⚡',
-    gradient: 'from-yellow-400/20 to-amber-400/20',
-  },
-  {
-    name: 'Active Listening',
-    description: 'Cyan vortex formation, audio-reactive',
-    state: 'listening',
-    morphProgress: 1.0,
-    audioLevel: 0.4,
-    autoAudio: true,
-    icon: '🎙️',
-    gradient: 'from-cyan-500/20 to-blue-500/20',
-  },
-  {
-    name: 'Deep Processing',
-    description: 'Purple pulsing sphere, rapid internal rotation',
-    state: 'thinking',
-    morphProgress: 1.0,
-    audioLevel: 0.2,
-    autoAudio: false,
-    icon: '🧠',
-    gradient: 'from-purple-500/20 to-violet-500/20',
-  },
-  {
-    name: 'Speaking Response',
-    description: 'Gold ripples emanating with voice output',
-    state: 'speaking',
-    morphProgress: 1.0,
-    audioLevel: 0.6,
-    autoAudio: true,
-    icon: '🔊',
-    gradient: 'from-amber-400/20 to-orange-400/20',
-  },
-  {
-    name: 'Scattered Chaos',
-    description: 'Maximum dispersion with audio reactivity',
-    state: 'passive',
-    morphProgress: 0.0,
-    audioLevel: 0.8,
-    autoAudio: true,
-    icon: '🌀',
-    gradient: 'from-red-500/20 to-pink-500/20',
-  },
-  {
-    name: 'Perfect Sphere',
-    description: 'Tight formation, minimal movement',
-    state: 'listening',
-    morphProgress: 1.0,
-    audioLevel: 0.0,
-    autoAudio: false,
-    icon: '🔮',
-    gradient: 'from-teal-500/20 to-cyan-500/20',
-  },
+  { name: 'Idle Ambient', description: 'Calm, scattered particles drifting peacefully', state: 'dormant', morphProgress: 0.15, audioLevel: 0, autoAudio: false, icon: '🌙', gradient: 'from-slate-500/20 to-slate-600/20' },
+  { name: 'Awaiting Input', description: 'Gentle sphere formation, ready to listen', state: 'passive', morphProgress: 0.5, audioLevel: 0.05, autoAudio: false, icon: '👂', gradient: 'from-orange-500/20 to-amber-500/20' },
+  { name: 'Wake Word Detected', description: 'Bright activation burst, particles converge', state: 'activated', morphProgress: 1.0, audioLevel: 0.3, autoAudio: false, icon: '⚡', gradient: 'from-yellow-400/20 to-amber-400/20' },
+  { name: 'Active Listening', description: 'Cyan vortex formation, audio-reactive', state: 'listening', morphProgress: 1.0, audioLevel: 0.4, autoAudio: true, icon: '🎙️', gradient: 'from-cyan-500/20 to-blue-500/20' },
+  { name: 'Deep Processing', description: 'Purple pulsing sphere, rapid internal rotation', state: 'thinking', morphProgress: 1.0, audioLevel: 0.2, autoAudio: false, icon: '🧠', gradient: 'from-purple-500/20 to-violet-500/20' },
+  { name: 'Speaking Response', description: 'Gold ripples emanating with voice output', state: 'speaking', morphProgress: 1.0, audioLevel: 0.6, autoAudio: true, icon: '🔊', gradient: 'from-amber-400/20 to-orange-400/20' },
+  { name: 'Scattered Chaos', description: 'Maximum dispersion with audio reactivity', state: 'passive', morphProgress: 0.0, audioLevel: 0.8, autoAudio: true, icon: '🌀', gradient: 'from-red-500/20 to-pink-500/20' },
+  { name: 'Perfect Sphere', description: 'Tight formation, minimal movement', state: 'listening', morphProgress: 1.0, audioLevel: 0.0, autoAudio: false, icon: '🔮', gradient: 'from-teal-500/20 to-cyan-500/20' },
 ];
 
 export default function AtlasDemo() {
-  const [state, setState] = useState<WakeWordState>(defaultSettings.state);
-  const [morphProgress, setMorphProgress] = useState(defaultSettings.morphProgress);
-  const [audioLevel, setAudioLevel] = useState(defaultSettings.audioLevel);
+  // Use the unified settings hook - single source of truth
+  const { settings, setSetting, setMultiple, reset, exportSettings, importSettings } = useAtlasSettings();
+  
+  // Local UI state only
   const [isAnimating, setIsAnimating] = useState(false);
-  const [autoAudio, setAutoAudio] = useState(defaultSettings.autoAudio);
   const [activePreset, setActivePreset] = useState<string | null>(null);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [performanceMode, setPerformanceMode] = useState<PerformanceMode>('balanced');
-  
-  // Trail controls
-  const [enableTrails, setEnableTrails] = useState(defaultSettings.enableTrails);
-  const [trailLength, setTrailLength] = useState(defaultSettings.trailLength);
-  const [trailOpacity, setTrailOpacity] = useState(defaultSettings.trailOpacity);
-  const [trailColorGradient, setTrailColorGradient] = useState(defaultSettings.trailColorGradient);
-  const [trailStartColor, setTrailStartColor] = useState(defaultSettings.trailStartColor);
-  const [trailEndColor, setTrailEndColor] = useState(defaultSettings.trailEndColor);
-  
-  // Particle controls
-  const [particleCount, setParticleCount] = useState(defaultSettings.particleCount);
-  const [particleSize, setParticleSize] = useState(defaultSettings.particleSize);
-  const [density, setDensity] = useState(defaultSettings.density);
-  const [rotationSpeed, setRotationSpeed] = useState(defaultSettings.rotationSpeed);
-  
-  // Effects controls
-  const [enableBloom, setEnableBloom] = useState(defaultSettings.enableBloom);
-  const [bloomIntensity, setBloomIntensity] = useState(defaultSettings.bloomIntensity);
-  
-  // Animation controls
-  const [morphSpeed, setMorphSpeed] = useState(defaultSettings.morphSpeed);
-  
-  // Ring Ripple controls
-  const [enableRipples, setEnableRipples] = useState(defaultSettings.enableRipples);
-  const [rippleSpeed, setRippleSpeed] = useState(defaultSettings.rippleSpeed);
-  const [rippleCount, setRippleCount] = useState(defaultSettings.rippleCount);
-  
-  // Turbulence controls
-  const [enableTurbulence, setEnableTurbulence] = useState(defaultSettings.enableTurbulence);
-  const [turbulenceFrequency, setTurbulenceFrequency] = useState(defaultSettings.turbulenceFrequency);
-  const [turbulenceAmplitude, setTurbulenceAmplitude] = useState(defaultSettings.turbulenceAmplitude);
-  const [turbulenceSpeed, setTurbulenceSpeed] = useState(defaultSettings.turbulenceSpeed);
-  
-  // Mouse Interaction controls
-  const [enableMouseInteraction, setEnableMouseInteraction] = useState(defaultSettings.enableMouseInteraction);
-  const [mouseMode, setMouseMode] = useState<'attract' | 'repulse'>(defaultSettings.mouseMode);
-  const [mouseStrength, setMouseStrength] = useState(defaultSettings.mouseStrength);
-  const [mouseInfluenceRadius, setMouseInfluenceRadius] = useState(defaultSettings.mouseInfluenceRadius);
-  
-  // Core controls
-  const [enableCore, setEnableCore] = useState(defaultSettings.enableCore);
-  const [coreParticleCount, setCoreParticleCount] = useState(defaultSettings.coreParticleCount);
-  const [coreDensity, setCoreDensity] = useState(defaultSettings.coreDensity);
-  const [coreParticleSize, setCoreParticleSize] = useState(defaultSettings.coreParticleSize);
-  const [coreIntensity, setCoreIntensity] = useState(defaultSettings.coreIntensity);
-  const [corePulseSpeed, setCorePulseSpeed] = useState(defaultSettings.corePulseSpeed);
-  const [coreRotationOffset, setCoreRotationOffset] = useState(defaultSettings.coreRotationOffset);
-  
-  // Fluid dynamics controls
-  const [fluidCohesion, setFluidCohesion] = useState(defaultSettings.fluidCohesion);
-  const [surfaceTension, setSurfaceTension] = useState(defaultSettings.surfaceTension);
-  const [fluidFlow, setFluidFlow] = useState(defaultSettings.fluidFlow);
-  
-  // Audio reactivity controls
-  const [audioReactivitySpeed, setAudioReactivitySpeed] = useState(defaultSettings.audioReactivitySpeed);
+
+  // Simulate audio levels when autoAudio is enabled
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const settings: AtlasDemoSettings = JSON.parse(saved);
-        setState(settings.state);
-        setMorphProgress(settings.morphProgress);
-        setAudioLevel(settings.audioLevel);
-        setAutoAudio(settings.autoAudio);
-        setEnableTrails(settings.enableTrails);
-        setTrailLength(settings.trailLength);
-        setTrailOpacity(settings.trailOpacity);
-        setParticleCount(settings.particleCount);
-        setParticleSize(settings.particleSize);
-        setDensity(settings.density);
-        setRotationSpeed(settings.rotationSpeed);
-        setEnableBloom(settings.enableBloom);
-        setBloomIntensity(settings.bloomIntensity);
-        setMorphSpeed(settings.morphSpeed);
-        setEnableRipples(settings.enableRipples);
-        setRippleSpeed(settings.rippleSpeed);
-        setRippleCount(settings.rippleCount);
-        setEnableTurbulence(settings.enableTurbulence);
-        setTurbulenceFrequency(settings.turbulenceFrequency);
-        setTurbulenceAmplitude(settings.turbulenceAmplitude);
-        setTurbulenceSpeed(settings.turbulenceSpeed);
-        setEnableMouseInteraction(settings.enableMouseInteraction);
-        setMouseMode(settings.mouseMode);
-        setMouseStrength(settings.mouseStrength);
-        setMouseInfluenceRadius(settings.mouseInfluenceRadius);
-        setEnableCore(settings.enableCore ?? defaultSettings.enableCore);
-        setCoreParticleCount(settings.coreParticleCount ?? defaultSettings.coreParticleCount);
-        setCoreDensity(settings.coreDensity ?? defaultSettings.coreDensity);
-        setCoreParticleSize(settings.coreParticleSize ?? defaultSettings.coreParticleSize);
-        setCoreIntensity(settings.coreIntensity ?? defaultSettings.coreIntensity);
-        setCorePulseSpeed(settings.corePulseSpeed ?? defaultSettings.corePulseSpeed);
-        setCoreRotationOffset(settings.coreRotationOffset ?? defaultSettings.coreRotationOffset);
-        setFluidCohesion(settings.fluidCohesion ?? defaultSettings.fluidCohesion);
-        setSurfaceTension(settings.surfaceTension ?? defaultSettings.surfaceTension);
-        setFluidFlow(settings.fluidFlow ?? defaultSettings.fluidFlow);
-        setAudioReactivitySpeed(settings.audioReactivitySpeed ?? defaultSettings.audioReactivitySpeed);
-        toast.success('Settings restored');
-      }
-    } catch (e) {
-      console.error('Failed to load settings:', e);
-    }
-    setSettingsLoaded(true);
-  }, []);
-
-  // Save settings to localStorage when they change
-  useEffect(() => {
-    if (!settingsLoaded) return; // Don't save until initial load complete
-    
-    const settings: AtlasDemoSettings = {
-      state,
-      morphProgress,
-      audioLevel,
-      autoAudio,
-      enableTrails,
-      trailLength,
-      trailOpacity,
-      trailColorGradient,
-      trailStartColor,
-      trailEndColor,
-      particleCount,
-      particleSize,
-      density,
-      rotationSpeed,
-      enableBloom,
-      bloomIntensity,
-      morphSpeed,
-      enableRipples,
-      rippleSpeed,
-      rippleCount,
-      enableTurbulence,
-      turbulenceFrequency,
-      turbulenceAmplitude,
-      turbulenceSpeed,
-      enableMouseInteraction,
-      mouseMode,
-      mouseStrength,
-      mouseInfluenceRadius,
-      enableCore,
-      coreParticleCount,
-      coreDensity,
-      coreParticleSize,
-      coreIntensity,
-      corePulseSpeed,
-      coreRotationOffset,
-      fluidCohesion,
-      surfaceTension,
-      fluidFlow,
-      audioReactivitySpeed,
-    };
-    
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    } catch (e) {
-      console.error('Failed to save settings:', e);
-    }
-  }, [
-    settingsLoaded, state, morphProgress, audioLevel, autoAudio, enableTrails, trailLength, trailOpacity,
-    particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
-    enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
-    turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
-    enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
-    fluidCohesion, surfaceTension, fluidFlow, audioReactivitySpeed
-  ]);
-
-  // Export settings as JSON file
-  const exportSettings = useCallback(() => {
-    const settings: AtlasDemoSettings = {
-      state, morphProgress, audioLevel, autoAudio, enableTrails, trailLength, trailOpacity,
-      trailColorGradient, trailStartColor, trailEndColor,
-      particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
-      enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
-      turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
-      enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
-      fluidCohesion, surfaceTension, fluidFlow, audioReactivitySpeed
-    };
-    
-    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `atlas-settings-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Settings exported');
-  }, [
-    state, morphProgress, audioLevel, autoAudio, enableTrails, trailLength, trailOpacity,
-    trailColorGradient, trailStartColor, trailEndColor,
-    particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
-    enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
-    turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
-    enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
-    fluidCohesion, surfaceTension, fluidFlow, audioReactivitySpeed
-  ]);
-
-  // Import settings from JSON file
-  const importSettings = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const settings: AtlasDemoSettings = JSON.parse(ev.target?.result as string);
-          setState(settings.state);
-          setMorphProgress(settings.morphProgress);
-          setAudioLevel(settings.audioLevel);
-          setAutoAudio(settings.autoAudio);
-          setEnableTrails(settings.enableTrails);
-          setTrailLength(settings.trailLength);
-          setTrailOpacity(settings.trailOpacity);
-          setTrailColorGradient(settings.trailColorGradient ?? defaultSettings.trailColorGradient);
-          setTrailStartColor(settings.trailStartColor ?? defaultSettings.trailStartColor);
-          setTrailEndColor(settings.trailEndColor ?? defaultSettings.trailEndColor);
-          setParticleCount(settings.particleCount);
-          setParticleSize(settings.particleSize);
-          setDensity(settings.density);
-          setRotationSpeed(settings.rotationSpeed);
-          setEnableBloom(settings.enableBloom);
-          setBloomIntensity(settings.bloomIntensity);
-          setMorphSpeed(settings.morphSpeed);
-          setEnableRipples(settings.enableRipples);
-          setRippleSpeed(settings.rippleSpeed);
-          setRippleCount(settings.rippleCount);
-          setEnableTurbulence(settings.enableTurbulence);
-          setTurbulenceFrequency(settings.turbulenceFrequency);
-          setTurbulenceAmplitude(settings.turbulenceAmplitude);
-          setTurbulenceSpeed(settings.turbulenceSpeed);
-          setEnableMouseInteraction(settings.enableMouseInteraction);
-          setMouseMode(settings.mouseMode);
-          setMouseStrength(settings.mouseStrength);
-          setMouseInfluenceRadius(settings.mouseInfluenceRadius);
-          setEnableCore(settings.enableCore ?? defaultSettings.enableCore);
-          setCoreParticleCount(settings.coreParticleCount ?? defaultSettings.coreParticleCount);
-          setCoreDensity(settings.coreDensity ?? defaultSettings.coreDensity);
-          setCoreParticleSize(settings.coreParticleSize ?? defaultSettings.coreParticleSize);
-          setCoreIntensity(settings.coreIntensity ?? defaultSettings.coreIntensity);
-          setCorePulseSpeed(settings.corePulseSpeed ?? defaultSettings.corePulseSpeed);
-          setCoreRotationOffset(settings.coreRotationOffset ?? defaultSettings.coreRotationOffset);
-          setFluidCohesion(settings.fluidCohesion ?? defaultSettings.fluidCohesion);
-          setSurfaceTension(settings.surfaceTension ?? defaultSettings.surfaceTension);
-          setFluidFlow(settings.fluidFlow ?? defaultSettings.fluidFlow);
-          setAudioReactivitySpeed(settings.audioReactivitySpeed ?? defaultSettings.audioReactivitySpeed);
-          setActivePreset(null);
-          toast.success('Settings imported');
-        } catch (err) {
-          toast.error('Invalid settings file');
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  }, []);
-
-  // Simulate audio levels
-  useEffect(() => {
-    if (!autoAudio) return;
+    if (!settings.autoAudio) return;
     
     let frame: number;
     const animate = () => {
-      setAudioLevel(() => {
-        const noise = Math.sin(Date.now() * 0.005) * 0.3 + Math.random() * 0.4;
-        return Math.max(0, Math.min(1, noise));
-      });
+      const noise = Math.sin(Date.now() * 0.005) * 0.3 + Math.random() * 0.4;
+      setSetting('audioLevel', Math.max(0, Math.min(1, noise)));
       frame = requestAnimationFrame(animate);
     };
     animate();
     return () => cancelAnimationFrame(frame);
-  }, [autoAudio]);
+  }, [settings.autoAudio, setSetting]);
 
   // Cycle through states automatically
   const startStateAnimation = () => {
     setIsAnimating(true);
     let index = 0;
     const interval = setInterval(() => {
-      setState(states[index]);
+      setSetting('state', states[index]);
       index++;
       if (index >= states.length) {
         clearInterval(interval);
         setIsAnimating(false);
-        setState('dormant');
+        setSetting('state', 'dormant');
       }
     }, 2000);
   };
 
   const applyPreset = (preset: Preset) => {
-    setState(preset.state);
-    setMorphProgress(preset.morphProgress);
-    setAudioLevel(preset.audioLevel);
-    setAutoAudio(preset.autoAudio);
+    setMultiple({
+      state: preset.state,
+      morphProgress: preset.morphProgress,
+      audioLevel: preset.audioLevel,
+      autoAudio: preset.autoAudio,
+    });
     setActivePreset(preset.name);
   };
 
   const applyPerformanceMode = (mode: PerformanceMode) => {
     const preset = performancePresets[mode];
     setPerformanceMode(mode);
-    setParticleCount(preset.particleCount);
-    setDensity(preset.density);
-    setParticleSize(preset.particleSize);
-    setTrailLength(preset.trailLength);
-    setEnableBloom(preset.enableBloom);
-    setCoreParticleCount(preset.coreParticleCount);
-    if (preset.trailLength === 0) {
-      setEnableTrails(false);
-    } else {
-      setEnableTrails(true);
-    }
+    setMultiple({
+      particleCount: preset.particleCount,
+      density: preset.density,
+      particleSize: preset.particleSize,
+      trailLength: preset.trailLength,
+      enableBloom: preset.enableBloom,
+      coreParticleCount: preset.coreParticleCount,
+      enableTrails: preset.trailLength > 0,
+    });
     toast.success(`${preset.label} mode applied`);
   };
 
   const resetToDefaults = () => {
-    setState(defaultSettings.state);
-    setMorphProgress(defaultSettings.morphProgress);
-    setAudioLevel(defaultSettings.audioLevel);
-    setAutoAudio(defaultSettings.autoAudio);
+    reset();
     setActivePreset(null);
-    setEnableTrails(defaultSettings.enableTrails);
-    setTrailLength(defaultSettings.trailLength);
-    setTrailOpacity(defaultSettings.trailOpacity);
-    setTrailColorGradient(defaultSettings.trailColorGradient);
-    setTrailStartColor(defaultSettings.trailStartColor);
-    setTrailEndColor(defaultSettings.trailEndColor);
-    setParticleCount(defaultSettings.particleCount);
-    setParticleSize(defaultSettings.particleSize);
-    setDensity(defaultSettings.density);
-    setRotationSpeed(defaultSettings.rotationSpeed);
-    setEnableBloom(defaultSettings.enableBloom);
-    setBloomIntensity(defaultSettings.bloomIntensity);
-    setMorphSpeed(defaultSettings.morphSpeed);
-    setEnableRipples(defaultSettings.enableRipples);
-    setRippleSpeed(defaultSettings.rippleSpeed);
-    setRippleCount(defaultSettings.rippleCount);
-    setEnableTurbulence(defaultSettings.enableTurbulence);
-    setTurbulenceFrequency(defaultSettings.turbulenceFrequency);
-    setTurbulenceAmplitude(defaultSettings.turbulenceAmplitude);
-    setTurbulenceSpeed(defaultSettings.turbulenceSpeed);
-    setEnableMouseInteraction(defaultSettings.enableMouseInteraction);
-    setMouseMode(defaultSettings.mouseMode);
-    setMouseStrength(defaultSettings.mouseStrength);
-    setMouseInfluenceRadius(defaultSettings.mouseInfluenceRadius);
-    setEnableCore(defaultSettings.enableCore);
-    setCoreParticleCount(defaultSettings.coreParticleCount);
-    setCoreDensity(defaultSettings.coreDensity);
-    setCoreParticleSize(defaultSettings.coreParticleSize);
-    setCoreIntensity(defaultSettings.coreIntensity);
-    setCorePulseSpeed(defaultSettings.corePulseSpeed);
-    setCoreRotationOffset(defaultSettings.coreRotationOffset);
-    localStorage.removeItem(STORAGE_KEY);
     toast.success('Reset to defaults');
+  };
+
+  const handleExport = () => {
+    exportSettings();
+    toast.success('Settings exported');
+  };
+
+  const handleImport = () => {
+    importSettings();
   };
 
   return (
@@ -593,34 +145,22 @@ export default function AtlasDemo() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                const settings: AtlasDemoSettings = {
-                  state, morphProgress, audioLevel, autoAudio, enableTrails, trailLength, trailOpacity,
-                  trailColorGradient, trailStartColor, trailEndColor,
-                  particleCount, particleSize, density, rotationSpeed, enableBloom, bloomIntensity, morphSpeed,
-                  enableRipples, rippleSpeed, rippleCount, enableTurbulence, turbulenceFrequency, turbulenceAmplitude,
-                  turbulenceSpeed, enableMouseInteraction, mouseMode, mouseStrength, mouseInfluenceRadius,
-                  enableCore, coreParticleCount, coreDensity, coreParticleSize, coreIntensity, corePulseSpeed, coreRotationOffset,
-                  fluidCohesion, surfaceTension, fluidFlow, audioReactivitySpeed
-                };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-                toast.success('Settings saved!');
-              }}
+              onClick={() => toast.success('Settings auto-saved!')}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 hover:border-amber-500/60 text-amber-300 transition-all"
-              title="Save Settings"
+              title="Settings auto-save"
             >
               <Save className="w-4 h-4" />
-              <span className="text-xs font-medium">Save</span>
+              <span className="text-xs font-medium">Auto-saved</span>
             </button>
             <button
-              onClick={exportSettings}
+              onClick={handleExport}
               className="p-2 rounded-lg bg-muted/20 border border-border/30 hover:border-border/50 transition-all"
               title="Export Settings"
             >
               <Download className="w-4 h-4" />
             </button>
             <button
-              onClick={importSettings}
+              onClick={handleImport}
               className="p-2 rounded-lg bg-muted/20 border border-border/30 hover:border-border/50 transition-all"
               title="Import Settings"
             >
@@ -634,47 +174,46 @@ export default function AtlasDemo() {
         {/* Main visualization area */}
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center">
-            {/* Fixed 460px sphere size */}
             <div className="w-[460px] h-[460px] flex-shrink-0">
               <AtlasCore
-                state={state} 
-                audioLevel={audioLevel} 
-                morphProgress={morphProgress}
-                enableTrails={enableTrails}
-                trailLength={trailLength}
-                trailOpacity={trailOpacity}
-                trailColorGradient={trailColorGradient}
-                trailStartColor={trailStartColor}
-                trailEndColor={trailEndColor}
-                particleCount={particleCount}
-                particleSize={particleSize}
-                density={density}
-                rotationSpeed={rotationSpeed}
-                enableBloom={enableBloom}
-                bloomIntensity={bloomIntensity}
-                morphSpeed={morphSpeed}
-                enableRipples={enableRipples}
-                rippleSpeed={rippleSpeed}
-                rippleCount={rippleCount}
-                enableTurbulence={enableTurbulence}
-                turbulenceFrequency={turbulenceFrequency}
-                turbulenceAmplitude={turbulenceAmplitude}
-                turbulenceSpeed={turbulenceSpeed}
-                enableMouseInteraction={enableMouseInteraction}
-                mouseMode={mouseMode}
-                mouseStrength={mouseStrength}
-                mouseInfluenceRadius={mouseInfluenceRadius}
-                enableCore={enableCore}
-                coreParticleCount={coreParticleCount}
-                coreDensity={coreDensity}
-                coreParticleSize={coreParticleSize}
-                coreIntensity={coreIntensity}
-                corePulseSpeed={corePulseSpeed}
-                coreRotationOffset={coreRotationOffset}
-                fluidCohesion={fluidCohesion}
-                surfaceTension={surfaceTension}
-                fluidFlow={fluidFlow}
-                audioReactivitySpeed={audioReactivitySpeed}
+                state={settings.state}
+                audioLevel={settings.audioLevel}
+                morphProgress={settings.morphProgress}
+                enableTrails={settings.enableTrails}
+                trailLength={settings.trailLength}
+                trailOpacity={settings.trailOpacity}
+                trailColorGradient={settings.trailColorGradient}
+                trailStartColor={settings.trailStartColor}
+                trailEndColor={settings.trailEndColor}
+                particleCount={settings.particleCount}
+                particleSize={settings.particleSize}
+                density={settings.density}
+                rotationSpeed={settings.rotationSpeed}
+                enableBloom={settings.enableBloom}
+                bloomIntensity={settings.bloomIntensity}
+                morphSpeed={settings.morphSpeed}
+                enableRipples={settings.enableRipples}
+                rippleSpeed={settings.rippleSpeed}
+                rippleCount={settings.rippleCount}
+                enableTurbulence={settings.enableTurbulence}
+                turbulenceFrequency={settings.turbulenceFrequency}
+                turbulenceAmplitude={settings.turbulenceAmplitude}
+                turbulenceSpeed={settings.turbulenceSpeed}
+                enableMouseInteraction={settings.enableMouseInteraction}
+                mouseMode={settings.mouseMode}
+                mouseStrength={settings.mouseStrength}
+                mouseInfluenceRadius={settings.mouseInfluenceRadius}
+                enableCore={settings.enableCore}
+                coreParticleCount={settings.coreParticleCount}
+                coreDensity={settings.coreDensity}
+                coreParticleSize={settings.coreParticleSize}
+                coreIntensity={settings.coreIntensity}
+                corePulseSpeed={settings.corePulseSpeed}
+                coreRotationOffset={settings.coreRotationOffset}
+                fluidCohesion={settings.fluidCohesion}
+                surfaceTension={settings.surfaceTension}
+                fluidFlow={settings.fluidFlow}
+                audioReactivitySpeed={settings.audioReactivitySpeed}
               />
             </div>
           </div>
@@ -682,13 +221,13 @@ export default function AtlasDemo() {
           {/* Current state indicator */}
           <motion.div 
             className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-full backdrop-blur-xl bg-background/40 border border-border/30"
-            key={state}
+            key={settings.state}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <div className={`w-3 h-3 rounded-full ${stateDescriptions[state].color} animate-pulse`} />
-            <span className="text-sm font-medium">{stateDescriptions[state].label}</span>
-            <span className="text-xs text-muted-foreground hidden sm:inline">— {stateDescriptions[state].description}</span>
+            <div className={`w-3 h-3 rounded-full ${stateDescriptions[settings.state].color} animate-pulse`} />
+            <span className="text-sm font-medium">{stateDescriptions[settings.state].label}</span>
+            <span className="text-xs text-muted-foreground hidden sm:inline">— {stateDescriptions[settings.state].description}</span>
           </motion.div>
         </div>
 
@@ -799,11 +338,11 @@ export default function AtlasDemo() {
                   <button
                     key={s}
                     onClick={() => {
-                      setState(s);
+                      setSetting('state', s);
                       setActivePreset(null);
                     }}
                     className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-                      state === s
+                      settings.state === s
                         ? 'bg-gradient-to-r from-amber-500/30 to-orange-500/30 border border-amber-500/50 text-amber-300'
                         : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground hover:text-foreground'
                     }`}
@@ -825,116 +364,25 @@ export default function AtlasDemo() {
                   Core Particles
                 </h3>
                 <button
-                  onClick={() => setEnableCore(!enableCore)}
+                  onClick={() => setSetting('enableCore', !settings.enableCore)}
                   className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                    enableCore
+                    settings.enableCore
                       ? 'bg-orange-500/20 border border-orange-500/50 text-orange-300'
                       : 'bg-muted/20 border border-border/30 text-muted-foreground'
                   }`}
                 >
-                  {enableCore ? 'ON' : 'OFF'}
+                  {settings.enableCore ? 'ON' : 'OFF'}
                 </button>
               </div>
               
-              {enableCore && (
+              {settings.enableCore && (
                 <>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Core Particle Count</span>
-                      <span className="text-xs font-mono text-orange-400">{coreParticleCount}</span>
-                    </div>
-                    <Slider
-                      value={[coreParticleCount]}
-                      onValueChange={([v]) => setCoreParticleCount(v)}
-                      min={100}
-                      max={1000}
-                      step={50}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Core Density</span>
-                      <span className="text-xs font-mono text-orange-400">{coreDensity.toFixed(2)}</span>
-                    </div>
-                    <Slider
-                      value={[coreDensity]}
-                      onValueChange={([v]) => setCoreDensity(v)}
-                      min={0.1}
-                      max={0.6}
-                      step={0.02}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                      <span>Tight</span>
-                      <span>Spread</span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Core Particle Size</span>
-                      <span className="text-xs font-mono text-orange-400">{coreParticleSize.toFixed(2)}</span>
-                    </div>
-                    <Slider
-                      value={[coreParticleSize]}
-                      onValueChange={([v]) => setCoreParticleSize(v)}
-                      min={0.02}
-                      max={0.1}
-                      step={0.005}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Core Intensity</span>
-                      <span className="text-xs font-mono text-orange-400">{coreIntensity.toFixed(1)}</span>
-                    </div>
-                    <Slider
-                      value={[coreIntensity]}
-                      onValueChange={([v]) => setCoreIntensity(v)}
-                      min={0.5}
-                      max={2.0}
-                      step={0.1}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Core Pulse Speed</span>
-                      <span className="text-xs font-mono text-orange-400">{corePulseSpeed.toFixed(1)}</span>
-                    </div>
-                    <Slider
-                      value={[corePulseSpeed]}
-                      onValueChange={([v]) => setCorePulseSpeed(v)}
-                      min={0.5}
-                      max={3.0}
-                      step={0.1}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Core Rotation</span>
-                      <span className="text-xs font-mono text-orange-400">{coreRotationOffset.toFixed(1)}</span>
-                    </div>
-                    <Slider
-                      value={[coreRotationOffset]}
-                      onValueChange={([v]) => setCoreRotationOffset(v)}
-                      min={-2}
-                      max={2}
-                      step={0.1}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                      <span>Counter</span>
-                      <span>Same</span>
-                    </div>
-                  </div>
+                  <SliderControl label="Core Particle Count" value={settings.coreParticleCount} onChange={(v) => setSetting('coreParticleCount', v)} min={100} max={1000} step={50} color="orange" />
+                  <SliderControl label="Core Density" value={settings.coreDensity} onChange={(v) => setSetting('coreDensity', v)} min={0.1} max={0.6} step={0.02} color="orange" decimals={2} hint={['Tight', 'Spread']} />
+                  <SliderControl label="Core Particle Size" value={settings.coreParticleSize} onChange={(v) => setSetting('coreParticleSize', v)} min={0.02} max={0.1} step={0.005} color="orange" decimals={2} />
+                  <SliderControl label="Core Intensity" value={settings.coreIntensity} onChange={(v) => setSetting('coreIntensity', v)} min={0.5} max={2.0} step={0.1} color="orange" decimals={1} />
+                  <SliderControl label="Core Pulse Speed" value={settings.corePulseSpeed} onChange={(v) => setSetting('corePulseSpeed', v)} min={0.5} max={3.0} step={0.1} color="orange" decimals={1} />
+                  <SliderControl label="Core Rotation" value={settings.coreRotationOffset} onChange={(v) => setSetting('coreRotationOffset', v)} min={-2} max={2} step={0.1} color="orange" decimals={1} hint={['Counter', 'Same']} />
                 </>
               )}
             </div>
@@ -947,48 +395,21 @@ export default function AtlasDemo() {
                   Ring Ripples
                 </h3>
                 <button
-                  onClick={() => setEnableRipples(!enableRipples)}
+                  onClick={() => setSetting('enableRipples', !settings.enableRipples)}
                   className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                    enableRipples
+                    settings.enableRipples
                       ? 'bg-teal-500/20 border border-teal-500/50 text-teal-300'
                       : 'bg-muted/20 border border-border/30 text-muted-foreground'
                   }`}
                 >
-                  {enableRipples ? 'ON' : 'OFF'}
+                  {settings.enableRipples ? 'ON' : 'OFF'}
                 </button>
               </div>
               
-              {enableRipples && (
+              {settings.enableRipples && (
                 <>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Ripple Speed</span>
-                      <span className="text-xs font-mono text-teal-400">{rippleSpeed.toFixed(1)}</span>
-                    </div>
-                    <Slider
-                      value={[rippleSpeed]}
-                      onValueChange={([v]) => setRippleSpeed(v)}
-                      min={0.5}
-                      max={3}
-                      step={0.1}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Ripples per Change</span>
-                      <span className="text-xs font-mono text-teal-400">{rippleCount}</span>
-                    </div>
-                    <Slider
-                      value={[rippleCount]}
-                      onValueChange={([v]) => setRippleCount(v)}
-                      min={1}
-                      max={5}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
+                  <SliderControl label="Ripple Speed" value={settings.rippleSpeed} onChange={(v) => setSetting('rippleSpeed', v)} min={0.5} max={3} step={0.1} color="teal" decimals={1} />
+                  <SliderControl label="Ripples per Change" value={settings.rippleCount} onChange={(v) => setSetting('rippleCount', v)} min={1} max={5} step={1} color="teal" />
                 </>
               )}
             </div>
@@ -1001,71 +422,22 @@ export default function AtlasDemo() {
                   Turbulence
                 </h3>
                 <button
-                  onClick={() => setEnableTurbulence(!enableTurbulence)}
+                  onClick={() => setSetting('enableTurbulence', !settings.enableTurbulence)}
                   className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                    enableTurbulence
+                    settings.enableTurbulence
                       ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300'
                       : 'bg-muted/20 border border-border/30 text-muted-foreground'
                   }`}
                 >
-                  {enableTurbulence ? 'ON' : 'OFF'}
+                  {settings.enableTurbulence ? 'ON' : 'OFF'}
                 </button>
               </div>
               
-              {enableTurbulence && (
+              {settings.enableTurbulence && (
                 <>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Frequency</span>
-                      <span className="text-xs font-mono text-emerald-400">{turbulenceFrequency.toFixed(2)}</span>
-                    </div>
-                    <Slider
-                      value={[turbulenceFrequency]}
-                      onValueChange={([v]) => setTurbulenceFrequency(v)}
-                      min={0.1}
-                      max={2}
-                      step={0.05}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                      <span>Smooth</span>
-                      <span>Chunky</span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Amplitude</span>
-                      <span className="text-xs font-mono text-emerald-400">{turbulenceAmplitude.toFixed(2)}</span>
-                    </div>
-                    <Slider
-                      value={[turbulenceAmplitude]}
-                      onValueChange={([v]) => setTurbulenceAmplitude(v)}
-                      min={0.01}
-                      max={0.3}
-                      step={0.01}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                      <span>Subtle</span>
-                      <span>Strong</span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Speed</span>
-                      <span className="text-xs font-mono text-emerald-400">{turbulenceSpeed.toFixed(2)}</span>
-                    </div>
-                    <Slider
-                      value={[turbulenceSpeed]}
-                      onValueChange={([v]) => setTurbulenceSpeed(v)}
-                      min={0.1}
-                      max={1}
-                      step={0.05}
-                      className="w-full"
-                    />
-                  </div>
+                  <SliderControl label="Frequency" value={settings.turbulenceFrequency} onChange={(v) => setSetting('turbulenceFrequency', v)} min={0.1} max={2} step={0.05} color="emerald" decimals={2} hint={['Smooth', 'Chunky']} />
+                  <SliderControl label="Amplitude" value={settings.turbulenceAmplitude} onChange={(v) => setSetting('turbulenceAmplitude', v)} min={0.01} max={0.3} step={0.01} color="emerald" decimals={2} hint={['Subtle', 'Strong']} />
+                  <SliderControl label="Speed" value={settings.turbulenceSpeed} onChange={(v) => setSetting('turbulenceSpeed', v)} min={0.1} max={1} step={0.05} color="emerald" decimals={2} />
                 </>
               )}
             </div>
@@ -1076,55 +448,9 @@ export default function AtlasDemo() {
                 <Droplets className="w-4 h-4 text-sky-400" />
                 Fluid Dynamics
               </h3>
-              
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Cohesion</span>
-                  <span className="text-xs font-mono text-sky-400">{fluidCohesion.toFixed(2)}</span>
-                </div>
-                <Slider
-                  value={[fluidCohesion]}
-                  onValueChange={([v]) => setFluidCohesion(v)}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>Scattered</span>
-                  <span>Solid</span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Surface Tension</span>
-                  <span className="text-xs font-mono text-sky-400">{surfaceTension.toFixed(2)}</span>
-                </div>
-                <Slider
-                  value={[surfaceTension]}
-                  onValueChange={([v]) => setSurfaceTension(v)}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  className="w-full"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Flow Speed</span>
-                  <span className="text-xs font-mono text-sky-400">{fluidFlow.toFixed(2)}</span>
-                </div>
-                <Slider
-                  value={[fluidFlow]}
-                  onValueChange={([v]) => setFluidFlow(v)}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  className="w-full"
-                />
-              </div>
+              <SliderControl label="Cohesion" value={settings.fluidCohesion} onChange={(v) => setSetting('fluidCohesion', v)} min={0} max={1} step={0.01} color="sky" decimals={2} hint={['Scattered', 'Solid']} />
+              <SliderControl label="Surface Tension" value={settings.surfaceTension} onChange={(v) => setSetting('surfaceTension', v)} min={0} max={1} step={0.05} color="sky" decimals={2} />
+              <SliderControl label="Flow Speed" value={settings.fluidFlow} onChange={(v) => setSetting('fluidFlow', v)} min={0} max={1} step={0.05} color="sky" decimals={2} />
             </div>
 
             {/* Mouse Interaction Controls */}
@@ -1135,24 +461,24 @@ export default function AtlasDemo() {
                   Mouse Interaction
                 </h3>
                 <button
-                  onClick={() => setEnableMouseInteraction(!enableMouseInteraction)}
+                  onClick={() => setSetting('enableMouseInteraction', !settings.enableMouseInteraction)}
                   className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                    enableMouseInteraction
+                    settings.enableMouseInteraction
                       ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
                       : 'bg-muted/20 border border-border/30 text-muted-foreground'
                   }`}
                 >
-                  {enableMouseInteraction ? 'ON' : 'OFF'}
+                  {settings.enableMouseInteraction ? 'ON' : 'OFF'}
                 </button>
               </div>
               
-              {enableMouseInteraction && (
+              {settings.enableMouseInteraction && (
                 <>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setMouseMode('attract')}
+                      onClick={() => setSetting('mouseMode', 'attract')}
                       className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                        mouseMode === 'attract'
+                        settings.mouseMode === 'attract'
                           ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
                           : 'bg-muted/20 border border-border/30 text-muted-foreground hover:text-foreground'
                       }`}
@@ -1160,9 +486,9 @@ export default function AtlasDemo() {
                       🧲 Attract
                     </button>
                     <button
-                      onClick={() => setMouseMode('repulse')}
+                      onClick={() => setSetting('mouseMode', 'repulse')}
                       className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                        mouseMode === 'repulse'
+                        settings.mouseMode === 'repulse'
                           ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
                           : 'bg-muted/20 border border-border/30 text-muted-foreground hover:text-foreground'
                       }`}
@@ -1170,36 +496,8 @@ export default function AtlasDemo() {
                       💨 Repulse
                     </button>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Strength</span>
-                      <span className="text-xs font-mono text-rose-400">{mouseStrength.toFixed(2)}</span>
-                    </div>
-                    <Slider
-                      value={[mouseStrength]}
-                      onValueChange={([v]) => setMouseStrength(v)}
-                      min={0.1}
-                      max={2}
-                      step={0.05}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Influence Radius</span>
-                      <span className="text-xs font-mono text-rose-400">{mouseInfluenceRadius.toFixed(1)}</span>
-                    </div>
-                    <Slider
-                      value={[mouseInfluenceRadius]}
-                      onValueChange={([v]) => setMouseInfluenceRadius(v)}
-                      min={1}
-                      max={5}
-                      step={0.1}
-                      className="w-full"
-                    />
-                  </div>
+                  <SliderControl label="Strength" value={settings.mouseStrength} onChange={(v) => setSetting('mouseStrength', v)} min={0.1} max={2} step={0.05} color="rose" decimals={2} />
+                  <SliderControl label="Influence Radius" value={settings.mouseInfluenceRadius} onChange={(v) => setSetting('mouseInfluenceRadius', v)} min={1} max={5} step={0.1} color="rose" decimals={1} />
                 </>
               )}
             </div>
@@ -1210,55 +508,9 @@ export default function AtlasDemo() {
                 <Settings2 className="w-4 h-4 text-cyan-400" />
                 Animation
               </h3>
-              
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Morph Progress</span>
-                  <span className="text-xs font-mono text-amber-400">{morphProgress.toFixed(2)}</span>
-                </div>
-                <Slider
-                  value={[morphProgress]}
-                  onValueChange={([v]) => setMorphProgress(v)}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>Scattered</span>
-                  <span>Sphere</span>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Morph Speed</span>
-                  <span className="text-xs font-mono text-amber-400">{morphSpeed.toFixed(1)}</span>
-                </div>
-                <Slider
-                  value={[morphSpeed]}
-                  onValueChange={([v]) => setMorphSpeed(v)}
-                  min={0.5}
-                  max={5}
-                  step={0.1}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Rotation Speed</span>
-                  <span className="text-xs font-mono text-cyan-400">{rotationSpeed.toFixed(2)}</span>
-                </div>
-                <Slider
-                  value={[rotationSpeed]}
-                  onValueChange={([v]) => setRotationSpeed(v)}
-                  min={0}
-                  max={2}
-                  step={0.05}
-                  className="w-full"
-                />
-              </div>
+              <SliderControl label="Morph Progress" value={settings.morphProgress} onChange={(v) => setSetting('morphProgress', v)} min={0} max={1} step={0.01} color="amber" decimals={2} hint={['Scattered', 'Sphere']} />
+              <SliderControl label="Morph Speed" value={settings.morphSpeed} onChange={(v) => setSetting('morphSpeed', v)} min={0.5} max={5} step={0.1} color="amber" decimals={1} />
+              <SliderControl label="Rotation Speed" value={settings.rotationSpeed} onChange={(v) => setSetting('rotationSpeed', v)} min={0} max={2} step={0.05} color="cyan" decimals={2} />
             </div>
 
             {/* Particle Controls */}
@@ -1267,68 +519,22 @@ export default function AtlasDemo() {
                 <Layers className="w-4 h-4 text-purple-400" />
                 Particles
               </h3>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Particle Count</span>
-                  <span className="text-xs font-mono text-purple-400">{particleCount}</span>
-                </div>
-                <Slider
-                  value={[particleCount]}
-                  onValueChange={([v]) => setParticleCount(v)}
-                  min={500}
-                  max={20000}
-                  step={500}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Particle Size</span>
-                  <span className="text-xs font-mono text-purple-400">{particleSize.toFixed(2)}</span>
-                </div>
-                <Slider
-                  value={[particleSize]}
-                  onValueChange={([v]) => setParticleSize(v)}
-                  min={0.02}
-                  max={0.2}
-                  step={0.01}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Density</span>
-                  <span className="text-xs font-mono text-purple-400">{density.toFixed(2)}</span>
-                </div>
-                <Slider
-                  value={[density]}
-                  onValueChange={([v]) => setDensity(v)}
-                  min={0.3}
-                  max={2}
-                  step={0.05}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>Tight</span>
-                  <span>Spread</span>
-                </div>
-              </div>
+              <SliderControl label="Particle Count" value={settings.particleCount} onChange={(v) => setSetting('particleCount', v)} min={500} max={20000} step={500} color="purple" />
+              <SliderControl label="Particle Size" value={settings.particleSize} onChange={(v) => setSetting('particleSize', v)} min={0.02} max={0.2} step={0.01} color="purple" decimals={2} />
+              <SliderControl label="Density" value={settings.density} onChange={(v) => setSetting('density', v)} min={0.3} max={2} step={0.05} color="purple" decimals={2} hint={['Tight', 'Spread']} />
             </div>
 
             {/* Audio Level */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">Audio Level</h3>
-                <span className="text-sm font-mono text-cyan-400">{audioLevel.toFixed(2)}</span>
+                <span className="text-sm font-mono text-cyan-400">{settings.audioLevel.toFixed(2)}</span>
               </div>
               <Slider
-                value={[audioLevel]}
+                value={[settings.audioLevel]}
                 onValueChange={([v]) => {
-                  setAudioLevel(v);
-                  setAutoAudio(false);
+                  setSetting('audioLevel', v);
+                  setSetting('autoAudio', false);
                 }}
                 min={0}
                 max={1}
@@ -1336,34 +542,16 @@ export default function AtlasDemo() {
                 className="w-full"
               />
               <button
-                onClick={() => setAutoAudio(!autoAudio)}
+                onClick={() => setSetting('autoAudio', !settings.autoAudio)}
                 className={`w-full px-4 py-2 rounded-xl text-sm transition-all ${
-                  autoAudio
+                  settings.autoAudio
                     ? 'bg-cyan-500/20 border border-cyan-500/50 text-cyan-300'
                     : 'bg-muted/20 border border-border/30 hover:border-border/50'
                 }`}
               >
-                {autoAudio ? '🔊 Simulating Audio...' : '🔇 Simulate Audio'}
+                {settings.autoAudio ? '🔊 Simulating Audio...' : '🔇 Simulate Audio'}
               </button>
-              
-              <div className="space-y-2 pt-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Reactivity Speed</span>
-                  <span className="text-xs font-mono text-cyan-400">{audioReactivitySpeed.toFixed(1)}x</span>
-                </div>
-                <Slider
-                  value={[audioReactivitySpeed]}
-                  onValueChange={([v]) => setAudioReactivitySpeed(v)}
-                  min={0.2}
-                  max={3.0}
-                  step={0.1}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>Slow</span>
-                  <span>Fast</span>
-                </div>
-              </div>
+              <SliderControl label="Reactivity Speed" value={settings.audioReactivitySpeed} onChange={(v) => setSetting('audioReactivitySpeed', v)} min={0.2} max={3.0} step={0.1} color="cyan" decimals={1} hint={['Slow', 'Fast']} suffix="x" />
             </div>
 
             {/* Effects Controls */}
@@ -1371,32 +559,19 @@ export default function AtlasDemo() {
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">Bloom Effect</h3>
                 <button
-                  onClick={() => setEnableBloom(!enableBloom)}
+                  onClick={() => setSetting('enableBloom', !settings.enableBloom)}
                   className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                    enableBloom
+                    settings.enableBloom
                       ? 'bg-pink-500/20 border border-pink-500/50 text-pink-300'
                       : 'bg-muted/20 border border-border/30 text-muted-foreground'
                   }`}
                 >
-                  {enableBloom ? 'ON' : 'OFF'}
+                  {settings.enableBloom ? 'ON' : 'OFF'}
                 </button>
               </div>
               
-              {enableBloom && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Bloom Intensity</span>
-                    <span className="text-xs font-mono text-pink-400">{bloomIntensity.toFixed(2)}</span>
-                  </div>
-                  <Slider
-                    value={[bloomIntensity]}
-                    onValueChange={([v]) => setBloomIntensity(v)}
-                    min={0}
-                    max={2}
-                    step={0.05}
-                    className="w-full"
-                  />
-                </div>
+              {settings.enableBloom && (
+                <SliderControl label="Bloom Intensity" value={settings.bloomIntensity} onChange={(v) => setSetting('bloomIntensity', v)} min={0} max={2} step={0.05} color="pink" decimals={2} />
               )}
             </div>
 
@@ -1405,65 +580,38 @@ export default function AtlasDemo() {
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">Particle Trails</h3>
                 <button
-                  onClick={() => setEnableTrails(!enableTrails)}
+                  onClick={() => setSetting('enableTrails', !settings.enableTrails)}
                   className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                    enableTrails
+                    settings.enableTrails
                       ? 'bg-amber-500/20 border border-amber-500/50 text-amber-300'
                       : 'bg-muted/20 border border-border/30 text-muted-foreground'
                   }`}
                 >
-                  {enableTrails ? 'ON' : 'OFF'}
+                  {settings.enableTrails ? 'ON' : 'OFF'}
                 </button>
               </div>
               
-              {enableTrails && (
+              {settings.enableTrails && (
                 <>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Trail Length</span>
-                      <span className="text-xs font-mono text-amber-400">{trailLength}</span>
-                    </div>
-                    <Slider
-                      value={[trailLength]}
-                      onValueChange={([v]) => setTrailLength(v)}
-                      min={1}
-                      max={12}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Trail Opacity</span>
-                      <span className="text-xs font-mono text-amber-400">{trailOpacity.toFixed(2)}</span>
-                    </div>
-                    <Slider
-                      value={[trailOpacity]}
-                      onValueChange={([v]) => setTrailOpacity(v)}
-                      min={0.1}
-                      max={1}
-                      step={0.05}
-                      className="w-full"
-                    />
-                  </div>
+                  <SliderControl label="Trail Length" value={settings.trailLength} onChange={(v) => setSetting('trailLength', v)} min={1} max={12} step={1} color="amber" />
+                  <SliderControl label="Trail Opacity" value={settings.trailOpacity} onChange={(v) => setSetting('trailOpacity', v)} min={0.1} max={1} step={0.05} color="amber" decimals={2} />
 
                   {/* Color Gradient Toggle */}
                   <div className="flex items-center justify-between pt-2 border-t border-border/20">
                     <span className="text-xs text-muted-foreground">Color Gradient</span>
                     <button
-                      onClick={() => setTrailColorGradient(!trailColorGradient)}
+                      onClick={() => setSetting('trailColorGradient', !settings.trailColorGradient)}
                       className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                        trailColorGradient
+                        settings.trailColorGradient
                           ? 'bg-gradient-to-r from-orange-500/30 to-purple-500/30 border border-orange-500/50 text-orange-300'
                           : 'bg-muted/20 border border-border/30 text-muted-foreground'
                       }`}
                     >
-                      {trailColorGradient ? 'ON' : 'OFF'}
+                      {settings.trailColorGradient ? 'ON' : 'OFF'}
                     </button>
                   </div>
 
-                  {trailColorGradient && (
+                  {settings.trailColorGradient && (
                     <div className="space-y-3 pt-2">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -1471,11 +619,11 @@ export default function AtlasDemo() {
                           <div className="flex items-center gap-2">
                             <input
                               type="color"
-                              value={trailStartColor}
-                              onChange={(e) => setTrailStartColor(e.target.value)}
+                              value={settings.trailStartColor}
+                              onChange={(e) => setSetting('trailStartColor', e.target.value)}
                               className="w-6 h-6 rounded cursor-pointer border border-border/30"
                             />
-                            <span className="text-xs font-mono text-amber-400">{trailStartColor}</span>
+                            <span className="text-xs font-mono text-amber-400">{settings.trailStartColor}</span>
                           </div>
                         </div>
                       </div>
@@ -1486,18 +634,18 @@ export default function AtlasDemo() {
                           <div className="flex items-center gap-2">
                             <input
                               type="color"
-                              value={trailEndColor}
-                              onChange={(e) => setTrailEndColor(e.target.value)}
+                              value={settings.trailEndColor}
+                              onChange={(e) => setSetting('trailEndColor', e.target.value)}
                               className="w-6 h-6 rounded cursor-pointer border border-border/30"
                             />
-                            <span className="text-xs font-mono text-purple-400">{trailEndColor}</span>
+                            <span className="text-xs font-mono text-purple-400">{settings.trailEndColor}</span>
                           </div>
                         </div>
                       </div>
 
                       {/* Gradient Preview */}
                       <div className="h-3 rounded-full w-full" style={{
-                        background: `linear-gradient(to right, ${trailStartColor}, ${trailEndColor})`
+                        background: `linear-gradient(to right, ${settings.trailStartColor}, ${settings.trailEndColor})`
                       }} />
                     </div>
                   )}
@@ -1538,6 +686,47 @@ export default function AtlasDemo() {
           </div>
         </motion.aside>
       </div>
+    </div>
+  );
+}
+
+// Reusable Slider Control Component
+interface SliderControlProps {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min: number;
+  max: number;
+  step: number;
+  color: string;
+  decimals?: number;
+  hint?: [string, string];
+  suffix?: string;
+}
+
+function SliderControl({ label, value, onChange, min, max, step, color, decimals = 0, hint, suffix = '' }: SliderControlProps) {
+  const displayValue = decimals > 0 ? value.toFixed(decimals) : value;
+  
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className={`text-xs font-mono text-${color}-400`}>{displayValue}{suffix}</span>
+      </div>
+      <Slider
+        value={[value]}
+        onValueChange={([v]) => onChange(v)}
+        min={min}
+        max={max}
+        step={step}
+        className="w-full"
+      />
+      {hint && (
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span>{hint[0]}</span>
+          <span>{hint[1]}</span>
+        </div>
+      )}
     </div>
   );
 }
