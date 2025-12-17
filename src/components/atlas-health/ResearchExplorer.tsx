@@ -9,12 +9,27 @@ import {
   Plus,
   Target,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Link2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { CitationsList } from './CitationsList';
+
+interface ResearchFinding {
+  title: string;
+  summary: string;
+  details: string;
+  confidence: number;
+  source_url?: string;
+}
+
+interface ResearchSource {
+  url: string;
+  accessed_at?: string;
+}
 
 interface ResearchTopic {
   id: string;
@@ -23,8 +38,8 @@ interface ResearchTopic {
   description?: string;
   status: string;
   depth_level: number;
-  findings: unknown[];
-  sources: unknown[];
+  findings: (ResearchFinding | unknown)[];
+  sources: (ResearchSource | unknown)[];
   priority: number;
   auto_generated: boolean;
   created_at: string;
@@ -127,6 +142,12 @@ export const ResearchExplorer = ({
                   <BookOpen className="w-3 h-3" />
                   {Array.isArray(topic.findings) ? topic.findings.length : 0} findings
                 </span>
+                {Array.isArray(topic.sources) && topic.sources.length > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Link2 className="w-3 h-3" />
+                    {topic.sources.length} sources
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -140,15 +161,58 @@ export const ResearchExplorer = ({
                 className="mt-4 pt-4 border-t border-border/30"
               >
                 {Array.isArray(topic.findings) && topic.findings.length > 0 ? (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium">Findings:</h4>
-                    <div className="space-y-1">
-                      {topic.findings.map((finding, idx) => (
-                        <div key={idx} className="text-sm text-muted-foreground p-2 bg-background/50 rounded">
-                          {typeof finding === 'string' ? finding : JSON.stringify(finding)}
-                        </div>
-                      ))}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium">Findings:</h4>
+                      <div className="space-y-2">
+                        {topic.findings.map((finding, idx) => {
+                          // Handle structured findings
+                          if (typeof finding === 'object' && finding !== null) {
+                            const f = finding as ResearchFinding;
+                            return (
+                              <div key={idx} className="p-3 bg-background/50 rounded-lg border border-border/20">
+                                {f.title && (
+                                  <div className="flex items-start justify-between gap-2 mb-1">
+                                    <h5 className="text-sm font-medium text-foreground">{f.title}</h5>
+                                    {f.confidence !== undefined && (
+                                      <Badge variant="outline" className="text-xs shrink-0">
+                                        {Math.round(f.confidence * 100)}% confident
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                                {f.summary && (
+                                  <p className="text-sm text-muted-foreground">{f.summary}</p>
+                                )}
+                                {f.details && f.details !== f.summary && (
+                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-3">{f.details}</p>
+                                )}
+                                {f.source_url && (
+                                  <CitationsList citations={[f.source_url]} compact className="mt-2" />
+                                )}
+                              </div>
+                            );
+                          }
+                          // Fallback for string or other findings
+                          return (
+                            <div key={idx} className="text-sm text-muted-foreground p-2 bg-background/50 rounded">
+                              {typeof finding === 'string' ? finding : JSON.stringify(finding)}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
+                    
+                    {/* Sources section */}
+                    {Array.isArray(topic.sources) && topic.sources.length > 0 && (
+                      <CitationsList 
+                        citations={topic.sources.map(s => 
+                          typeof s === 'object' && s !== null && 'url' in s 
+                            ? (s as ResearchSource).url 
+                            : String(s)
+                        )} 
+                      />
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">No findings yet</p>
