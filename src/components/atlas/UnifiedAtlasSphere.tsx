@@ -1,7 +1,9 @@
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import { AtlasCore } from '@/components/atlas';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 import { useAtlasSettingsReadOnly } from '@/hooks/useAtlasSettings';
+import { useResponsiveAtlas } from '@/hooks/useResponsiveAtlas';
+import { cn } from '@/lib/utils';
 
 export interface UnifiedAtlasSphereProps {
   // Required - these come from runtime state
@@ -11,6 +13,9 @@ export interface UnifiedAtlasSphereProps {
   // Optional overrides - for dashboard or specific use cases
   overrideMorphProgress?: number;
   overrideState?: WakeWordState;
+  
+  // Responsive mode - when true, scales particles based on container size
+  responsive?: boolean;
   
   // Style
   className?: string;
@@ -22,25 +27,35 @@ export interface UnifiedAtlasSphereProps {
  * 
  * Usage:
  * - AtlasDemo: Uses this with full control panel to edit settings
- * - Dashboard: Uses this with overrideMorphProgress={1.0} to always show sphere shape
+ * - Dashboard: Uses this with overrideMorphProgress={1.0} and responsive={true}
  */
 const UnifiedAtlasSphereComponent = ({
   state,
   audioLevel,
   overrideMorphProgress,
   overrideState,
+  responsive = false,
   className,
 }: UnifiedAtlasSphereProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   // Read settings from localStorage (single source of truth)
   const settings = useAtlasSettingsReadOnly();
+  
+  // Get responsive scaling if enabled
+  const { particleMultiplier, particleSizeBoost } = useResponsiveAtlas(containerRef);
   
   // Apply overrides
   const effectiveState = overrideState ?? state;
   const effectiveMorphProgress = overrideMorphProgress ?? settings.morphProgress;
+  
+  // Scale particles based on container size when responsive
+  const scaleParticles = responsive ? particleMultiplier : 1;
+  const scaleSize = responsive ? particleSizeBoost : 1;
 
   return (
-    <div className={className}>
-      <AtlasCore 
+    <div ref={containerRef} className={cn("w-full h-full", className)}>
+      <AtlasCore
         state={effectiveState}
         audioLevel={audioLevel}
         morphProgress={effectiveMorphProgress}
@@ -51,8 +66,8 @@ const UnifiedAtlasSphereComponent = ({
         trailColorGradient={settings.trailColorGradient}
         trailStartColor={settings.trailStartColor}
         trailEndColor={settings.trailEndColor}
-        particleCount={settings.particleCount}
-        particleSize={settings.particleSize}
+        particleCount={Math.round(settings.particleCount * scaleParticles)}
+        particleSize={settings.particleSize * scaleSize}
         density={settings.density}
         rotationSpeed={settings.rotationSpeed}
         enableBloom={settings.enableBloom}
@@ -70,9 +85,9 @@ const UnifiedAtlasSphereComponent = ({
         mouseStrength={settings.mouseStrength}
         mouseInfluenceRadius={settings.mouseInfluenceRadius}
         enableCore={settings.enableCore}
-        coreParticleCount={settings.coreParticleCount}
+        coreParticleCount={Math.round(settings.coreParticleCount * scaleParticles)}
         coreDensity={settings.coreDensity}
-        coreParticleSize={settings.coreParticleSize}
+        coreParticleSize={settings.coreParticleSize * scaleSize}
         coreIntensity={settings.coreIntensity}
         corePulseSpeed={settings.corePulseSpeed}
         coreRotationOffset={settings.coreRotationOffset}
@@ -95,8 +110,8 @@ const UnifiedAtlasSphereComponent = ({
         nebulaColorMid={settings.nebulaColorMid}
         nebulaColorEnd={settings.nebulaColorEnd}
         // Enhanced Nebula settings
-        nebulaParticleCount={settings.nebulaParticleCount}
-        nebulaParticleSize={settings.nebulaParticleSize}
+        nebulaParticleCount={Math.round(settings.nebulaParticleCount * scaleParticles)}
+        nebulaParticleSize={settings.nebulaParticleSize * scaleSize}
         nebulaDensity={settings.nebulaDensity}
         nebulaRotationSpeed={settings.nebulaRotationSpeed}
         nebulaStateReactive={settings.nebulaStateReactive}

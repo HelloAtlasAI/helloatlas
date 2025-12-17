@@ -46,13 +46,14 @@ const AtlasInterfaceComponent = ({
   }, [state]);
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center gap-4 px-4">
-      {/* Atlas Core Sphere - uses settings from localStorage (set in AtlasDemo) */}
+    <div className="relative w-full h-full flex items-center justify-center gap-4 px-4 overflow-hidden">
+      {/* Atlas Core Sphere - responsive sizing with particle optimization */}
       <UnifiedAtlasSphere 
         state={state}
         audioLevel={audioLevel}
         overrideMorphProgress={1.0} // Always show sphere shape on dashboard
-        className="relative flex-shrink-0 w-[420px] h-[420px] z-10"
+        responsive={true} // Enable dynamic particle scaling
+        className="relative flex-shrink-0 w-full h-full max-w-[420px] max-h-[420px] aspect-square z-10"
       />
 
       {/* Status and info - to the right */}
