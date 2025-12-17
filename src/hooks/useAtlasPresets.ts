@@ -22,7 +22,7 @@ export const builtInPresets: AtlasPreset[] = [
     createdAt: 0,
     settings: {
       visualizationMode: 'nebulaFlow',
-      nebulaParticleCount: 25000,
+      nebulaParticleCount: 21000,  // Scaled for 420px
       nebulaFlowSpeed: 0.3,
       nebulaFlowStrength: 0.4,
       nebulaBreathingSpeed: 0.3,
@@ -38,7 +38,7 @@ export const builtInPresets: AtlasPreset[] = [
     createdAt: 0,
     settings: {
       visualizationMode: 'nebulaFlow',
-      nebulaParticleCount: 15000,
+      nebulaParticleCount: 12500,  // Scaled for 420px
       nebulaFlowSpeed: 1.5,
       nebulaFlowStrength: 0.9,
       nebulaRimIntensity: 2.5,
@@ -54,7 +54,7 @@ export const builtInPresets: AtlasPreset[] = [
     createdAt: 0,
     settings: {
       visualizationMode: 'nebulaFlow',
-      nebulaParticleCount: 8000,
+      nebulaParticleCount: 6700,  // Scaled for 420px
       nebulaFlowSpeed: 0.2,
       nebulaFlowStrength: 0.2,
       nebulaRimIntensity: 0.5,
@@ -73,8 +73,8 @@ export const builtInPresets: AtlasPreset[] = [
     settings: {
       visualizationMode: 'nebulaFlow',
       nebulaSolidSurface: true,
-      nebulaParticleCount: 35000,
-      nebulaParticleSize: 0.07,
+      nebulaParticleCount: 29000,  // Scaled for 420px
+      nebulaParticleSize: 0.075,   // Slightly larger
       nebulaSurfaceBlend: 1.8,
       nebulaUniformSize: 1.6,
       nebulaCoherence: 0.95,
@@ -91,8 +91,8 @@ export const builtInPresets: AtlasPreset[] = [
     createdAt: 0,
     settings: {
       visualizationMode: 'nebulaFlow',
-      nebulaParticleCount: 50000,
-      nebulaParticleSize: 0.04,
+      nebulaParticleCount: 42000,  // Scaled for 420px
+      nebulaParticleSize: 0.045,   // Slightly larger
       nebulaGlowIntensity: 1.3,
       nebulaCoreGlow: 1.5,
       nebulaDepthFade: 0.2,
@@ -106,7 +106,7 @@ export const builtInPresets: AtlasPreset[] = [
     createdAt: 0,
     settings: {
       visualizationMode: 'classic',
-      particleCount: 2000,
+      particleCount: 1650,  // Scaled for 420px
       enableBloom: true,
       bloomIntensity: 0.8,
       enableCore: true,

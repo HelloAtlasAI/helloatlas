@@ -233,7 +233,7 @@ export default function AtlasDemo() {
         {/* Main visualization area */}
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-[460px] h-[460px] flex-shrink-0">
+            <div className="w-[420px] h-[420px] flex-shrink-0">
               <AtlasCore
                 state={settings.state}
                 audioLevelRef={audioLevelRef}

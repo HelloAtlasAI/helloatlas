@@ -2,7 +2,7 @@ import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 const STORAGE_KEY = 'atlas-demo-settings';
-const SETTINGS_VERSION = 6; // Bump this to force reset of corrupted settings
+const SETTINGS_VERSION = 7; // Bump this to force reset of corrupted settings
 
 // Complete settings interface for Atlas visualization
 export interface AtlasSettings {
@@ -117,8 +117,8 @@ export const defaultAtlasSettings: AtlasSettings = {
   trailColorGradient: true,
   trailStartColor: '#ff9500',
   trailEndColor: '#1a0a2e',
-  particleCount: 1500,
-  particleSize: 0.08,
+  particleCount: 1250,    // Scaled for 420px (was 1500 for 460px)
+  particleSize: 0.085,    // Slightly larger to compensate
   density: 1.0,
   rotationSpeed: 0.5,
   enableBloom: true,
@@ -134,11 +134,11 @@ export const defaultAtlasSettings: AtlasSettings = {
   enableMouseInteraction: true,
   mouseMode: 'attract',
   mouseStrength: 0.4,
-  mouseInfluenceRadius: 2.0,
+  mouseInfluenceRadius: 1.85,  // Scaled for 420px
   enableCore: true,
-  coreParticleCount: 120,
+  coreParticleCount: 100,      // Scaled for 420px (was 120)
   coreDensity: 0.25,
-  coreParticleSize: 0.04,
+  coreParticleSize: 0.045,     // Slightly larger
   coreIntensity: 1.0,
   corePulseSpeed: 1.5,
   coreRotationOffset: -0.5,
@@ -159,8 +159,8 @@ export const defaultAtlasSettings: AtlasSettings = {
   nebulaColorMid: '#8b5cf6',
   nebulaColorEnd: '#67e8f9',
   // Enhanced Nebula defaults
-  nebulaParticleCount: 8000,
-  nebulaParticleSize: 0.05,
+  nebulaParticleCount: 6700,   // Scaled for 420px (was 8000 for 460px)
+  nebulaParticleSize: 0.055,   // Slightly larger to compensate
   nebulaDensity: 1.0,
   nebulaRotationSpeed: 0.2,
   nebulaStateReactive: true,
