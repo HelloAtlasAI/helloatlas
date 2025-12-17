@@ -41,6 +41,7 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
   const isListeningRef = useRef(false);
   const shouldRestartRef = useRef(false);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isPausedRef = useRef(false); // Track if paused for recording/TTS
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -51,6 +52,26 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
       retryTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Safe start function that checks current state
+  const safeStart = useCallback((recognition: any) => {
+    if (isPausedRef.current) {
+      console.log('[WakeWord] Skipping start - paused for recording/TTS');
+      return;
+    }
+    if (isListeningRef.current) {
+      console.log('[WakeWord] Skipping start - already listening');
+      return;
+    }
+    try {
+      recognition.start();
+    } catch (e: any) {
+      // Only log if it's not the "already started" error
+      if (!e.message?.includes('already started')) {
+        console.warn('[WakeWord] Failed to start:', e.message);
+      }
     }
   }, []);
 
@@ -71,11 +92,15 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
 
     recognition.onstart = () => {
       isListeningRef.current = true;
-      retryCountRef.current = 0; // Reset retry count on successful start
-      setState('passive');
+      retryCountRef.current = 0;
+      if (!isPausedRef.current) {
+        setState('passive');
+      }
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      if (isPausedRef.current) return; // Ignore results while paused
+      
       const results = Array.from(event.results);
       const latestResult = results[results.length - 1];
       
@@ -87,6 +112,7 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
         if (text.includes(keyword.toLowerCase())) {
           setState((currentState) => {
             if (currentState !== 'activated' && currentState !== 'listening' && currentState !== 'thinking' && currentState !== 'speaking') {
+              console.log('[WakeWord] Wake word detected!');
               onWakeWordDetected?.();
               
               // Set timeout to return to passive if no further action
@@ -105,20 +131,26 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      // Don't log no-speech as an error - it's expected when user is silent
+      // Ignore errors while paused
+      if (isPausedRef.current) return;
+      
+      // Don't log no-speech - it's normal
       if (event.error === 'no-speech') {
-        // This is normal - just restart without counting as a retry
-        if (shouldRestartRef.current && !permissionDenied) {
-          try {
-            recognition.start();
-          } catch (e) {
-            // Already started
-          }
+        return;
+      }
+      
+      // Don't spam logs with aborted errors
+      if (event.error === 'aborted') {
+        // Only restart if not paused
+        if (shouldRestartRef.current && !permissionDenied && !isPausedRef.current) {
+          retryTimeoutRef.current = setTimeout(() => {
+            safeStart(recognition);
+          }, 200);
         }
         return;
       }
       
-      console.error('Speech recognition error:', event.error);
+      console.error('[WakeWord] Error:', event.error);
       
       if (event.error === 'not-allowed' || event.error === 'permission-denied') {
         setPermissionDenied(true);
@@ -127,21 +159,6 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
         return;
       }
       
-      // For aborted, just restart - user may have interrupted
-      if (event.error === 'aborted') {
-        if (shouldRestartRef.current && !permissionDenied) {
-          retryTimeoutRef.current = setTimeout(() => {
-            try {
-              recognition.start();
-            } catch (e) {
-              // Already started
-            }
-          }, 100);
-        }
-        return;
-      }
-      
-      // For other errors, try to restart with exponential backoff
       if (event.error === 'network' || event.error === 'service-not-allowed') {
         shouldRestartRef.current = false;
         return;
@@ -151,24 +168,24 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
     recognition.onend = () => {
       isListeningRef.current = false;
       
-      // Only restart if we should be listening and haven't exceeded retry limit
+      // Don't restart if paused
+      if (isPausedRef.current) {
+        console.log('[WakeWord] Ended while paused, not restarting');
+        return;
+      }
+      
+      // Only restart if we should be listening
       if (shouldRestartRef.current && !permissionDenied && retryCountRef.current < maxRetries) {
         retryCountRef.current += 1;
-        
-        // Exponential backoff: 500ms, 1s, 2s
         const delay = Math.min(500 * Math.pow(2, retryCountRef.current - 1), 4000);
         
         retryTimeoutRef.current = setTimeout(() => {
-          if (shouldRestartRef.current) {
-            try {
-              recognition.start();
-            } catch (e) {
-              console.warn('Failed to restart recognition:', e);
-            }
+          if (shouldRestartRef.current && !isPausedRef.current) {
+            safeStart(recognition);
           }
         }, delay);
       } else if (retryCountRef.current >= maxRetries) {
-        console.warn('Max retries reached for speech recognition');
+        console.warn('[WakeWord] Max retries reached');
         setState('dormant');
       }
     };
@@ -178,32 +195,63 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
     return () => {
       cleanup();
       shouldRestartRef.current = false;
+      isPausedRef.current = false;
       try {
         recognition.stop();
       } catch (e) {
         // Already stopped
       }
     };
-  }, [keyword, onWakeWordDetected, onTimeout, timeoutDuration, cleanup, maxRetries, permissionDenied]);
+  }, [keyword, onWakeWordDetected, onTimeout, timeoutDuration, cleanup, maxRetries, permissionDenied, safeStart]);
+
+  // Pause wake word detection (for recording/TTS)
+  const pauseListening = useCallback(() => {
+    console.log('[WakeWord] Pausing for recording/TTS');
+    isPausedRef.current = true;
+    cleanup();
+    
+    if (recognitionRef.current && isListeningRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Already stopped
+      }
+    }
+  }, [cleanup]);
+
+  // Resume wake word detection after recording/TTS
+  const resumeListening = useCallback(() => {
+    console.log('[WakeWord] Resuming after recording/TTS');
+    isPausedRef.current = false;
+    retryCountRef.current = 0;
+    
+    if (recognitionRef.current && isSupported && !permissionDenied && shouldRestartRef.current) {
+      // Small delay to avoid conflicts
+      retryTimeoutRef.current = setTimeout(() => {
+        if (!isPausedRef.current) {
+          safeStart(recognitionRef.current);
+          setState('passive');
+        }
+      }, 300);
+    }
+  }, [isSupported, permissionDenied, safeStart]);
 
   const startPassiveListening = useCallback(() => {
     if (!recognitionRef.current || !isSupported || permissionDenied) return;
     
+    console.log('[WakeWord] Starting passive listening');
     shouldRestartRef.current = true;
+    isPausedRef.current = false;
     retryCountRef.current = 0;
     
-    try {
-      if (!isListeningRef.current) {
-        recognitionRef.current.start();
-      }
-      setState('passive');
-    } catch (e) {
-      console.error('Failed to start passive listening:', e);
-    }
-  }, [isSupported, permissionDenied]);
+    safeStart(recognitionRef.current);
+    setState('passive');
+  }, [isSupported, permissionDenied, safeStart]);
 
   const stopListening = useCallback(() => {
+    console.log('[WakeWord] Stopping listening');
     shouldRestartRef.current = false;
+    isPausedRef.current = false;
     cleanup();
     
     if (!recognitionRef.current) return;
@@ -221,28 +269,28 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
   }, []);
 
   const resetToPassive = useCallback(() => {
+    console.log('[WakeWord] Resetting to passive');
     setState('passive');
     setTranscript('');
+    isPausedRef.current = false;
     
     // Restart recognition if supported
     if (recognitionRef.current && isSupported && !permissionDenied) {
       shouldRestartRef.current = true;
       retryCountRef.current = 0;
       
-      try {
-        if (!isListeningRef.current) {
-          recognitionRef.current.start();
+      // Small delay before restarting
+      retryTimeoutRef.current = setTimeout(() => {
+        if (!isPausedRef.current && !isListeningRef.current) {
+          safeStart(recognitionRef.current);
         }
-      } catch (e) {
-        // Already started or other error
-      }
+      }, 300);
     }
-  }, [isSupported, permissionDenied]);
+  }, [isSupported, permissionDenied, safeStart]);
 
-  // Auto-start if enabled (but only after user interaction in most browsers)
+  // Auto-start if enabled
   useEffect(() => {
     if (autoStart && isSupported && !permissionDenied) {
-      // Delay slightly to allow for browser readiness
       const timer = setTimeout(() => {
         startPassiveListening();
       }, 100);
@@ -259,6 +307,8 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
     startPassiveListening,
     stopListening,
     resetToPassive,
+    pauseListening,
+    resumeListening,
   };
 };
 

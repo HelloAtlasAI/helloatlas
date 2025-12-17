@@ -65,6 +65,8 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
   }, [onCardFocus]);
 
   const sendMessage = useCallback(async (content: string): Promise<string | null> => {
+    console.log('[Chat] Sending message:', content);
+    
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -123,6 +125,8 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
         content: m.content,
       }));
 
+      console.log('[Chat] Making request to backend...');
+      
       const response = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
@@ -138,6 +142,7 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
       });
 
       if (!response.ok) {
+        console.error('[Chat] Response not ok:', response.status);
         if (response.status === 429) {
           toast.error("Rate limit exceeded. Please try again later.");
           throw new Error("Rate limit exceeded");
@@ -153,15 +158,20 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
         throw new Error("No response body");
       }
 
+      console.log('[Chat] Starting to read stream...');
       setAiState("speaking");
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let chunkCount = 0;
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log('[Chat] Stream done, total chunks:', chunkCount);
+          break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
 
@@ -175,25 +185,31 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
           if (!line.startsWith("data: ")) continue;
 
           const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
+          if (jsonStr === "[DONE]") {
+            console.log('[Chat] Received [DONE]');
+            break;
+          }
 
           try {
             const parsed = JSON.parse(jsonStr);
             
-            // Handle regular content
-            const chunkContent = parsed.choices?.[0]?.delta?.content;
-            if (chunkContent) {
-              updateAssistantMessage(chunkContent, collectedCitations);
-            }
-            
-            // Handle custom citations event (if backend sends it)
+            // Handle custom citations event (sent first by backend)
             if (parsed.citations) {
+              console.log('[Chat] Received citations:', parsed.citations.length);
               collectedCitations = parsed.citations.map((c: string | Citation) => 
                 typeof c === 'string' ? { url: c } : c
               );
-              updateAssistantMessage("", collectedCitations);
+              continue;
             }
-          } catch {
+            
+            // Handle regular content
+            const chunkContent = parsed.choices?.[0]?.delta?.content;
+            if (chunkContent) {
+              chunkCount++;
+              updateAssistantMessage(chunkContent, collectedCitations);
+            }
+          } catch (parseError) {
+            // Put incomplete JSON back in buffer
             buffer = line + "\n" + buffer;
             break;
           }
@@ -201,7 +217,7 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
       }
 
       // Final update with extracted citations if no explicit citations received
-      if (collectedCitations.length === 0) {
+      if (collectedCitations.length === 0 && assistantContent) {
         const extractedCitations = extractUrlsAsCitations(assistantContent);
         if (extractedCitations.length > 0) {
           setMessages((prev) => {
@@ -216,15 +232,24 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
         }
       }
 
-      // Clear card focus after response (3 seconds for multi-card)
+      // Clear card focus after response
       setTimeout(() => onCardFocus?.(null), 3000);
 
-      // Store the last response for optional TTS
+      // Store the last response for TTS
       setLastResponse(assistantContent);
       
-      return assistantContent;
+      console.log('[Chat] Final response length:', assistantContent.length);
+      
+      // Return content or a fallback
+      if (assistantContent && assistantContent.trim()) {
+        return assistantContent;
+      }
+      
+      // If we got no content, return a fallback
+      console.warn('[Chat] No content received, returning fallback');
+      return "I'm sorry, I couldn't process that request. Please try again.";
     } catch (error) {
-      console.error("Chat error:", error);
+      console.error("[Chat] Error:", error);
       toast.error("Failed to get response. Please try again.");
       setMessages((prev) => {
         if (prev[prev.length - 1]?.role === "assistant" && !prev[prev.length - 1]?.content) {
@@ -238,7 +263,7 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
       setAiState("idle");
       setIsLoading(false);
     }
-  }, [messages, detectCardFocus, onCardFocus]);
+  }, [messages, detectCardFocus, onCardFocus, source]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
