@@ -85,16 +85,21 @@ const AtlasInterfaceComponent = ({
     particleSize: 0.065,      // Optimized for denser appearance at 460px
   };
 
-  // Load saved settings but override with dashboard defaults for key props
+  // Load saved settings but prioritize dashboard defaults for critical visual props
   const savedSettings = useMemo<AtlasSettings>(() => {
     try {
       const stored = localStorage.getItem('atlas-demo-settings');
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Use saved settings but force morphProgress to keep sphere shape
+        // Dashboard defaults take priority for key visual props
         return {
-          ...parsed,
-          morphProgress: dashboardDefaults.morphProgress, // Force sphere shape
+          ...dashboardDefaults,  // Start with dashboard defaults
+          ...parsed,             // Override with saved settings
+          // Force these critical values for dashboard display
+          morphProgress: 1.0,
+          particleCount: Math.max(parsed.particleCount || 0, 3500),
+          density: dashboardDefaults.density,
+          particleSize: dashboardDefaults.particleSize,
         };
       }
     } catch (e) {
