@@ -91,13 +91,10 @@ const AtlasInterfaceComponent = ({
       const stored = localStorage.getItem('atlas-demo-settings');
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Merge with dashboard defaults, prioritizing dashboard values for critical props
+        // Use saved settings but force morphProgress to keep sphere shape
         return {
           ...parsed,
           morphProgress: dashboardDefaults.morphProgress, // Force sphere shape
-          density: Math.min(parsed.density ?? dashboardDefaults.density!, 1.0),
-          particleCount: Math.min(parsed.particleCount ?? dashboardDefaults.particleCount!, 3000),
-          fluidCohesion: Math.max(parsed.fluidCohesion ?? dashboardDefaults.fluidCohesion!, 0.3),
         };
       }
     } catch (e) {
