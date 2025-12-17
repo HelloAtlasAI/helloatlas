@@ -1,4 +1,4 @@
-// Nebula Flow Shaders - Curl noise flow fields with neon gradient and rim lighting
+// Nebula Flow Shaders - Curl noise flow fields with neon gradient, rim lighting, and high-quality particles
 
 // Shared simplex noise for curl calculation
 const simplexNoise3D = `
@@ -118,6 +118,8 @@ varying vec3 vWorldNormal;
 varying vec3 vViewPosition;
 varying float vBandValue;
 varying float vHotSpot;
+varying float vDepth;
+varying float vRandomSeed;
 
 void main() {
   vec3 pos = spherePos;
@@ -148,12 +150,14 @@ void main() {
   
   pos += tangentFlow * bandModulation * 0.3;
   
-  // Audio reactivity
-  pos += normal * uAudioLevel * 0.2 * (1.0 + sin(uTime * 4.0 + randomSeed * 6.28) * 0.5);
+  // Audio reactivity with multi-layer displacement
+  float audioWave = sin(uTime * 4.0 + randomSeed * 6.28) * 0.5 + 0.5;
+  pos += normal * uAudioLevel * 0.25 * (0.5 + audioWave * 0.5);
   
-  // Calculate intensity for coloring
-  vIntensity = 0.6 + randomSeed * 0.4;
-  vIntensity += uAudioLevel * 0.3;
+  // Calculate intensity for coloring - more variation
+  vIntensity = 0.5 + randomSeed * 0.5;
+  vIntensity += uAudioLevel * 0.4;
+  vIntensity *= (0.8 + bandModulation * 0.4);
   
   // Flow position for gradient (0-1 along flow bands)
   vFlowPosition = bandModulation;
@@ -165,15 +169,21 @@ void main() {
   float hotSpotNoise = snoise(pos * 3.0 + vec3(uTime * 0.2, 0.0, 0.0));
   vHotSpot = smoothstep(0.3, 0.8, hotSpotNoise);
   
+  // Random seed for fragment shader
+  vRandomSeed = randomSeed;
+  
   // Transform to view space for rim lighting
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   vViewPosition = mvPosition.xyz;
   vWorldNormal = normalize(normalMatrix * normal);
+  vDepth = -mvPosition.z;
   
   gl_Position = projectionMatrix * mvPosition;
   
-  // Particle size with audio reactivity
-  float sizeMultiplier = 1.0 + uAudioLevel * 0.5;
+  // Particle size with audio reactivity and depth-based sizing
+  float depthFactor = smoothstep(2.0, 8.0, -mvPosition.z);
+  float sizeMultiplier = 1.0 + uAudioLevel * 0.6;
+  sizeMultiplier *= (1.0 + depthFactor * 0.3); // Bigger particles farther away for volumetric feel
   gl_PointSize = uParticleSize * (300.0 / -mvPosition.z) * sizeMultiplier;
 }
 `;
@@ -185,6 +195,10 @@ uniform vec3 uColorEnd;     // Icy blue
 uniform float uRimIntensity;
 uniform float uHotSpotIntensity;
 uniform float uOpacity;
+uniform float uGlowIntensity;
+uniform float uDepthFade;
+uniform float uCoreGlow;
+uniform float uAudioLevel;
 
 varying float vIntensity;
 varying float vFlowPosition;
@@ -192,24 +206,37 @@ varying vec3 vWorldNormal;
 varying vec3 vViewPosition;
 varying float vBandValue;
 varying float vHotSpot;
+varying float vDepth;
+varying float vRandomSeed;
 
 void main() {
-  // Soft circular point with alpha falloff
+  // High-quality circular point with Gaussian falloff
   vec2 center = gl_PointCoord - vec2(0.5);
   float dist = length(center);
   if (dist > 0.5) discard;
   
-  float softEdge = 1.0 - smoothstep(0.2, 0.5, dist);
+  // Gaussian falloff for smooth, high-quality particles
+  float gaussFalloff = exp(-dist * dist * 6.0);
+  
+  // Inner core glow - bright center
+  float core = exp(-dist * dist * 16.0) * uCoreGlow;
+  
+  // Soft edge for blending
+  float softEdge = 1.0 - smoothstep(0.3, 0.5, dist);
   
   // Rim lighting - brighter at edges based on view direction
   vec3 viewDir = normalize(-vViewPosition);
   float rimDot = 1.0 - abs(dot(vWorldNormal, viewDir));
   float rim = pow(rimDot, 2.0) * uRimIntensity;
   
+  // Audio-reactive rim boost
+  rim *= (1.0 + uAudioLevel * 0.5);
+  
   // 3-color gradient based on flow position and band
   float gradientPos = vFlowPosition * 0.7 + vBandValue * 0.3;
+  gradientPos = clamp(gradientPos, 0.0, 1.0);
   
-  // Blend: start -> mid -> end
+  // Smooth 3-color blend: start -> mid -> end
   vec3 color;
   if (gradientPos < 0.5) {
     color = mix(uColorStart, uColorMid, gradientPos * 2.0);
@@ -218,17 +245,34 @@ void main() {
   }
   
   // Add rim lighting contribution - shifts toward icy blue at edges
-  color = mix(color, uColorEnd, rim * 0.6);
+  color = mix(color, uColorEnd, rim * 0.5);
   
-  // Add hot spot brightness
-  color += vec3(1.0) * vHotSpot * uHotSpotIntensity * 0.5;
+  // Add hot spot brightness with subtle color shift
+  vec3 hotSpotColor = mix(color, vec3(1.0), 0.3);
+  color = mix(color, hotSpotColor, vHotSpot * uHotSpotIntensity * 0.5);
   
-  // Boost intensity
-  color *= vIntensity * (1.0 + rim * 0.5);
+  // Core glow - bright white-ish center
+  vec3 coreColor = mix(color, vec3(1.0, 0.95, 0.9), core * 0.5);
+  color = mix(color, coreColor, core);
   
-  // Final alpha with soft edge
-  float alpha = softEdge * uOpacity * vIntensity;
-  alpha += rim * 0.3; // Extra glow at rim
+  // HDR boost for bloom-friendly values
+  float hdrBoost = 1.0 + rim * 0.4 + core * 0.3 + uAudioLevel * 0.3;
+  color *= vIntensity * hdrBoost * uGlowIntensity;
+  
+  // Depth-based fog for volumetric feel
+  float depthFog = smoothstep(3.0, 8.0, vDepth) * uDepthFade;
+  color = mix(color, uColorStart * 0.5, depthFog * 0.4);
+  
+  // Multi-layer alpha for depth and soft blending
+  float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+  float alpha = gaussFalloff * softEdge * uOpacity * vIntensity;
+  alpha *= (0.6 + luminance * 0.4); // Brighter particles more opaque
+  alpha += rim * 0.25; // Extra glow at rim
+  alpha += core * 0.3; // Core is more solid
+  alpha = clamp(alpha, 0.0, 1.0);
+  
+  // Subtle variation per particle
+  alpha *= (0.85 + vRandomSeed * 0.15);
   
   gl_FragColor = vec4(color, alpha);
 }

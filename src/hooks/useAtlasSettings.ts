@@ -2,7 +2,7 @@ import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 const STORAGE_KEY = 'atlas-demo-settings';
-const SETTINGS_VERSION = 3; // Bump this to force reset of corrupted settings
+const SETTINGS_VERSION = 4; // Bump this to force reset of corrupted settings
 
 // Complete settings interface for Atlas visualization
 export interface AtlasSettings {
@@ -80,6 +80,16 @@ export interface AtlasSettings {
   nebulaColorStart: string;
   nebulaColorMid: string;
   nebulaColorEnd: string;
+  
+  // Enhanced Nebula settings
+  nebulaParticleCount: number;
+  nebulaParticleSize: number;
+  nebulaDensity: number;
+  nebulaRotationSpeed: number;
+  nebulaStateReactive: boolean;
+  nebulaGlowIntensity: number;
+  nebulaDepthFade: number;
+  nebulaCoreGlow: number;
 }
 
 // Default settings - optimized for performance
@@ -137,6 +147,15 @@ export const defaultAtlasSettings: AtlasSettings = {
   nebulaColorStart: '#1a0a3e',
   nebulaColorMid: '#8b5cf6',
   nebulaColorEnd: '#67e8f9',
+  // Enhanced Nebula defaults
+  nebulaParticleCount: 8000,
+  nebulaParticleSize: 0.05,
+  nebulaDensity: 1.0,
+  nebulaRotationSpeed: 0.2,
+  nebulaStateReactive: true,
+  nebulaGlowIntensity: 1.0,
+  nebulaDepthFade: 0.3,
+  nebulaCoreGlow: 1.0,
 };
 
 // Action types

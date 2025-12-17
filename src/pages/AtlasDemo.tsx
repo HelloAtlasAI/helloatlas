@@ -248,6 +248,14 @@ export default function AtlasDemo() {
                 nebulaColorStart={settings.nebulaColorStart}
                 nebulaColorMid={settings.nebulaColorMid}
                 nebulaColorEnd={settings.nebulaColorEnd}
+                nebulaParticleCount={settings.nebulaParticleCount}
+                nebulaParticleSize={settings.nebulaParticleSize}
+                nebulaDensity={settings.nebulaDensity}
+                nebulaRotationSpeed={settings.nebulaRotationSpeed}
+                nebulaStateReactive={settings.nebulaStateReactive}
+                nebulaGlowIntensity={settings.nebulaGlowIntensity}
+                nebulaDepthFade={settings.nebulaDepthFade}
+                nebulaCoreGlow={settings.nebulaCoreGlow}
               />
             </div>
           </div>
@@ -315,48 +323,151 @@ export default function AtlasDemo() {
                   🌌 Nebula Flow Settings
                 </h3>
                 
-                <SliderControl label="Flow Strength" value={settings.nebulaFlowStrength} onChange={(v) => setSetting('nebulaFlowStrength', v)} min={0} max={1} step={0.05} color="violet" decimals={2} hint={['Subtle', 'Strong']} />
-                <SliderControl label="Flow Speed" value={settings.nebulaFlowSpeed} onChange={(v) => setSetting('nebulaFlowSpeed', v)} min={0.1} max={2} step={0.1} color="violet" decimals={1} />
-                <SliderControl label="Band Count" value={settings.nebulaBandCount} onChange={(v) => setSetting('nebulaBandCount', v)} min={3} max={16} step={1} color="violet" />
-                <SliderControl label="Rim Intensity" value={settings.nebulaRimIntensity} onChange={(v) => setSetting('nebulaRimIntensity', v)} min={0} max={3} step={0.1} color="cyan" decimals={1} hint={['Dim', 'Bright']} />
-                <SliderControl label="Hot Spot Intensity" value={settings.nebulaHotSpotIntensity} onChange={(v) => setSetting('nebulaHotSpotIntensity', v)} min={0} max={2} step={0.1} color="cyan" decimals={1} />
-                <SliderControl label="Breathing Speed" value={settings.nebulaBreathingSpeed} onChange={(v) => setSetting('nebulaBreathingSpeed', v)} min={0.1} max={2} step={0.1} color="indigo" decimals={1} />
-                <SliderControl label="Breathing Amount" value={settings.nebulaBreathingAmount} onChange={(v) => setSetting('nebulaBreathingAmount', v)} min={0} max={0.2} step={0.01} color="indigo" decimals={2} />
-                <SliderControl label="Radius Noise" value={settings.nebulaRadiusNoise} onChange={(v) => setSetting('nebulaRadiusNoise', v)} min={0} max={0.4} step={0.02} color="indigo" decimals={2} hint={['Smooth', 'Organic']} />
+                {/* Nebula Presets */}
+                <div className="grid grid-cols-2 gap-2 pb-3 border-b border-violet-500/20">
+                  <button
+                    onClick={() => setMultiple({
+                      nebulaParticleCount: 25000,
+                      nebulaFlowSpeed: 0.3,
+                      nebulaFlowStrength: 0.4,
+                      nebulaBreathingSpeed: 0.3,
+                      nebulaBreathingAmount: 0.03,
+                      nebulaGlowIntensity: 0.9,
+                    })}
+                    className="px-3 py-2 rounded-lg bg-indigo-500/20 border border-indigo-500/30 hover:border-indigo-500/50 text-indigo-300 text-xs transition-all"
+                  >
+                    🌀 Cosmic Drift
+                  </button>
+                  <button
+                    onClick={() => setMultiple({
+                      nebulaParticleCount: 15000,
+                      nebulaFlowSpeed: 1.5,
+                      nebulaFlowStrength: 0.9,
+                      nebulaRimIntensity: 2.5,
+                      nebulaHotSpotIntensity: 1.5,
+                      nebulaGlowIntensity: 1.5,
+                    })}
+                    className="px-3 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30 hover:border-yellow-500/50 text-yellow-300 text-xs transition-all"
+                  >
+                    ⚡ Electric Storm
+                  </button>
+                  <button
+                    onClick={() => setMultiple({
+                      nebulaParticleCount: 8000,
+                      nebulaFlowSpeed: 0.2,
+                      nebulaFlowStrength: 0.2,
+                      nebulaRimIntensity: 0.5,
+                      nebulaGlowIntensity: 0.6,
+                      nebulaColorStart: '#050510',
+                      nebulaColorMid: '#1a1a3e',
+                      nebulaColorEnd: '#2a4a5a',
+                    })}
+                    className="px-3 py-2 rounded-lg bg-slate-500/20 border border-slate-500/30 hover:border-slate-500/50 text-slate-300 text-xs transition-all"
+                  >
+                    🌑 Deep Space
+                  </button>
+                  <button
+                    onClick={() => setMultiple({
+                      nebulaParticleCount: 50000,
+                      nebulaParticleSize: 0.04,
+                      nebulaGlowIntensity: 1.3,
+                      nebulaCoreGlow: 1.5,
+                      nebulaDepthFade: 0.2,
+                    })}
+                    className="px-3 py-2 rounded-lg bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-300 text-xs transition-all"
+                  >
+                    ✨ Ultra HD
+                  </button>
+                </div>
                 
-                {/* Color Pickers */}
+                {/* State Reactive Toggle */}
+                <div className="flex items-center justify-between pb-3 border-b border-violet-500/20">
+                  <div>
+                    <span className="text-xs text-foreground">AI State Colors</span>
+                    <p className="text-[10px] text-muted-foreground">Auto-adjust colors per AI state</p>
+                  </div>
+                  <button
+                    onClick={() => setSetting('nebulaStateReactive', !settings.nebulaStateReactive)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      settings.nebulaStateReactive
+                        ? 'bg-violet-500/30 border border-violet-500/50 text-violet-300'
+                        : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                    }`}
+                  >
+                    {settings.nebulaStateReactive ? 'AUTO' : 'MANUAL'}
+                  </button>
+                </div>
+                
+                {/* Particle Configuration */}
+                <div className="space-y-3">
+                  <span className="text-xs text-violet-300 font-medium">Particle Configuration</span>
+                  <SliderControl label="Particle Count" value={settings.nebulaParticleCount} onChange={(v) => setSetting('nebulaParticleCount', v)} min={3000} max={50000} step={1000} color="violet" hint={['Light', '50K']} />
+                  <SliderControl label="Particle Size" value={settings.nebulaParticleSize} onChange={(v) => setSetting('nebulaParticleSize', v)} min={0.02} max={0.12} step={0.005} color="violet" decimals={3} />
+                  <SliderControl label="Density" value={settings.nebulaDensity} onChange={(v) => setSetting('nebulaDensity', v)} min={0.5} max={2} step={0.05} color="violet" decimals={2} />
+                  <SliderControl label="Rotation Speed" value={settings.nebulaRotationSpeed} onChange={(v) => setSetting('nebulaRotationSpeed', v)} min={0} max={1} step={0.05} color="violet" decimals={2} />
+                </div>
+                
+                {/* Flow Settings */}
                 <div className="space-y-3 pt-2 border-t border-violet-500/20">
-                  <span className="text-xs text-muted-foreground">Gradient Colors</span>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground">Start (Indigo)</label>
-                      <input
-                        type="color"
-                        value={settings.nebulaColorStart}
-                        onChange={(e) => setSetting('nebulaColorStart', e.target.value)}
-                        className="w-full h-8 rounded cursor-pointer border border-border/30"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground">Mid (Violet)</label>
-                      <input
-                        type="color"
-                        value={settings.nebulaColorMid}
-                        onChange={(e) => setSetting('nebulaColorMid', e.target.value)}
-                        className="w-full h-8 rounded cursor-pointer border border-border/30"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground">End (Cyan)</label>
-                      <input
-                        type="color"
-                        value={settings.nebulaColorEnd}
-                        onChange={(e) => setSetting('nebulaColorEnd', e.target.value)}
-                        className="w-full h-8 rounded cursor-pointer border border-border/30"
-                      />
+                  <span className="text-xs text-violet-300 font-medium">Flow Dynamics</span>
+                  <SliderControl label="Flow Strength" value={settings.nebulaFlowStrength} onChange={(v) => setSetting('nebulaFlowStrength', v)} min={0} max={1} step={0.05} color="violet" decimals={2} hint={['Subtle', 'Strong']} />
+                  <SliderControl label="Flow Speed" value={settings.nebulaFlowSpeed} onChange={(v) => setSetting('nebulaFlowSpeed', v)} min={0.1} max={2} step={0.1} color="violet" decimals={1} />
+                  <SliderControl label="Band Count" value={settings.nebulaBandCount} onChange={(v) => setSetting('nebulaBandCount', v)} min={3} max={16} step={1} color="violet" />
+                </div>
+                
+                {/* Quality & Effects */}
+                <div className="space-y-3 pt-2 border-t border-violet-500/20">
+                  <span className="text-xs text-cyan-300 font-medium">Quality & Effects</span>
+                  <SliderControl label="Glow Intensity" value={settings.nebulaGlowIntensity} onChange={(v) => setSetting('nebulaGlowIntensity', v)} min={0.3} max={2} step={0.1} color="cyan" decimals={1} hint={['Subtle', 'Bright']} />
+                  <SliderControl label="Core Glow" value={settings.nebulaCoreGlow} onChange={(v) => setSetting('nebulaCoreGlow', v)} min={0} max={2} step={0.1} color="cyan" decimals={1} />
+                  <SliderControl label="Rim Intensity" value={settings.nebulaRimIntensity} onChange={(v) => setSetting('nebulaRimIntensity', v)} min={0} max={3} step={0.1} color="cyan" decimals={1} />
+                  <SliderControl label="Hot Spot Intensity" value={settings.nebulaHotSpotIntensity} onChange={(v) => setSetting('nebulaHotSpotIntensity', v)} min={0} max={2} step={0.1} color="cyan" decimals={1} />
+                  <SliderControl label="Depth Fade" value={settings.nebulaDepthFade} onChange={(v) => setSetting('nebulaDepthFade', v)} min={0} max={1} step={0.05} color="cyan" decimals={2} />
+                </div>
+                
+                {/* Breathing */}
+                <div className="space-y-3 pt-2 border-t border-violet-500/20">
+                  <span className="text-xs text-indigo-300 font-medium">Breathing Animation</span>
+                  <SliderControl label="Breathing Speed" value={settings.nebulaBreathingSpeed} onChange={(v) => setSetting('nebulaBreathingSpeed', v)} min={0.1} max={2} step={0.1} color="indigo" decimals={1} />
+                  <SliderControl label="Breathing Amount" value={settings.nebulaBreathingAmount} onChange={(v) => setSetting('nebulaBreathingAmount', v)} min={0} max={0.2} step={0.01} color="indigo" decimals={2} />
+                  <SliderControl label="Radius Noise" value={settings.nebulaRadiusNoise} onChange={(v) => setSetting('nebulaRadiusNoise', v)} min={0} max={0.4} step={0.02} color="indigo" decimals={2} hint={['Smooth', 'Organic']} />
+                </div>
+                
+                {/* Color Pickers - only show in manual mode */}
+                {!settings.nebulaStateReactive && (
+                  <div className="space-y-3 pt-2 border-t border-violet-500/20">
+                    <span className="text-xs text-muted-foreground">Manual Gradient Colors</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-muted-foreground">Start</label>
+                        <input
+                          type="color"
+                          value={settings.nebulaColorStart}
+                          onChange={(e) => setSetting('nebulaColorStart', e.target.value)}
+                          className="w-full h-8 rounded cursor-pointer border border-border/30"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-muted-foreground">Mid</label>
+                        <input
+                          type="color"
+                          value={settings.nebulaColorMid}
+                          onChange={(e) => setSetting('nebulaColorMid', e.target.value)}
+                          className="w-full h-8 rounded cursor-pointer border border-border/30"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-muted-foreground">End</label>
+                        <input
+                          type="color"
+                          value={settings.nebulaColorEnd}
+                          onChange={(e) => setSetting('nebulaColorEnd', e.target.value)}
+                          className="w-full h-8 rounded cursor-pointer border border-border/30"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 

@@ -1,0 +1,96 @@
+import { WakeWordState } from '@/hooks/useWakeWord';
+
+export interface NebulaStateConfig {
+  colorStart: string;
+  colorMid: string;
+  colorEnd: string;
+  flowSpeed: number;
+  flowStrength: number;
+  rimIntensity: number;
+  hotSpotIntensity: number;
+  breathingSpeed: number;
+  breathingAmount: number;
+  radiusNoise: number;
+  glowIntensity: number;
+}
+
+export const NEBULA_STATE_CONFIGS: Record<WakeWordState, NebulaStateConfig> = {
+  dormant: {
+    colorStart: '#0a0520',
+    colorMid: '#3b1d6e',
+    colorEnd: '#1a3a4a',
+    flowSpeed: 0.2,
+    flowStrength: 0.3,
+    rimIntensity: 0.6,
+    hotSpotIntensity: 0.3,
+    breathingSpeed: 0.3,
+    breathingAmount: 0.02,
+    radiusNoise: 0.1,
+    glowIntensity: 0.6,
+  },
+  passive: {
+    colorStart: '#1a0a3e',
+    colorMid: '#6b3fa0',
+    colorEnd: '#40a0a0',
+    flowSpeed: 0.4,
+    flowStrength: 0.4,
+    rimIntensity: 0.9,
+    hotSpotIntensity: 0.5,
+    breathingSpeed: 0.5,
+    breathingAmount: 0.04,
+    radiusNoise: 0.12,
+    glowIntensity: 0.8,
+  },
+  activated: {
+    colorStart: '#2a1550',
+    colorMid: '#a855f7',
+    colorEnd: '#22d3ee',
+    flowSpeed: 1.2,
+    flowStrength: 0.8,
+    rimIntensity: 2.0,
+    hotSpotIntensity: 1.5,
+    breathingSpeed: 1.0,
+    breathingAmount: 0.12,
+    radiusNoise: 0.2,
+    glowIntensity: 1.5,
+  },
+  listening: {
+    colorStart: '#0a2040',
+    colorMid: '#3b82f6',
+    colorEnd: '#67e8f9',
+    flowSpeed: 0.6,
+    flowStrength: 0.5,
+    rimIntensity: 1.4,
+    hotSpotIntensity: 0.8,
+    breathingSpeed: 0.6,
+    breathingAmount: 0.06,
+    radiusNoise: 0.15,
+    glowIntensity: 1.0,
+  },
+  thinking: {
+    colorStart: '#2d1b4e',
+    colorMid: '#a855f7',
+    colorEnd: '#e879f9',
+    flowSpeed: 1.0,
+    flowStrength: 0.7,
+    rimIntensity: 1.8,
+    hotSpotIntensity: 1.2,
+    breathingSpeed: 0.8,
+    breathingAmount: 0.08,
+    radiusNoise: 0.18,
+    glowIntensity: 1.2,
+  },
+  speaking: {
+    colorStart: '#1a0a3e',
+    colorMid: '#f59e0b',
+    colorEnd: '#fcd34d',
+    flowSpeed: 0.8,
+    flowStrength: 0.6,
+    rimIntensity: 1.6,
+    hotSpotIntensity: 1.0,
+    breathingSpeed: 0.7,
+    breathingAmount: 0.1,
+    radiusNoise: 0.15,
+    glowIntensity: 1.3,
+  },
+};
