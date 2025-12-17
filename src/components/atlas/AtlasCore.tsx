@@ -1,4 +1,4 @@
-import { useRef, memo, forwardRef } from 'react';
+import { useRef, memo, forwardRef, MutableRefObject } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -8,7 +8,8 @@ import { STATE_CONFIGS } from './utils/stateConfigs';
 
 export interface AtlasCoreProps {
   state: WakeWordState;
-  audioLevel: number;
+  audioLevel?: number;
+  audioLevelRef?: MutableRefObject<number>;
   morphProgress?: number;
   enableTrails?: boolean;
   trailLength?: number;
@@ -95,7 +96,7 @@ CSSFallbackOrb.displayName = 'CSSFallbackOrb';
 // ParticleSystem - orchestrates all systems
 const ParticleSystem = memo(({
   state,
-  audioLevel,
+  audioLevelRef,
   morphProgress = 1,
   enableTrails = false,
   trailLength = 4,
@@ -124,7 +125,10 @@ const ParticleSystem = memo(({
   corePulseSpeed = 1.5,
   coreRotationOffset = -0.5,
   mousePosition
-}: AtlasCoreProps & { mousePosition: React.MutableRefObject<{ x: number; y: number; active: boolean }> }) => {
+}: Omit<AtlasCoreProps, 'audioLevel'> & { 
+  audioLevelRef: MutableRefObject<number>;
+  mousePosition: MutableRefObject<{ x: number; y: number; active: boolean }>;
+}) => {
   const trailGeometryRef = useRef<THREE.BufferGeometry | null>(null);
   const config = STATE_CONFIGS[state];
 
@@ -154,7 +158,7 @@ const ParticleSystem = memo(({
       {/* GPU-based main particle cloud */}
       <GPUParticleSystem
         state={state}
-        audioLevel={audioLevel}
+        audioLevelRef={audioLevelRef}
         morphProgress={morphProgress}
         particleCount={particleCount}
         particleSize={particleSize}
@@ -173,7 +177,7 @@ const ParticleSystem = memo(({
       {enableCore && (
         <GPUCoreSystem
           state={state}
-          audioLevel={audioLevel}
+          audioLevelRef={audioLevelRef}
           morphProgress={morphProgress}
           coreParticleCount={coreParticleCount}
           coreDensity={coreDensity}
@@ -198,7 +202,8 @@ ParticleSystem.displayName = 'ParticleSystem';
  */
 export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({ 
   state, 
-  audioLevel, 
+  audioLevel = 0,
+  audioLevelRef: externalAudioLevelRef,
   morphProgress = 1.0,
   enableTrails = false,
   trailLength = 4,
@@ -238,6 +243,15 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
 }, ref) => {
   const mousePositionRef = useRef({ x: 0, y: 0, active: false });
   
+  // Use external ref if provided, otherwise create internal ref synced to audioLevel prop
+  const internalAudioLevelRef = useRef(audioLevel);
+  const audioLevelRefToUse = externalAudioLevelRef || internalAudioLevelRef;
+  
+  // Sync internal ref with audioLevel prop if no external ref
+  if (!externalAudioLevelRef) {
+    internalAudioLevelRef.current = audioLevel;
+  }
+  
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -269,11 +283,11 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
         onCreated={({ gl }) => {
           gl.setClearColor(0x000000, 0);
         }}
-        fallback={<CSSFallbackOrb state={state} audioLevel={audioLevel} />}
+        fallback={<CSSFallbackOrb state={state} audioLevel={audioLevelRefToUse.current} />}
       >
         <ParticleSystem 
           state={state} 
-          audioLevel={audioLevel} 
+          audioLevelRef={audioLevelRefToUse}
           morphProgress={morphProgress}
           enableTrails={enableTrails}
           trailLength={trailLength}

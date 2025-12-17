@@ -1,4 +1,4 @@
-import { useRef, useMemo, memo } from 'react';
+import { useRef, useMemo, memo, MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { WakeWordState } from '@/hooks/useWakeWord';
@@ -7,7 +7,7 @@ import { STATE_CONFIGS } from '../utils/stateConfigs';
 
 interface GPUCoreSystemProps {
   state: WakeWordState;
-  audioLevel: number;
+  audioLevelRef: MutableRefObject<number>;
   morphProgress: number;
   coreParticleCount?: number;
   coreDensity?: number;
@@ -22,7 +22,7 @@ interface GPUCoreSystemProps {
  */
 export const GPUCoreSystem = memo(({
   state,
-  audioLevel,
+  audioLevelRef,
   morphProgress,
   coreParticleCount = 150,
   coreDensity = 0.25,
@@ -98,6 +98,7 @@ export const GPUCoreSystem = memo(({
     
     frameCount.current++;
     const uniforms = materialRef.current.uniforms;
+    const audioLevel = audioLevelRef.current;
     
     uniforms.uTime.value += delta;
     uniforms.uMorphProgress.value = THREE.MathUtils.lerp(
