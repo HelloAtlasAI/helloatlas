@@ -68,7 +68,8 @@ export interface AtlasSettings {
 // Default settings - optimized for performance
 export const defaultAtlasSettings: AtlasSettings = {
   state: 'dormant',
-  morphProgress: 0.2,
+  // Default to a formed sphere so the demo never looks "broken" on load/reset
+  morphProgress: 1.0,
   audioLevel: 0,
   autoAudio: false,
   enableTrails: false,
@@ -137,7 +138,13 @@ function loadSettings(): AtlasSettings {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return { ...defaultAtlasSettings, ...parsed };
+      const merged: AtlasSettings = { ...defaultAtlasSettings, ...parsed };
+
+      // Clamp + migrate old default that made the demo look "empty"
+      const mp = typeof merged.morphProgress === 'number' ? merged.morphProgress : defaultAtlasSettings.morphProgress;
+      merged.morphProgress = Math.min(1, Math.max(0, mp === 0.2 ? 1.0 : mp));
+
+      return merged;
     }
   } catch (e) {
     console.warn('Failed to load Atlas settings:', e);
