@@ -29,3 +29,21 @@ verify_jwt = false
 
 [functions.atlas-research]
 verify_jwt = false
+
+[functions.tool-gateway]
+verify_jwt = false
+
+[functions.agent-run]
+verify_jwt = false
+
+[functions.approvals]
+verify_jwt = false
+
+[functions.schedules]
+verify_jwt = false
+
+[functions.events]
+verify_jwt = false
+
+[functions.memory-embed]
+verify_jwt = false
