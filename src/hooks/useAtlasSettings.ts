@@ -9,6 +9,9 @@ export interface AtlasSettings {
   // Visualization mode
   visualizationMode: 'classic' | 'nebulaFlow';
   
+  // Dashboard preview mode
+  dashboardPreview: boolean;
+  
   // Core state
   state: WakeWordState;
   morphProgress: number;
@@ -106,6 +109,7 @@ export interface AtlasSettings {
 // Default settings - optimized for performance
 export const defaultAtlasSettings: AtlasSettings = {
   visualizationMode: 'classic',
+  dashboardPreview: false,
   state: 'dormant',
   // Default to a formed sphere so the demo never looks "broken" on load/reset
   morphProgress: 1.0,
