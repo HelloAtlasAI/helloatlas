@@ -70,16 +70,13 @@ const AtlasInterfaceComponent = ({
             height: '200%',
             left: '-50%',
             top: '-50%',
-            // Radial mask to fade edges
-            maskImage: 'radial-gradient(ellipse 60% 60% at center, black 30%, transparent 70%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 60% 60% at center, black 30%, transparent 70%)',
           }}
         >
           <UnifiedAtlasSphere 
             state={state}
             audioLevel={audioLevel}
             overrideMorphProgress={1.0}
-            responsive={true}
+            responsive={false}
             className="w-full h-full"
           />
         </div>
