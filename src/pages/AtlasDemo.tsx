@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc, Droplets, Orbit } from 'lucide-react';
+import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc, Droplets, Orbit, Plus, Trash2, X } from 'lucide-react';
 import { AtlasCore } from '@/components/atlas';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { useAtlasSettings, defaultAtlasSettings, AtlasSettings } from '@/hooks/useAtlasSettings';
+import { useAtlasPresets, AtlasPreset } from '@/hooks/useAtlasPresets';
 
 // Performance presets
 type PerformanceMode = 'performance' | 'balanced' | 'quality';
@@ -53,6 +54,13 @@ const presets: Preset[] = [
 export default function AtlasDemo() {
   // Use the unified settings hook - single source of truth
   const { settings, setSetting, setMultiple, reset, exportSettings, importSettings } = useAtlasSettings();
+  
+  // Custom presets
+  const { allPresets, customPresets, savePreset, deletePreset, isBuiltIn } = useAtlasPresets();
+  const [showSavePresetModal, setShowSavePresetModal] = useState(false);
+  const [newPresetName, setNewPresetName] = useState('');
+  const [newPresetDescription, setNewPresetDescription] = useState('');
+  const [selectedPresetIcon, setSelectedPresetIcon] = useState('💾');
   
   // Use ref for audioLevel to avoid 60fps re-renders
   const audioLevelRef = useRef(settings.audioLevel);
@@ -149,6 +157,35 @@ export default function AtlasDemo() {
   const handleImport = () => {
     importSettings();
   };
+
+  const handleSavePreset = () => {
+    if (!newPresetName.trim()) {
+      toast.error('Please enter a preset name');
+      return;
+    }
+    savePreset(newPresetName, settings, newPresetDescription, selectedPresetIcon);
+    toast.success(`Preset "${newPresetName}" saved!`);
+    setShowSavePresetModal(false);
+    setNewPresetName('');
+    setNewPresetDescription('');
+    setSelectedPresetIcon('💾');
+  };
+
+  const handleApplyPreset = (preset: AtlasPreset) => {
+    setMultiple(preset.settings);
+    toast.success(`Applied "${preset.name}"`);
+  };
+
+  const handleDeletePreset = (preset: AtlasPreset) => {
+    if (isBuiltIn(preset.id)) {
+      toast.error('Cannot delete built-in presets');
+      return;
+    }
+    deletePreset(preset.id);
+    toast.success(`Deleted "${preset.name}"`);
+  };
+
+  const presetIcons = ['💾', '🌟', '🎨', '🔥', '💎', '🌈', '⚡', '🌙', '🎯', '🚀'];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-foreground">
@@ -341,77 +378,39 @@ export default function AtlasDemo() {
                   🌌 Nebula Flow Settings
                 </h3>
                 
-                {/* Nebula Presets */}
-                <div className="grid grid-cols-2 gap-2 pb-3 border-b border-violet-500/20">
-                  <button
-                    onClick={() => setMultiple({
-                      nebulaParticleCount: 25000,
-                      nebulaFlowSpeed: 0.3,
-                      nebulaFlowStrength: 0.4,
-                      nebulaBreathingSpeed: 0.3,
-                      nebulaBreathingAmount: 0.03,
-                      nebulaGlowIntensity: 0.9,
-                    })}
-                    className="px-3 py-2 rounded-lg bg-indigo-500/20 border border-indigo-500/30 hover:border-indigo-500/50 text-indigo-300 text-xs transition-all"
-                  >
-                    🌀 Cosmic Drift
-                  </button>
-                  <button
-                    onClick={() => setMultiple({
-                      nebulaParticleCount: 15000,
-                      nebulaFlowSpeed: 1.5,
-                      nebulaFlowStrength: 0.9,
-                      nebulaRimIntensity: 2.5,
-                      nebulaHotSpotIntensity: 1.5,
-                      nebulaGlowIntensity: 1.5,
-                    })}
-                    className="px-3 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30 hover:border-yellow-500/50 text-yellow-300 text-xs transition-all"
-                  >
-                    ⚡ Electric Storm
-                  </button>
-                  <button
-                    onClick={() => setMultiple({
-                      nebulaParticleCount: 8000,
-                      nebulaFlowSpeed: 0.2,
-                      nebulaFlowStrength: 0.2,
-                      nebulaRimIntensity: 0.5,
-                      nebulaGlowIntensity: 0.6,
-                      nebulaColorStart: '#050510',
-                      nebulaColorMid: '#1a1a3e',
-                      nebulaColorEnd: '#2a4a5a',
-                    })}
-                    className="px-3 py-2 rounded-lg bg-slate-500/20 border border-slate-500/30 hover:border-slate-500/50 text-slate-300 text-xs transition-all"
-                  >
-                    🌑 Deep Space
-                  </button>
-                  <button
-                    onClick={() => setMultiple({
-                      nebulaParticleCount: 50000,
-                      nebulaParticleSize: 0.04,
-                      nebulaGlowIntensity: 1.3,
-                      nebulaCoreGlow: 1.5,
-                      nebulaDepthFade: 0.2,
-                    })}
-                    className="px-3 py-2 rounded-lg bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-300 text-xs transition-all"
-                  >
-                    ✨ Ultra HD
-                  </button>
-                  <button
-                    onClick={() => setMultiple({
-                      nebulaSolidSurface: true,
-                      nebulaParticleCount: 35000,
-                      nebulaParticleSize: 0.07,
-                      nebulaSurfaceBlend: 1.8,
-                      nebulaUniformSize: 1.6,
-                      nebulaCoherence: 0.95,
-                      nebulaRadiusNoise: 0.08,
-                      nebulaBreathingAmount: 0.04,
-                      nebulaGlowIntensity: 0.9,
-                    })}
-                    className="px-3 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-300 text-xs transition-all"
-                  >
-                    🔮 Solid Surface
-                  </button>
+                {/* Presets - Dynamic from useAtlasPresets */}
+                <div className="space-y-2 pb-3 border-b border-violet-500/20">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-violet-300 font-medium">Quick Presets</span>
+                    <button
+                      onClick={() => setShowSavePresetModal(true)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-500/20 border border-violet-500/30 hover:border-violet-500/50 text-violet-300 text-[10px] transition-all"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Save Current
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1">
+                    {allPresets.filter(p => p.settings.visualizationMode === 'nebulaFlow' || !p.settings.visualizationMode).map((preset) => (
+                      <div key={preset.id} className="group relative">
+                        <button
+                          onClick={() => handleApplyPreset(preset)}
+                          className="w-full px-3 py-2 rounded-lg bg-violet-500/10 border border-violet-500/20 hover:border-violet-500/40 text-violet-200 text-xs transition-all text-left"
+                        >
+                          <span className="mr-1">{preset.icon}</span>
+                          <span className="truncate">{preset.name}</span>
+                        </button>
+                        {!isBuiltIn(preset.id) && (
+                          <button
+                            onClick={() => handleDeletePreset(preset)}
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 
                 {/* State Reactive Toggle */}
@@ -999,6 +998,95 @@ export default function AtlasDemo() {
           </div>
         </motion.aside>
       </div>
+
+      {/* Save Preset Modal */}
+      <AnimatePresence>
+        {showSavePresetModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowSavePresetModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-background/95 border border-border/50 rounded-2xl p-6 w-full max-w-md mx-4 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-foreground">Save Preset</h3>
+                <button
+                  onClick={() => setShowSavePresetModal(false)}
+                  className="p-1 rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Preset Name</label>
+                  <input
+                    type="text"
+                    value={newPresetName}
+                    onChange={(e) => setNewPresetName(e.target.value)}
+                    placeholder="My Awesome Preset"
+                    className="w-full px-3 py-2 rounded-lg bg-muted/30 border border-border/30 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-violet-500/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Description (optional)</label>
+                  <input
+                    type="text"
+                    value={newPresetDescription}
+                    onChange={(e) => setNewPresetDescription(e.target.value)}
+                    placeholder="Brief description..."
+                    className="w-full px-3 py-2 rounded-lg bg-muted/30 border border-border/30 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-violet-500/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-muted-foreground mb-2 block">Icon</label>
+                  <div className="flex flex-wrap gap-2">
+                    {presetIcons.map((icon) => (
+                      <button
+                        key={icon}
+                        onClick={() => setSelectedPresetIcon(icon)}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all ${
+                          selectedPresetIcon === icon
+                            ? 'bg-violet-500/30 border border-violet-500/50'
+                            : 'bg-muted/20 border border-border/30 hover:border-border/50'
+                        }`}
+                      >
+                        {icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowSavePresetModal(false)}
+                  className="flex-1 px-4 py-2 rounded-lg bg-muted/30 border border-border/30 hover:border-border/50 text-muted-foreground transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSavePreset}
+                  className="flex-1 px-4 py-2 rounded-lg bg-violet-500/20 border border-violet-500/50 hover:bg-violet-500/30 text-violet-300 transition-all"
+                >
+                  Save Preset
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
