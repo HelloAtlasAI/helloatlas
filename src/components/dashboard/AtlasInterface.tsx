@@ -52,7 +52,7 @@ const AtlasInterfaceComponent = ({
         state={state}
         audioLevel={audioLevel}
         overrideMorphProgress={1.0} // Always show sphere shape on dashboard
-        className="relative flex-shrink-0 w-[460px] h-[460px] z-10"
+        className="relative flex-shrink-0 w-[420px] h-[420px] z-10"
       />
 
       {/* Status and info - to the right */}
