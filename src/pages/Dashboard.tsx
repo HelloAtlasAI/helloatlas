@@ -175,19 +175,7 @@ const Dashboard = () => {
   // Ref for auto-stop timer
   const autoStopTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Wake word callbacks - defined before useWakeWord hook
-  const handleWakeWordDetected = useCallback(() => {
-    console.log('Wake word detected!');
-    stopCurrentAudio();
-    setIsWakeWordTriggered(true);
-    startRecording();
-  }, [stopCurrentAudio, startRecording]);
-
-  const handleWakeWordTimeout = useCallback(() => {
-    console.log('Wake word timeout');
-  }, []);
-
-  // Wake word detection
+  // Wake word detection - declare first so we can use pauseListening in callbacks
   const {
     state: wakeWordState,
     setState: setWakeWordState,
@@ -195,10 +183,19 @@ const Dashboard = () => {
     isSupported: isWakeWordSupported,
     startPassiveListening,
     resetToPassive,
+    pauseListening,
+    resumeListening,
   } = useWakeWord({
     keyword: 'atlas',
-    onWakeWordDetected: handleWakeWordDetected,
-    onTimeout: handleWakeWordTimeout,
+    onWakeWordDetected: () => {
+      console.log('[Dashboard] Wake word detected! Starting recording...');
+      stopCurrentAudio();
+      setIsWakeWordTriggered(true);
+      startRecording();
+    },
+    onTimeout: () => {
+      console.log('[Dashboard] Wake word timeout');
+    },
   });
 
   // Start passive listening on mount
@@ -237,13 +234,17 @@ const Dashboard = () => {
   const isSpeakingWithFocus = effectiveAiState === 'speaking' && focusedCards.length > 0;
 
   const handleVoicePress = useCallback(() => {
+    console.log('[Dashboard] Voice press - pausing wake word, starting recording');
+    pauseListening(); // Pause wake word to prevent conflicts
     stopCurrentAudio();
     startRecording();
     setAiState('listening');
-  }, [startRecording, setAiState, stopCurrentAudio]);
+  }, [startRecording, setAiState, stopCurrentAudio, pauseListening]);
 
   const handleVoiceRelease = useCallback(async () => {
     if (!isRecording) return;
+    
+    console.log('[Dashboard] Voice release - processing recording');
     
     // Clear auto-stop timer and wake word trigger
     if (autoStopTimerRef.current) {
@@ -254,24 +255,41 @@ const Dashboard = () => {
     
     setIsVoiceProcessing(true);
     setWakeWordState('thinking');
+    
     try {
       const transcribedText = await stopRecording();
+      console.log('[Dashboard] Transcribed text:', transcribedText);
+      
       if (transcribedText && transcribedText.trim()) {
         setLastUserMessage(transcribedText);
         setIsConversationOpen(true);
+        
+        console.log('[Dashboard] Sending message to chat...');
         const response = await sendMessage(transcribedText);
-        if (response) {
+        console.log('[Dashboard] Got response:', response?.substring(0, 100));
+        
+        if (response && response.trim()) {
           setLastAiResponse(response);
           // Auto-speak the response for voice interactions
           setWakeWordState('speaking');
+          console.log('[Dashboard] Speaking response...');
           await speakText(response);
+          console.log('[Dashboard] TTS complete');
+        } else {
+          console.warn('[Dashboard] No response to speak');
         }
+      } else {
+        console.log('[Dashboard] No transcribed text');
       }
+    } catch (error) {
+      console.error('[Dashboard] Voice processing error:', error);
     } finally {
       setIsVoiceProcessing(false);
-      resetToPassive();
+      // Resume wake word listening after TTS is done
+      console.log('[Dashboard] Resuming wake word listening');
+      resumeListening();
     }
-  }, [isRecording, stopRecording, sendMessage, setWakeWordState, resetToPassive, speakText]);
+  }, [isRecording, stopRecording, sendMessage, setWakeWordState, speakText, resumeListening]);
 
   // Auto-stop recording after silence when triggered by wake word
   useEffect(() => {
