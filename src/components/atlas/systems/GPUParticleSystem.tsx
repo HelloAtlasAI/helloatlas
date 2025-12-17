@@ -4,7 +4,6 @@ import * as THREE from 'three';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { gpuParticleVertexShader, gpuParticleFragmentShader } from '../shaders/particleShaders';
 import { STATE_CONFIGS } from '../utils/stateConfigs';
-import { generateCircleTexture } from '../utils/textureGenerators';
 
 interface GPUParticleSystemProps {
   state: WakeWordState;
@@ -14,19 +13,12 @@ interface GPUParticleSystemProps {
   particleSize?: number;
   density?: number;
   rotationSpeed?: number;
-  morphSpeed?: number;
   enableTurbulence?: boolean;
-  turbulenceFrequency?: number;
   turbulenceAmplitude?: number;
-  turbulenceSpeed?: number;
   enableMouseInteraction?: boolean;
   mouseMode?: 'attract' | 'repulse';
   mouseStrength?: number;
   mouseInfluenceRadius?: number;
-  fluidCohesion?: number;
-  surfaceTension?: number;
-  fluidFlow?: number;
-  audioReactivitySpeed?: number;
   mousePosition: React.MutableRefObject<{ x: number; y: number; active: boolean }>;
 }
 
@@ -34,33 +26,25 @@ export const GPUParticleSystem = memo(({
   state,
   audioLevel,
   morphProgress,
-  particleCount = 5000,
+  particleCount = 2000,
   particleSize = 0.08,
   density = 1.0,
   rotationSpeed = 0.5,
-  morphSpeed = 1.5,
   enableTurbulence = true,
-  turbulenceFrequency = 0.5,
   turbulenceAmplitude = 0.08,
-  turbulenceSpeed = 0.3,
   enableMouseInteraction = true,
   mouseMode = 'attract',
   mouseStrength = 0.5,
   mouseInfluenceRadius = 2.5,
-  fluidCohesion = 0,
-  surfaceTension = 0.5,
-  fluidFlow = 0.3,
-  audioReactivitySpeed = 1.0,
   mousePosition
 }: GPUParticleSystemProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const currentMorphRef = useRef(morphProgress);
+  const frameCount = useRef(0);
   
   const config = STATE_CONFIGS[state];
-  const circleTexture = useMemo(() => generateCircleTexture(), []);
 
-  // Create geometry with all attributes for GPU calculations
+  // Create geometry once
   const geometry = useMemo(() => {
     const count = particleCount;
     const spherePos = new Float32Array(count * 3);
@@ -73,7 +57,7 @@ export const GPUParticleSystem = memo(({
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       
-      const sphereR = (1.8 * density) + (Math.random() - 0.5) * 0.4 * density;
+      const sphereR = (1.8 * density) + (Math.random() - 0.5) * 0.4;
       spherePos[i3] = sphereR * Math.sin(phi) * Math.cos(theta);
       spherePos[i3 + 1] = sphereR * Math.sin(phi) * Math.sin(theta);
       spherePos[i3 + 2] = sphereR * Math.cos(phi);
@@ -97,7 +81,7 @@ export const GPUParticleSystem = memo(({
     return geo;
   }, [particleCount, density]);
 
-  // Shader material with all uniforms
+  // Shader material
   const material = useMemo(() => {
     return new THREE.ShaderMaterial({
       vertexShader: gpuParticleVertexShader,
@@ -107,15 +91,9 @@ export const GPUParticleSystem = memo(({
         uMorphProgress: { value: morphProgress },
         uAudioLevel: { value: 0 },
         uAudioMultiplier: { value: 1.0 },
-        uAudioReactivitySpeed: { value: audioReactivitySpeed },
         uParticleSize: { value: particleSize },
         uDensity: { value: density },
-        uFluidCohesion: { value: fluidCohesion },
-        uSurfaceTension: { value: surfaceTension },
-        uFluidFlow: { value: fluidFlow },
-        uTurbulenceFrequency: { value: turbulenceFrequency },
         uTurbulenceAmplitude: { value: turbulenceAmplitude },
-        uTurbulenceSpeed: { value: turbulenceSpeed },
         uEnableTurbulence: { value: enableTurbulence ? 1.0 : 0.0 },
         uMousePos: { value: new THREE.Vector3(0, 0, 0) },
         uMouseActive: { value: 0.0 },
@@ -123,46 +101,32 @@ export const GPUParticleSystem = memo(({
         uMouseRadius: { value: mouseInfluenceRadius },
         uMouseMode: { value: mouseMode === 'attract' ? 1.0 : -1.0 },
         uColor: { value: config.primary.clone() },
-        uTexture: { value: circleTexture },
         uOpacity: { value: 0.85 }
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      alphaTest: 0.01
     });
   }, []);
 
-  const targetMorph = morphProgress;
-
-  // Animation loop - only updates uniforms
+  // Optimized animation - skip frames for non-critical updates
   useFrame((_, delta) => {
-    if (!materialRef.current) return;
+    if (!materialRef.current || !pointsRef.current) return;
     
+    frameCount.current++;
     const uniforms = materialRef.current.uniforms;
     
+    // Always update time and morph
     uniforms.uTime.value += delta;
-    
-    currentMorphRef.current = THREE.MathUtils.lerp(
-      currentMorphRef.current,
-      targetMorph,
-      delta * morphSpeed * 2
+    uniforms.uMorphProgress.value = THREE.MathUtils.lerp(
+      uniforms.uMorphProgress.value,
+      morphProgress,
+      delta * 3
     );
-    uniforms.uMorphProgress.value = currentMorphRef.current;
-    
     uniforms.uAudioLevel.value = audioLevel;
-    uniforms.uAudioMultiplier.value = state === 'speaking' ? 2.5 : (state === 'thinking' ? 1.5 : 1.0);
-    uniforms.uAudioReactivitySpeed.value = audioReactivitySpeed;
+    uniforms.uAudioMultiplier.value = state === 'speaking' ? 2.0 : 1.0;
     
-    uniforms.uFluidCohesion.value = fluidCohesion;
-    uniforms.uSurfaceTension.value = surfaceTension;
-    uniforms.uFluidFlow.value = fluidFlow;
-    
-    uniforms.uEnableTurbulence.value = enableTurbulence ? 1.0 : 0.0;
-    uniforms.uTurbulenceFrequency.value = turbulenceFrequency;
-    uniforms.uTurbulenceAmplitude.value = turbulenceAmplitude;
-    uniforms.uTurbulenceSpeed.value = turbulenceSpeed;
-    
+    // Mouse - update every frame when active
     if (enableMouseInteraction && mousePosition.current.active) {
       uniforms.uMousePos.value.set(
         mousePosition.current.x * 4,
@@ -173,39 +137,20 @@ export const GPUParticleSystem = memo(({
     } else {
       uniforms.uMouseActive.value = 0.0;
     }
-    uniforms.uMouseStrength.value = mouseStrength;
-    uniforms.uMouseRadius.value = mouseInfluenceRadius;
-    uniforms.uMouseMode.value = mouseMode === 'attract' ? 1.0 : -1.0;
     
-    uniforms.uColor.value.lerp(config.primary, 0.08);
-    uniforms.uParticleSize.value = particleSize;
-    
-    if (pointsRef.current) {
-      const time = uniforms.uTime.value;
-      const audioRotationBoost = state === 'speaking' ? 1 + audioLevel * 2 : 1;
-      pointsRef.current.rotation.y += delta * rotationSpeed * 0.3 * audioRotationBoost;
-      pointsRef.current.rotation.x += delta * rotationSpeed * 0.05 * audioRotationBoost;
-      
-      // Breathing animation
-      const breathingSpeed = state === 'dormant' ? 0.8 : 
-                            state === 'listening' ? 1.2 : 
-                            state === 'speaking' ? 1.5 : 1.0;
-      
-      const breathe1 = Math.sin(time * breathingSpeed) * 0.03;
-      const breathe2 = Math.sin(time * breathingSpeed * 0.7 + 0.5) * 0.015;
-      const breathe3 = Math.sin(time * 3.5) * 0.005;
-      
-      const breathingScale = 1 + breathe1 + breathe2 + breathe3;
-      const audioScaleMultiplier = state === 'speaking' ? 0.4 : 0.15;
-      const audioScale = 1 + audioLevel * audioScaleMultiplier;
-      
-      pointsRef.current.scale.setScalar(breathingScale * audioScale);
-      
-      // Position bobbing
-      pointsRef.current.position.y = Math.sin(time * 0.5) * 0.03;
-      pointsRef.current.position.x = Math.sin(time * 0.3) * 0.015;
-      pointsRef.current.position.z = Math.cos(time * 0.4) * 0.01;
+    // Color lerp - every 3 frames
+    if (frameCount.current % 3 === 0) {
+      uniforms.uColor.value.lerp(config.primary, 0.15);
     }
+    
+    // Rotation and scale
+    const audioBoost = state === 'speaking' ? 1 + audioLevel : 1;
+    pointsRef.current.rotation.y += delta * rotationSpeed * 0.3 * audioBoost;
+    
+    // Simple breathing
+    const breathe = Math.sin(uniforms.uTime.value * 0.8) * 0.02;
+    const audioScale = 1 + audioLevel * 0.15;
+    pointsRef.current.scale.setScalar((1 + breathe) * audioScale);
   });
 
   return (

@@ -15,36 +15,29 @@ interface GPUCoreSystemProps {
   coreIntensity?: number;
   corePulseSpeed?: number;
   coreRotationOffset?: number;
-  fluidCohesion?: number;
-  surfaceTension?: number;
-  fluidFlow?: number;
 }
 
 /**
- * GPU-accelerated core particle system
- * All calculations happen in the vertex shader
+ * GPU-accelerated core particle system - simplified for performance
  */
 export const GPUCoreSystem = memo(({
   state,
   audioLevel,
   morphProgress,
-  coreParticleCount = 400,
+  coreParticleCount = 150,
   coreDensity = 0.25,
   coreParticleSize = 0.04,
   coreIntensity = 1.2,
   corePulseSpeed = 1.5,
   coreRotationOffset = -0.5,
-  fluidCohesion = 0,
-  surfaceTension = 0.5,
-  fluidFlow = 0.3,
 }: GPUCoreSystemProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const currentMorphRef = useRef(morphProgress);
+  const frameCount = useRef(0);
   
   const config = STATE_CONFIGS[state];
 
-  // Create geometry with attributes for GPU
+  // Create geometry
   const geometry = useMemo(() => {
     const count = coreParticleCount;
     const spherePos = new Float32Array(count * 3);
@@ -56,7 +49,6 @@ export const GPUCoreSystem = memo(({
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       
-      // Sphere state - dense core with exponential distribution
       const baseR = Math.pow(Math.random(), 0.5);
       const sphereR = baseR * coreDensity * 1.5;
       
@@ -64,7 +56,6 @@ export const GPUCoreSystem = memo(({
       spherePos[i3 + 1] = sphereR * Math.sin(phi) * Math.sin(theta);
       spherePos[i3 + 2] = sphereR * Math.cos(phi);
       
-      // Scattered state
       const scatterR = (1.5 + Math.random() * 1.5) * coreDensity;
       scatteredPos[i3] = scatterR * Math.sin(phi) * Math.cos(theta);
       scatteredPos[i3 + 1] = scatterR * Math.sin(phi) * Math.sin(theta);
@@ -91,11 +82,7 @@ export const GPUCoreSystem = memo(({
         uTime: { value: 0 },
         uMorphProgress: { value: morphProgress },
         uAudioLevel: { value: 0 },
-        uCoreDensity: { value: coreDensity },
         uPulseSpeed: { value: corePulseSpeed },
-        uFluidCohesion: { value: fluidCohesion },
-        uSurfaceTension: { value: surfaceTension },
-        uFluidFlow: { value: fluidFlow },
         uCoreColor: { value: config.core.clone() },
         uCoreSize: { value: coreParticleSize },
         uOpacity: { value: 0.7 * coreIntensity },
@@ -109,32 +96,27 @@ export const GPUCoreSystem = memo(({
   useFrame((_, delta) => {
     if (!materialRef.current || !pointsRef.current) return;
     
+    frameCount.current++;
     const uniforms = materialRef.current.uniforms;
     
     uniforms.uTime.value += delta;
-    
-    // Smooth morph interpolation
-    currentMorphRef.current = THREE.MathUtils.lerp(
-      currentMorphRef.current,
+    uniforms.uMorphProgress.value = THREE.MathUtils.lerp(
+      uniforms.uMorphProgress.value,
       morphProgress,
       delta * 3
     );
-    uniforms.uMorphProgress.value = currentMorphRef.current;
-    
     uniforms.uAudioLevel.value = audioLevel;
-    uniforms.uFluidCohesion.value = fluidCohesion;
-    uniforms.uSurfaceTension.value = surfaceTension;
-    uniforms.uFluidFlow.value = fluidFlow;
     uniforms.uPulseSpeed.value = corePulseSpeed;
     uniforms.uCoreSize.value = coreParticleSize;
     uniforms.uOpacity.value = (0.6 + audioLevel * 0.3) * coreIntensity;
     
-    // Color lerp
-    uniforms.uCoreColor.value.lerp(config.core, 0.1);
+    // Color lerp - every 3 frames
+    if (frameCount.current % 3 === 0) {
+      uniforms.uCoreColor.value.lerp(config.core, 0.15);
+    }
     
-    // Counter-rotate core
+    // Rotation
     pointsRef.current.rotation.y += delta * coreRotationOffset;
-    pointsRef.current.rotation.z += delta * 0.1;
   });
 
   return (
