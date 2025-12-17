@@ -55,31 +55,20 @@ const AtlasInterfaceComponent = ({
 
   return (
     <div className="relative w-full h-full flex items-center justify-center">
-      {/* Atlas Core Sphere - centered container with overflow visible for glow */}
+      {/* Atlas Core Sphere - same size as demo page for consistency */}
       <motion.div 
-        className={`relative flex-shrink-0 w-[140px] h-[140px] z-10 overflow-hidden ${canActivate ? 'cursor-pointer' : ''}`}
+        className={`relative flex-shrink-0 w-[420px] h-[420px] z-10 ${canActivate ? 'cursor-pointer' : ''}`}
         onClick={handleClick}
-        whileHover={canActivate ? { scale: 1.05 } : {}}
-        whileTap={canActivate ? { scale: 0.95 } : {}}
+        whileHover={canActivate ? { scale: 1.02 } : {}}
+        whileTap={canActivate ? { scale: 0.98 } : {}}
       >
-        {/* Extended canvas wrapper - 200% size, centered, for glow room */}
-        <div 
-          className="absolute"
-          style={{
-            width: '200%',
-            height: '200%',
-            left: '-50%',
-            top: '-50%',
-          }}
-        >
-          <UnifiedAtlasSphere 
-            state={state}
-            audioLevel={audioLevel}
-            overrideMorphProgress={1.0}
-            responsive={false}
-            className="w-full h-full"
-          />
-        </div>
+        <UnifiedAtlasSphere 
+          state={state}
+          audioLevel={audioLevel}
+          overrideMorphProgress={1.0}
+          responsive={false}
+          className="w-full h-full"
+        />
       </motion.div>
     </div>
   );
