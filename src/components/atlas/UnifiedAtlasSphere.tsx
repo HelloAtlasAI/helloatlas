@@ -1,7 +1,7 @@
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { AtlasCore } from '@/components/atlas';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
-import { useAtlasSettingsReadOnly, AtlasSettings } from '@/hooks/useAtlasSettings';
+import { useAtlasSettingsReadOnly } from '@/hooks/useAtlasSettings';
 
 export interface UnifiedAtlasSphereProps {
   // Required - these come from runtime state
@@ -44,9 +44,13 @@ const UnifiedAtlasSphereComponent = ({
         state={effectiveState}
         audioLevel={audioLevel}
         morphProgress={effectiveMorphProgress}
+        // Classic mode settings
         enableTrails={settings.enableTrails}
         trailLength={settings.trailLength}
         trailOpacity={settings.trailOpacity}
+        trailColorGradient={settings.trailColorGradient}
+        trailStartColor={settings.trailStartColor}
+        trailEndColor={settings.trailEndColor}
         particleCount={settings.particleCount}
         particleSize={settings.particleSize}
         density={settings.density}
@@ -75,6 +79,39 @@ const UnifiedAtlasSphereComponent = ({
         fluidCohesion={settings.fluidCohesion}
         surfaceTension={settings.surfaceTension}
         fluidFlow={settings.fluidFlow}
+        audioReactivitySpeed={settings.audioReactivitySpeed}
+        // Visualization mode
+        visualizationMode={settings.visualizationMode}
+        // Nebula Flow settings
+        nebulaFlowStrength={settings.nebulaFlowStrength}
+        nebulaFlowSpeed={settings.nebulaFlowSpeed}
+        nebulaBandCount={settings.nebulaBandCount}
+        nebulaRimIntensity={settings.nebulaRimIntensity}
+        nebulaHotSpotIntensity={settings.nebulaHotSpotIntensity}
+        nebulaBreathingSpeed={settings.nebulaBreathingSpeed}
+        nebulaBreathingAmount={settings.nebulaBreathingAmount}
+        nebulaRadiusNoise={settings.nebulaRadiusNoise}
+        nebulaColorStart={settings.nebulaColorStart}
+        nebulaColorMid={settings.nebulaColorMid}
+        nebulaColorEnd={settings.nebulaColorEnd}
+        // Enhanced Nebula settings
+        nebulaParticleCount={settings.nebulaParticleCount}
+        nebulaParticleSize={settings.nebulaParticleSize}
+        nebulaDensity={settings.nebulaDensity}
+        nebulaRotationSpeed={settings.nebulaRotationSpeed}
+        nebulaStateReactive={settings.nebulaStateReactive}
+        nebulaGlowIntensity={settings.nebulaGlowIntensity}
+        nebulaDepthFade={settings.nebulaDepthFade}
+        nebulaCoreGlow={settings.nebulaCoreGlow}
+        // Solid Surface settings
+        nebulaSolidSurface={settings.nebulaSolidSurface}
+        nebulaSurfaceBlend={settings.nebulaSurfaceBlend}
+        nebulaUniformSize={settings.nebulaUniformSize}
+        nebulaCoherence={settings.nebulaCoherence}
+        // State behavior settings
+        nebulaThinkingRetraction={settings.nebulaThinkingRetraction}
+        nebulaAudioBreathingIntensity={settings.nebulaAudioBreathingIntensity}
+        nebulaTransitionSpeed={settings.nebulaTransitionSpeed}
       />
     </div>
   );

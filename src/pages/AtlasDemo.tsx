@@ -321,6 +321,17 @@ export default function AtlasDemo() {
                   🌌 Nebula Flow
                 </button>
               </div>
+              
+              {/* Dashboard indicator */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs text-emerald-300">Active on Dashboard</span>
+                </div>
+                <span className="text-xs text-emerald-400 font-medium">
+                  {settings.visualizationMode === 'classic' ? '🔥 Classic' : '🌌 Nebula'}
+                </span>
+              </div>
             </div>
 
             {/* Nebula Flow Controls - only show when in nebulaFlow mode */}
