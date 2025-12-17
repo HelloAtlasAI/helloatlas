@@ -1,43 +1,7 @@
-import { memo, useState, useEffect, useMemo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AtlasCore } from '@/components/atlas';
+import { UnifiedAtlasSphere } from '@/components/atlas/UnifiedAtlasSphere';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
-
-// Settings interface matching AtlasDemo
-interface AtlasSettings {
-  morphProgress?: number;
-  enableTrails?: boolean;
-  trailLength?: number;
-  trailOpacity?: number;
-  particleCount?: number;
-  particleSize?: number;
-  density?: number;
-  rotationSpeed?: number;
-  enableBloom?: boolean;
-  bloomIntensity?: number;
-  morphSpeed?: number;
-  enableRipples?: boolean;
-  rippleSpeed?: number;
-  rippleCount?: number;
-  enableTurbulence?: boolean;
-  turbulenceFrequency?: number;
-  turbulenceAmplitude?: number;
-  turbulenceSpeed?: number;
-  enableMouseInteraction?: boolean;
-  mouseMode?: 'attract' | 'repulse';
-  mouseStrength?: number;
-  mouseInfluenceRadius?: number;
-  enableCore?: boolean;
-  coreParticleCount?: number;
-  coreDensity?: number;
-  coreParticleSize?: number;
-  coreIntensity?: number;
-  corePulseSpeed?: number;
-  coreRotationOffset?: number;
-  fluidCohesion?: number;
-  surfaceTension?: number;
-  fluidFlow?: number;
-}
 
 interface AtlasInterfaceProps {
   state: WakeWordState;
@@ -62,7 +26,6 @@ const getStatusMessage = (state: WakeWordState): string => {
   return messages[state];
 };
 
-
 const AtlasInterfaceComponent = ({
   state,
   audioLevel,
@@ -75,34 +38,6 @@ const AtlasInterfaceComponent = ({
 }: AtlasInterfaceProps) => {
   const [showHint, setShowHint] = useState(true);
 
-  // Load saved Atlas settings from localStorage
-  // Dashboard-specific defaults that ensure compact sphere display
-  const dashboardDefaults: AtlasSettings = {
-    morphProgress: 1.0,       // Always show sphere (not scattered)
-    density: 0.98,            // Higher density for fuller 460px sphere
-    particleCount: 5200,      // Optimal count for 460px size
-    fluidCohesion: 0.4,       // Balanced cohesion for smooth appearance
-    particleSize: 0.065,      // Optimized for denser appearance at 460px
-  };
-
-  // Load saved settings from AtlasDemo - always use those values
-  const savedSettings = useMemo<AtlasSettings>(() => {
-    try {
-      const stored = localStorage.getItem('atlas-demo-settings');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return {
-          ...dashboardDefaults,
-          ...parsed,
-          morphProgress: 1.0, // Only force sphere shape for dashboard
-        };
-      }
-    } catch (e) {
-      console.warn('Failed to load Atlas settings:', e);
-    }
-    return dashboardDefaults;
-  }, []);
-
   // Hide hint after first activation
   useEffect(() => {
     if (state === 'activated' || state === 'listening') {
@@ -112,45 +47,13 @@ const AtlasInterfaceComponent = ({
 
   return (
     <div className="relative w-full h-full flex items-center justify-center gap-4 px-4">
-      {/* Atlas Core Sphere - 460px */}
-      <div className="relative flex-shrink-0 w-[460px] h-[460px] z-10">
-        <AtlasCore 
-          state={state} 
-          audioLevel={audioLevel}
-          morphProgress={savedSettings.morphProgress}
-          enableTrails={savedSettings.enableTrails}
-          trailLength={savedSettings.trailLength}
-          trailOpacity={savedSettings.trailOpacity}
-          particleCount={savedSettings.particleCount}
-          particleSize={savedSettings.particleSize}
-          density={savedSettings.density}
-          rotationSpeed={savedSettings.rotationSpeed}
-          enableBloom={savedSettings.enableBloom}
-          bloomIntensity={savedSettings.bloomIntensity}
-          morphSpeed={savedSettings.morphSpeed}
-          enableRipples={savedSettings.enableRipples}
-          rippleSpeed={savedSettings.rippleSpeed}
-          rippleCount={savedSettings.rippleCount}
-          enableTurbulence={savedSettings.enableTurbulence}
-          turbulenceFrequency={savedSettings.turbulenceFrequency}
-          turbulenceAmplitude={savedSettings.turbulenceAmplitude}
-          turbulenceSpeed={savedSettings.turbulenceSpeed}
-          enableMouseInteraction={savedSettings.enableMouseInteraction}
-          mouseMode={savedSettings.mouseMode}
-          mouseStrength={savedSettings.mouseStrength}
-          mouseInfluenceRadius={savedSettings.mouseInfluenceRadius}
-          enableCore={savedSettings.enableCore}
-          coreParticleCount={savedSettings.coreParticleCount}
-          coreDensity={savedSettings.coreDensity}
-          coreParticleSize={savedSettings.coreParticleSize}
-          coreIntensity={savedSettings.coreIntensity}
-          corePulseSpeed={savedSettings.corePulseSpeed}
-          coreRotationOffset={savedSettings.coreRotationOffset}
-          fluidCohesion={savedSettings.fluidCohesion}
-          surfaceTension={savedSettings.surfaceTension}
-          fluidFlow={savedSettings.fluidFlow}
-        />
-      </div>
+      {/* Atlas Core Sphere - uses settings from localStorage (set in AtlasDemo) */}
+      <UnifiedAtlasSphere 
+        state={state}
+        audioLevel={audioLevel}
+        overrideMorphProgress={1.0} // Always show sphere shape on dashboard
+        className="relative flex-shrink-0 w-[460px] h-[460px] z-10"
+      />
 
       {/* Status and info - to the right */}
       <div className="flex flex-col items-start justify-center gap-1 flex-1 min-w-0">
