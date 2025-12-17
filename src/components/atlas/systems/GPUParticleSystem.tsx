@@ -36,17 +36,18 @@ export const GPUParticleSystem = memo(({
   mouseMode = 'attract',
   mouseStrength = 0.5,
   mouseInfluenceRadius = 2.5,
-  mousePosition
+  mousePosition,
 }: GPUParticleSystemProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const frameCount = useRef(0);
-  
+
   const config = STATE_CONFIGS[state];
 
-  // Create geometry - only recreate on significant changes
-  const geometry = useMemo(() => {
+  // Generate attribute arrays; remount points when count/density changes.
+  const attrs = useMemo(() => {
     const count = particleCount;
+
     const spherePos = new Float32Array(count * 3);
     const scatteredPos = new Float32Array(count * 3);
     const particleOffset = new Float32Array(count);
@@ -56,120 +57,126 @@ export const GPUParticleSystem = memo(({
       const i3 = i * 3;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      
-      const sphereR = (1.8 * density) + (Math.random() - 0.5) * 0.4;
+
+      const sphereR = 1.8 * density + (Math.random() - 0.5) * 0.4;
       spherePos[i3] = sphereR * Math.sin(phi) * Math.cos(theta);
       spherePos[i3 + 1] = sphereR * Math.sin(phi) * Math.sin(theta);
       spherePos[i3 + 2] = sphereR * Math.cos(phi);
-      
+
       const scatterR = (3 + Math.random() * 3) * density;
       scatteredPos[i3] = scatterR * Math.sin(phi) * Math.cos(theta);
       scatteredPos[i3 + 1] = scatterR * Math.sin(phi) * Math.sin(theta);
       scatteredPos[i3 + 2] = scatterR * Math.cos(phi);
-      
+
       particleOffset[i] = Math.random() * 0.4;
       randomSeed[i] = Math.random();
     }
 
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(spherePos.slice(), 3));
-    geo.setAttribute('spherePos', new THREE.BufferAttribute(spherePos, 3));
-    geo.setAttribute('scatteredPos', new THREE.BufferAttribute(scatteredPos, 3));
-    geo.setAttribute('particleOffset', new THREE.BufferAttribute(particleOffset, 1));
-    geo.setAttribute('randomSeed', new THREE.BufferAttribute(randomSeed, 1));
-    
-    return geo;
+    // Keep a separate copy for the actual draw position.
+    const position = spherePos.slice();
+
+    return {
+      position,
+      spherePos,
+      scatteredPos,
+      particleOffset,
+      randomSeed,
+    };
   }, [particleCount, density]);
 
+  // Stable uniforms object; values are updated in the frame loop.
+  const uniforms = useMemo(() => {
+    const initialConfig = STATE_CONFIGS[state];
 
-  // Shader material - create once, update uniforms in frame loop
-  const material = useMemo(() => {
-    return new THREE.ShaderMaterial({
-      vertexShader: gpuParticleVertexShader,
-      fragmentShader: gpuParticleFragmentShader,
-      uniforms: {
-        uTime: { value: 0 },
-        uMorphProgress: { value: morphProgress },
-        uAudioLevel: { value: 0 },
-        uAudioMultiplier: { value: 1.0 },
-        uParticleSize: { value: particleSize },
-        uDensity: { value: density },
-        uTurbulenceAmplitude: { value: turbulenceAmplitude },
-        uEnableTurbulence: { value: enableTurbulence ? 1.0 : 0.0 },
-        uMousePos: { value: new THREE.Vector3(0, 0, 0) },
-        uMouseActive: { value: 0.0 },
-        uMouseStrength: { value: mouseStrength },
-        uMouseRadius: { value: mouseInfluenceRadius },
-        uMouseMode: { value: mouseMode === 'attract' ? 1.0 : -1.0 },
-        uColor: { value: config.primary.clone() },
-        uOpacity: { value: 0.85 }
-      },
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
+    return {
+      uTime: { value: 0 },
+      uMorphProgress: { value: morphProgress },
+      uAudioLevel: { value: 0 },
+      uAudioMultiplier: { value: 1.0 },
+      uParticleSize: { value: particleSize },
+      uDensity: { value: density },
+      uTurbulenceAmplitude: { value: turbulenceAmplitude },
+      uEnableTurbulence: { value: enableTurbulence ? 1.0 : 0.0 },
+      uMousePos: { value: new THREE.Vector3(0, 0, 0) },
+      uMouseActive: { value: 0.0 },
+      uMouseStrength: { value: mouseStrength },
+      uMouseRadius: { value: mouseInfluenceRadius },
+      uMouseMode: { value: mouseMode === 'attract' ? 1.0 : -1.0 },
+      uColor: { value: initialConfig.primary.clone() },
+      uOpacity: { value: 0.85 },
+    };
+    // Intentionally initialize once for performance; runtime updates happen in useFrame.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
 
   // Optimized animation - reads audioLevel from ref (no re-renders)
   useFrame((_, delta) => {
     if (!materialRef.current || !pointsRef.current) return;
-    
+
     frameCount.current++;
-    const uniforms = materialRef.current.uniforms;
+    const u = materialRef.current.uniforms;
     const audioLevel = audioLevelRef?.current ?? 0;
-    
+
     // Always update time and morph
-    uniforms.uTime.value += delta;
-    uniforms.uMorphProgress.value = THREE.MathUtils.lerp(
-      uniforms.uMorphProgress.value,
-      morphProgress,
-      delta * 3
-    );
-    uniforms.uAudioLevel.value = audioLevel;
-    uniforms.uAudioMultiplier.value = state === 'speaking' ? 2.0 : 1.0;
-    
+    u.uTime.value += delta;
+    u.uMorphProgress.value = THREE.MathUtils.lerp(u.uMorphProgress.value, morphProgress, delta * 3);
+    u.uAudioLevel.value = audioLevel;
+    u.uAudioMultiplier.value = state === 'speaking' ? 2.0 : 1.0;
+
     // Update prop-driven uniforms dynamically
-    uniforms.uParticleSize.value = particleSize;
-    uniforms.uDensity.value = density;
-    uniforms.uTurbulenceAmplitude.value = turbulenceAmplitude;
-    uniforms.uEnableTurbulence.value = enableTurbulence ? 1.0 : 0.0;
-    uniforms.uMouseStrength.value = mouseStrength;
-    uniforms.uMouseRadius.value = mouseInfluenceRadius;
-    uniforms.uMouseMode.value = mouseMode === 'attract' ? 1.0 : -1.0;
-    
+    u.uParticleSize.value = particleSize;
+    u.uDensity.value = density;
+    u.uTurbulenceAmplitude.value = turbulenceAmplitude;
+    u.uEnableTurbulence.value = enableTurbulence ? 1.0 : 0.0;
+    u.uMouseStrength.value = mouseStrength;
+    u.uMouseRadius.value = mouseInfluenceRadius;
+    u.uMouseMode.value = mouseMode === 'attract' ? 1.0 : -1.0;
+
     // Mouse - update every frame when active
     if (enableMouseInteraction && mousePosition?.current?.active) {
-      uniforms.uMousePos.value.set(
-        mousePosition.current.x * 4,
-        mousePosition.current.y * 4,
-        0
-      );
-      uniforms.uMouseActive.value = 1.0;
+      u.uMousePos.value.set(mousePosition.current.x * 4, mousePosition.current.y * 4, 0);
+      u.uMouseActive.value = 1.0;
     } else {
-      uniforms.uMouseActive.value = 0.0;
+      u.uMouseActive.value = 0.0;
     }
-    
+
     // Color lerp - every 3 frames
     if (frameCount.current % 3 === 0) {
-      uniforms.uColor.value.lerp(config.primary, 0.15);
+      u.uColor.value.lerp(config.primary, 0.15);
     }
-    
+
     // Rotation and scale
     const audioBoost = state === 'speaking' ? 1 + audioLevel : 1;
     pointsRef.current.rotation.y += delta * rotationSpeed * 0.3 * audioBoost;
-    
+
     // Simple breathing
-    const breathe = Math.sin(uniforms.uTime.value * 0.8) * 0.02;
+    const breathe = Math.sin(u.uTime.value * 0.8) * 0.02;
     const audioScale = 1 + audioLevel * 0.15;
     pointsRef.current.scale.setScalar((1 + breathe) * audioScale);
   });
 
   return (
-    <points ref={pointsRef} geometry={geometry}>
-      <primitive object={material} ref={materialRef} attach="material" />
+    <points key={`gpu-particles-${particleCount}-${density}`} ref={pointsRef}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[attrs.position, 3]} />
+        <bufferAttribute attach="attributes-spherePos" args={[attrs.spherePos, 3]} />
+        <bufferAttribute attach="attributes-scatteredPos" args={[attrs.scatteredPos, 3]} />
+        <bufferAttribute attach="attributes-particleOffset" args={[attrs.particleOffset, 1]} />
+        <bufferAttribute attach="attributes-randomSeed" args={[attrs.randomSeed, 1]} />
+      </bufferGeometry>
+
+      <shaderMaterial
+        ref={materialRef}
+        vertexShader={gpuParticleVertexShader}
+        fragmentShader={gpuParticleFragmentShader}
+        uniforms={uniforms}
+        transparent
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
     </points>
   );
 });
 
 GPUParticleSystem.displayName = 'GPUParticleSystem';
+
