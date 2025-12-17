@@ -450,52 +450,124 @@ serve(async (req) => {
     const hasTools = enableTools && (!!PERPLEXITY_API_KEY || true); // Always enable tools, some work without Perplexity
     const systemPrompt = buildPersonalizedPrompt(profile, memories, upcomingEvents, recentEvents, knowledgeBank, hasTools);
 
-    // Initial request body
-    const requestBody: Record<string, unknown> = {
-      model: PROVIDERS.lovable.model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...messages,
-      ],
-      stream: true,
-    };
+    // Build conversation with system prompt
+    const conversationMessages = [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ];
 
-    // Add tools if enabled
-    if (hasTools) {
-      requestBody.tools = ATLAS_TOOLS;
-      requestBody.tool_choice = "auto";
+    // Tool execution loop - make non-streaming request first to check for tool calls
+    let allToolResults: Array<{ name: string; result: unknown; citations?: string[] }> = [];
+    let maxToolIterations = 3;
+    let currentMessages = [...conversationMessages];
+
+    while (maxToolIterations > 0) {
+      console.log("[chat-with-memory] Making AI request, iteration:", 4 - maxToolIterations);
+      
+      const checkResponse = await fetch(PROVIDERS.lovable.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: PROVIDERS.lovable.model,
+          messages: currentMessages,
+          tools: hasTools ? ATLAS_TOOLS : undefined,
+          tool_choice: hasTools ? "auto" : undefined,
+          stream: false, // Non-streaming to check for tool calls
+        }),
+      });
+
+      if (!checkResponse.ok) {
+        if (checkResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (checkResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw new Error(`AI gateway error: ${checkResponse.status}`);
+      }
+
+      const checkData = await checkResponse.json();
+      const choice = checkData.choices?.[0];
+      
+      if (!choice) {
+        throw new Error("No response from AI");
+      }
+
+      // Check if AI wants to call tools
+      const toolCalls = choice.message?.tool_calls;
+      
+      if (!toolCalls || toolCalls.length === 0 || choice.finish_reason === "stop") {
+        // No tool calls, break and stream final response
+        console.log("[chat-with-memory] No tool calls, proceeding to stream response");
+        break;
+      }
+
+      console.log("[chat-with-memory] Tool calls detected:", toolCalls.length);
+
+      // Execute each tool call
+      const toolResults: Array<{ tool_call_id: string; role: string; content: string }> = [];
+      
+      for (const toolCall of toolCalls) {
+        console.log("[chat-with-memory] Executing tool:", toolCall.function.name);
+        const result = await executeTool(toolCall, userId, PERPLEXITY_API_KEY!, supabase);
+        
+        // Collect citations from tool results
+        if (result.result && typeof result.result === 'object' && 'citations' in result.result) {
+          const citations = (result.result as any).citations;
+          if (Array.isArray(citations) && citations.length > 0) {
+            allToolResults.push({ ...result, citations });
+          }
+        }
+        
+        toolResults.push({
+          tool_call_id: toolCall.id,
+          role: "tool",
+          content: JSON.stringify(result.result),
+        });
+      }
+
+      // Add assistant message with tool calls and tool results to conversation
+      currentMessages.push({
+        role: "assistant",
+        content: choice.message.content || "",
+        tool_calls: toolCalls,
+      } as any);
+      currentMessages.push(...toolResults as any);
+
+      maxToolIterations--;
     }
 
-    const response = await fetch(PROVIDERS.lovable.url, {
+    // Collect all citations for streaming
+    const allCitations = allToolResults.flatMap(r => r.citations || []);
+    console.log("[chat-with-memory] Total citations collected:", allCitations.length);
+
+    // Now stream the final response
+    const streamResponse = await fetch(PROVIDERS.lovable.url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        model: PROVIDERS.lovable.model,
+        messages: currentMessages,
+        stream: true,
+      }),
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        console.error("[chat-with-memory] Rate limit exceeded");
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        console.error("[chat-with-memory] Payment required");
-        return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errorText = await response.text();
-      console.error("[chat-with-memory] AI gateway error:", response.status, errorText);
-      return new Response(JSON.stringify({ error: "AI gateway error" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!streamResponse.ok) {
+      const errorText = await streamResponse.text();
+      console.error("[chat-with-memory] Stream error:", streamResponse.status, errorText);
+      throw new Error(`AI gateway error: ${streamResponse.status}`);
     }
 
     // Trigger knowledge extraction asynchronously (fire and forget)
@@ -503,8 +575,37 @@ serve(async (req) => {
       triggerKnowledgeExtraction(SUPABASE_URL, messages, userId, source);
     }
 
-    console.log("[chat-with-memory] Streaming response from AI gateway");
-    return new Response(response.body, {
+    // Create a custom stream that injects citations
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const reader = streamResponse.body!.getReader();
+    const decoder = new TextDecoder();
+    const encoder = new TextEncoder();
+
+    // Process stream and inject citations at the end
+    (async () => {
+      try {
+        // If we have citations, send them as a custom event first
+        if (allCitations.length > 0) {
+          const citationEvent = `data: ${JSON.stringify({ citations: allCitations })}\n\n`;
+          await writer.write(encoder.encode(citationEvent));
+        }
+
+        // Pass through the AI stream
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          await writer.write(value);
+        }
+      } catch (e) {
+        console.error("[chat-with-memory] Stream processing error:", e);
+      } finally {
+        await writer.close();
+      }
+    })();
+
+    console.log("[chat-with-memory] Streaming response with tool results");
+    return new Response(readable, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (error) {
