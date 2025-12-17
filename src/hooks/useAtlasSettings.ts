@@ -2,6 +2,7 @@ import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 const STORAGE_KEY = 'atlas-demo-settings';
+const SETTINGS_VERSION = 2; // Bump this to force reset of corrupted settings
 
 // Complete settings interface for Atlas visualization
 export interface AtlasSettings {
@@ -138,11 +139,19 @@ function loadSettings(): AtlasSettings {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
+      
+      // Force reset if version is old or missing (clears corrupted settings)
+      if (!parsed._version || parsed._version < SETTINGS_VERSION) {
+        localStorage.removeItem(STORAGE_KEY);
+        return defaultAtlasSettings;
+      }
+      
       const merged: AtlasSettings = { ...defaultAtlasSettings, ...parsed };
 
-      // Clamp + migrate old default that made the demo look "empty"
-      const mp = typeof merged.morphProgress === 'number' ? merged.morphProgress : defaultAtlasSettings.morphProgress;
-      merged.morphProgress = Math.min(1, Math.max(0, mp === 0.2 ? 1.0 : mp));
+      // Ensure morphProgress is never too low (minimum 0.3 for visible sphere)
+      if (typeof merged.morphProgress !== 'number' || merged.morphProgress < 0.3) {
+        merged.morphProgress = 1.0;
+      }
 
       return merged;
     }
@@ -152,10 +161,13 @@ function loadSettings(): AtlasSettings {
   return defaultAtlasSettings;
 }
 
-// Save settings to localStorage
+// Save settings to localStorage with version
 function saveSettings(settings: AtlasSettings) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      ...settings,
+      _version: SETTINGS_VERSION
+    }));
   } catch (e) {
     console.error('Failed to save Atlas settings:', e);
   }
