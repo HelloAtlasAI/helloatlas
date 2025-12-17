@@ -1,6 +1,6 @@
 import { memo, useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AtlasCoreFixed } from './AtlasCoreFixed';
+import { AtlasCore } from '@/components/atlas';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 // Settings interface matching AtlasDemo
@@ -114,7 +114,7 @@ const AtlasInterfaceComponent = ({
     <div className="relative w-full h-full flex items-center justify-center gap-4 px-4">
       {/* Atlas Core Sphere - 460px */}
       <div className="relative flex-shrink-0 w-[460px] h-[460px] z-10">
-        <AtlasCoreFixed 
+        <AtlasCore 
           state={state} 
           audioLevel={audioLevel}
           morphProgress={savedSettings.morphProgress}

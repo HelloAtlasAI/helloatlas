@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc, Droplets } from 'lucide-react';
-import { AtlasCoreFixed } from '@/components/dashboard/AtlasCoreFixed';
+import { AtlasCore } from '@/components/atlas';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
@@ -636,7 +636,7 @@ export default function AtlasDemo() {
           <div className="absolute inset-0 flex items-center justify-center">
             {/* Fixed 460px sphere size */}
             <div className="w-[460px] h-[460px] flex-shrink-0">
-              <AtlasCoreFixed
+              <AtlasCore
                 state={state} 
                 audioLevel={audioLevel} 
                 morphProgress={morphProgress}
