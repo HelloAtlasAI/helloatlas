@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { nebulaFlowVertexShader, nebulaFlowFragmentShader } from '../shaders/nebulaFlowShaders';
+import { NEBULA_STATE_CONFIGS } from '../utils/nebulaStateConfigs';
 
 interface NebulaFlowSystemProps {
   state: WakeWordState;
@@ -24,14 +25,19 @@ interface NebulaFlowSystemProps {
   colorStart?: string;
   colorMid?: string;
   colorEnd?: string;
+  // Enhanced props
+  stateReactive?: boolean;
+  glowIntensity?: number;
+  depthFade?: number;
+  coreGlow?: number;
 }
 
 export const NebulaFlowSystem = memo(({
   state,
   audioLevelRef,
   morphProgress,
-  particleCount = 3000,
-  particleSize = 0.06,
+  particleCount = 8000,
+  particleSize = 0.05,
   density = 1.0,
   rotationSpeed = 0.2,
   flowStrength = 0.5,
@@ -45,9 +51,28 @@ export const NebulaFlowSystem = memo(({
   colorStart = '#1a0a3e',
   colorMid = '#8b5cf6',
   colorEnd = '#67e8f9',
+  stateReactive = true,
+  glowIntensity = 1.0,
+  depthFade = 0.3,
+  coreGlow = 1.0,
 }: NebulaFlowSystemProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+  
+  // Store current interpolated state values
+  const currentStateRef = useRef({
+    colorStart: new THREE.Color(colorStart),
+    colorMid: new THREE.Color(colorMid),
+    colorEnd: new THREE.Color(colorEnd),
+    flowSpeed: flowSpeed,
+    flowStrength: flowStrength,
+    rimIntensity: rimIntensity,
+    hotSpotIntensity: hotSpotIntensity,
+    breathingSpeed: breathingSpeed,
+    breathingAmount: breathingAmount,
+    radiusNoise: radiusNoise,
+    glowIntensity: glowIntensity,
+  });
 
   // Generate particle attributes with flow bands
   const attrs = useMemo(() => {
@@ -70,7 +95,7 @@ export const NebulaFlowSystem = memo(({
       bandIndex[i] = band / bandCount;
       
       // Radius with slight variation for shell thickness
-      const r = (1.8 + (Math.random() - 0.5) * 0.3) * density;
+      const r = (1.8 + (Math.random() - 0.5) * 0.4) * density;
       
       spherePos[i3] = r * Math.sin(phi) * Math.cos(theta);
       spherePos[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
@@ -110,6 +135,9 @@ export const NebulaFlowSystem = memo(({
       uColorMid: { value: new THREE.Color(colorMid) },
       uColorEnd: { value: new THREE.Color(colorEnd) },
       uOpacity: { value: 0.9 },
+      uGlowIntensity: { value: glowIntensity },
+      uDepthFade: { value: depthFade },
+      uCoreGlow: { value: coreGlow },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -120,29 +148,74 @@ export const NebulaFlowSystem = memo(({
 
     const u = materialRef.current.uniforms;
     const audioLevel = audioLevelRef?.current ?? 0;
+    const stateConfig = NEBULA_STATE_CONFIGS[state];
+    const lerpSpeed = delta * 2.5;
 
     // Update time
     u.uTime.value += delta;
     
-    // Update uniforms from props
+    // Update morph progress
     u.uMorphProgress.value = THREE.MathUtils.lerp(u.uMorphProgress.value, morphProgress, delta * 3);
     u.uAudioLevel.value = audioLevel;
-    u.uParticleSize.value = particleSize;
-    u.uFlowStrength.value = flowStrength;
-    u.uFlowSpeed.value = flowSpeed;
-    u.uBreathingSpeed.value = breathingSpeed;
-    u.uBreathingAmount.value = breathingAmount;
-    u.uRadiusNoise.value = radiusNoise;
-    u.uRimIntensity.value = rimIntensity;
-    u.uHotSpotIntensity.value = hotSpotIntensity;
     
-    // Update colors
-    u.uColorStart.value.set(colorStart);
-    u.uColorMid.value.set(colorMid);
-    u.uColorEnd.value.set(colorEnd);
+    // State-reactive interpolation
+    if (stateReactive && stateConfig) {
+      const current = currentStateRef.current;
+      
+      // Interpolate colors
+      const targetStart = new THREE.Color(stateConfig.colorStart);
+      const targetMid = new THREE.Color(stateConfig.colorMid);
+      const targetEnd = new THREE.Color(stateConfig.colorEnd);
+      
+      current.colorStart.lerp(targetStart, lerpSpeed);
+      current.colorMid.lerp(targetMid, lerpSpeed);
+      current.colorEnd.lerp(targetEnd, lerpSpeed);
+      
+      u.uColorStart.value.copy(current.colorStart);
+      u.uColorMid.value.copy(current.colorMid);
+      u.uColorEnd.value.copy(current.colorEnd);
+      
+      // Interpolate other state values
+      current.flowSpeed = THREE.MathUtils.lerp(current.flowSpeed, stateConfig.flowSpeed, lerpSpeed);
+      current.flowStrength = THREE.MathUtils.lerp(current.flowStrength, stateConfig.flowStrength, lerpSpeed);
+      current.rimIntensity = THREE.MathUtils.lerp(current.rimIntensity, stateConfig.rimIntensity, lerpSpeed);
+      current.hotSpotIntensity = THREE.MathUtils.lerp(current.hotSpotIntensity, stateConfig.hotSpotIntensity, lerpSpeed);
+      current.breathingSpeed = THREE.MathUtils.lerp(current.breathingSpeed, stateConfig.breathingSpeed, lerpSpeed);
+      current.breathingAmount = THREE.MathUtils.lerp(current.breathingAmount, stateConfig.breathingAmount, lerpSpeed);
+      current.radiusNoise = THREE.MathUtils.lerp(current.radiusNoise, stateConfig.radiusNoise, lerpSpeed);
+      current.glowIntensity = THREE.MathUtils.lerp(current.glowIntensity, stateConfig.glowIntensity, lerpSpeed);
+      
+      u.uFlowSpeed.value = current.flowSpeed;
+      u.uFlowStrength.value = current.flowStrength;
+      u.uRimIntensity.value = current.rimIntensity;
+      u.uHotSpotIntensity.value = current.hotSpotIntensity;
+      u.uBreathingSpeed.value = current.breathingSpeed;
+      u.uBreathingAmount.value = current.breathingAmount;
+      u.uRadiusNoise.value = current.radiusNoise;
+      u.uGlowIntensity.value = current.glowIntensity;
+    } else {
+      // Manual mode - use prop values directly
+      u.uFlowStrength.value = flowStrength;
+      u.uFlowSpeed.value = flowSpeed;
+      u.uBreathingSpeed.value = breathingSpeed;
+      u.uBreathingAmount.value = breathingAmount;
+      u.uRadiusNoise.value = radiusNoise;
+      u.uRimIntensity.value = rimIntensity;
+      u.uHotSpotIntensity.value = hotSpotIntensity;
+      u.uGlowIntensity.value = glowIntensity;
+      
+      u.uColorStart.value.set(colorStart);
+      u.uColorMid.value.set(colorMid);
+      u.uColorEnd.value.set(colorEnd);
+    }
+    
+    // Always use prop values for these
+    u.uParticleSize.value = particleSize;
+    u.uDepthFade.value = depthFade;
+    u.uCoreGlow.value = coreGlow;
 
-    // Slow rotation
-    const audioBoost = state === 'speaking' ? 1 + audioLevel : 1;
+    // Slow rotation with audio boost
+    const audioBoost = state === 'speaking' ? 1 + audioLevel * 0.5 : 1;
     pointsRef.current.rotation.y += delta * rotationSpeed * 0.3 * audioBoost;
     
     // Subtle tilt variation

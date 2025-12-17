@@ -60,6 +60,15 @@ export interface AtlasCoreProps {
   nebulaColorStart?: string;
   nebulaColorMid?: string;
   nebulaColorEnd?: string;
+  // Enhanced Nebula settings
+  nebulaParticleCount?: number;
+  nebulaParticleSize?: number;
+  nebulaDensity?: number;
+  nebulaRotationSpeed?: number;
+  nebulaStateReactive?: boolean;
+  nebulaGlowIntensity?: number;
+  nebulaDepthFade?: number;
+  nebulaCoreGlow?: number;
 }
 
 // Bloom wrapper - lower quality for performance
@@ -156,6 +165,14 @@ const ParticleSystem = memo(({
   nebulaColorStart = '#1a0a3e',
   nebulaColorMid = '#8b5cf6',
   nebulaColorEnd = '#67e8f9',
+  nebulaParticleCount = 8000,
+  nebulaParticleSize = 0.05,
+  nebulaDensity = 1.0,
+  nebulaRotationSpeed = 0.2,
+  nebulaStateReactive = true,
+  nebulaGlowIntensity = 1.0,
+  nebulaDepthFade = 0.3,
+  nebulaCoreGlow = 1.0,
 }: Omit<AtlasCoreProps, 'audioLevel'> & {
   audioLevelRef: MutableRefObject<number>;
   mousePosition: MutableRefObject<{ x: number; y: number; active: boolean }>;
@@ -171,10 +188,10 @@ const ParticleSystem = memo(({
           state={state}
           audioLevelRef={audioLevelRef}
           morphProgress={morphProgress}
-          particleCount={particleCount}
-          particleSize={particleSize}
-          density={density}
-          rotationSpeed={rotationSpeed}
+          particleCount={nebulaParticleCount}
+          particleSize={nebulaParticleSize}
+          density={nebulaDensity}
+          rotationSpeed={nebulaRotationSpeed}
           flowStrength={nebulaFlowStrength}
           flowSpeed={nebulaFlowSpeed}
           bandCount={nebulaBandCount}
@@ -186,6 +203,10 @@ const ParticleSystem = memo(({
           colorStart={nebulaColorStart}
           colorMid={nebulaColorMid}
           colorEnd={nebulaColorEnd}
+          stateReactive={nebulaStateReactive}
+          glowIntensity={nebulaGlowIntensity}
+          depthFade={nebulaDepthFade}
+          coreGlow={nebulaCoreGlow}
         />
       </group>
     );
@@ -313,6 +334,14 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   nebulaColorStart = '#1a0a3e',
   nebulaColorMid = '#8b5cf6',
   nebulaColorEnd = '#67e8f9',
+  nebulaParticleCount = 8000,
+  nebulaParticleSize = 0.05,
+  nebulaDensity = 1.0,
+  nebulaRotationSpeed = 0.2,
+  nebulaStateReactive = true,
+  nebulaGlowIntensity = 1.0,
+  nebulaDepthFade = 0.3,
+  nebulaCoreGlow = 1.0,
 }, ref) => {
   const mousePositionRef = useRef({ x: 0, y: 0, active: false });
   const internalAudioLevelRef = useRef(audioLevel);
@@ -397,6 +426,14 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           nebulaColorStart={nebulaColorStart}
           nebulaColorMid={nebulaColorMid}
           nebulaColorEnd={nebulaColorEnd}
+          nebulaParticleCount={nebulaParticleCount}
+          nebulaParticleSize={nebulaParticleSize}
+          nebulaDensity={nebulaDensity}
+          nebulaRotationSpeed={nebulaRotationSpeed}
+          nebulaStateReactive={nebulaStateReactive}
+          nebulaGlowIntensity={nebulaGlowIntensity}
+          nebulaDepthFade={nebulaDepthFade}
+          nebulaCoreGlow={nebulaCoreGlow}
         />
         
         {enableBloom && <BloomEffect intensity={bloomIntensity} />}
