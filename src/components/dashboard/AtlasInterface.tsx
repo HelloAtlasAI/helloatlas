@@ -57,7 +57,7 @@ const AtlasInterfaceComponent = ({
     <div className="relative w-full h-full flex items-center justify-center">
       {/* Atlas Core Sphere - centered container with overflow visible for glow */}
       <motion.div 
-        className={`relative flex-shrink-0 w-[140px] h-[140px] z-10 ${canActivate ? 'cursor-pointer' : ''}`}
+        className={`relative flex-shrink-0 w-[140px] h-[140px] z-10 overflow-hidden ${canActivate ? 'cursor-pointer' : ''}`}
         onClick={handleClick}
         whileHover={canActivate ? { scale: 1.05 } : {}}
         whileTap={canActivate ? { scale: 0.95 } : {}}
