@@ -105,12 +105,39 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      // Don't log no-speech as an error - it's expected when user is silent
+      if (event.error === 'no-speech') {
+        // This is normal - just restart without counting as a retry
+        if (shouldRestartRef.current && !permissionDenied) {
+          try {
+            recognition.start();
+          } catch (e) {
+            // Already started
+          }
+        }
+        return;
+      }
+      
       console.error('Speech recognition error:', event.error);
       
       if (event.error === 'not-allowed' || event.error === 'permission-denied') {
         setPermissionDenied(true);
         setIsSupported(false);
         shouldRestartRef.current = false;
+        return;
+      }
+      
+      // For aborted, just restart - user may have interrupted
+      if (event.error === 'aborted') {
+        if (shouldRestartRef.current && !permissionDenied) {
+          retryTimeoutRef.current = setTimeout(() => {
+            try {
+              recognition.start();
+            } catch (e) {
+              // Already started
+            }
+          }, 100);
+        }
         return;
       }
       

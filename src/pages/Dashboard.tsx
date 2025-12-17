@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
@@ -148,6 +148,7 @@ const Dashboard = () => {
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [lastUserMessage, setLastUserMessage] = useState<string>('');
   const [lastAiResponse, setLastAiResponse] = useState<string>('');
+  const [isWakeWordTriggered, setIsWakeWordTriggered] = useState(false);
 
   // Card priority system
   const { sortedCards, cardMeta } = useCardPriority();
@@ -171,10 +172,14 @@ const Dashboard = () => {
     onCardFocus: handleCardFocus,
   });
 
+  // Ref for auto-stop timer
+  const autoStopTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Wake word callbacks - defined before useWakeWord hook
   const handleWakeWordDetected = useCallback(() => {
     console.log('Wake word detected!');
     stopCurrentAudio();
+    setIsWakeWordTriggered(true);
     startRecording();
   }, [stopCurrentAudio, startRecording]);
 
@@ -240,6 +245,13 @@ const Dashboard = () => {
   const handleVoiceRelease = useCallback(async () => {
     if (!isRecording) return;
     
+    // Clear auto-stop timer and wake word trigger
+    if (autoStopTimerRef.current) {
+      clearTimeout(autoStopTimerRef.current);
+      autoStopTimerRef.current = null;
+    }
+    setIsWakeWordTriggered(false);
+    
     setIsVoiceProcessing(true);
     setWakeWordState('thinking');
     try {
@@ -250,13 +262,54 @@ const Dashboard = () => {
         const response = await sendMessage(transcribedText);
         if (response) {
           setLastAiResponse(response);
+          // Auto-speak the response for voice interactions
+          setWakeWordState('speaking');
+          await speakText(response);
         }
       }
     } finally {
       setIsVoiceProcessing(false);
       resetToPassive();
     }
-  }, [isRecording, stopRecording, sendMessage, setWakeWordState, resetToPassive]);
+  }, [isRecording, stopRecording, sendMessage, setWakeWordState, resetToPassive, speakText]);
+
+  // Auto-stop recording after silence when triggered by wake word
+  useEffect(() => {
+    if (!isRecording || !isWakeWordTriggered) return;
+
+    // Set up silence detection - auto-stop after 3 seconds of low audio
+    let silenceStart: number | null = null;
+    const SILENCE_THRESHOLD = 0.05;
+    const SILENCE_DURATION = 2000; // 2 seconds of silence to stop
+    const MAX_RECORDING_TIME = 30000; // 30 seconds max
+    
+    // Max recording time failsafe
+    autoStopTimerRef.current = setTimeout(() => {
+      handleVoiceRelease();
+    }, MAX_RECORDING_TIME);
+
+    // Check audio levels periodically
+    const checkInterval = setInterval(() => {
+      if (audioLevel < SILENCE_THRESHOLD) {
+        if (silenceStart === null) {
+          silenceStart = Date.now();
+        } else if (Date.now() - silenceStart > SILENCE_DURATION) {
+          // Silence detected for long enough, stop recording
+          handleVoiceRelease();
+        }
+      } else {
+        silenceStart = null;
+      }
+    }, 100);
+
+    return () => {
+      clearInterval(checkInterval);
+      if (autoStopTimerRef.current) {
+        clearTimeout(autoStopTimerRef.current);
+        autoStopTimerRef.current = null;
+      }
+    };
+  }, [isRecording, isWakeWordTriggered, audioLevel, handleVoiceRelease]);
 
   const handleSendMessage = useCallback(async () => {
     if (!inputValue.trim()) return;
@@ -273,11 +326,18 @@ const Dashboard = () => {
     setIsConversationOpen(true);
   }, []);
 
-  const handleManualActivate = useCallback(() => {
+  const handleManualActivate = useCallback(async () => {
+    // Toggle recording - if already recording, stop and process
+    if (isRecording) {
+      await handleVoiceRelease();
+      return;
+    }
+    
     stopCurrentAudio();
+    setIsWakeWordTriggered(true); // Enable auto-stop for click activation
     startRecording();
     setWakeWordState('listening');
-  }, [stopCurrentAudio, startRecording, setWakeWordState]);
+  }, [isRecording, handleVoiceRelease, stopCurrentAudio, startRecording, setWakeWordState]);
 
   const handleLogout = useCallback(async () => {
     await signOut();
