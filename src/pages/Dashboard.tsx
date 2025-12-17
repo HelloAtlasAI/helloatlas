@@ -1,11 +1,12 @@
-import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useVoice } from '@/hooks/useVoice';
 import { useWakeWordFixed as useWakeWord, WakeWordState } from '@/hooks/useWakeWordFixed';
 import { useChatWithMemory } from '@/hooks/useChatWithMemory';
+import { useCardPriority, CardId } from '@/hooks/useCardPriority';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { AtlasInterface } from '@/components/dashboard/AtlasInterface';
 import { MiniAICard } from '@/components/dashboard/MiniAICard';
@@ -61,10 +62,27 @@ const cardVariants = {
   exit: { opacity: 0, scale: 0.9, transition: { duration: 0.2 } },
 };
 
-// Glow effect for focused cards
-const getFocusedClasses = (cardName: string, focusedCard: string | null) => {
-  if (focusedCard !== cardName) return '';
+// Glow effect for focused cards (now supports multiple)
+const getFocusedClasses = (cardName: string, focusedCards: string[], isSpeaking: boolean) => {
+  const isFocused = focusedCards.includes(cardName);
+  if (!isFocused) return '';
   return 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background rounded-2xl shadow-[0_0_30px_rgba(99,102,241,0.4)]';
+};
+
+// Get dim classes for non-focused cards during speech
+const getDimClasses = (cardName: string, focusedCards: string[], isSpeaking: boolean) => {
+  if (!isSpeaking || focusedCards.length === 0) return '';
+  if (focusedCards.includes(cardName)) return '';
+  return 'opacity-40 scale-[0.98] blur-[1px]';
+};
+
+// Get empty card styles
+const getEmptyStyles = (isEmpty: boolean) => {
+  if (!isEmpty) return {};
+  return {
+    opacity: 0.5,
+    transform: 'scale(0.98)',
+  };
 };
 
 // Get glow color for each card type
@@ -121,10 +139,13 @@ const Dashboard = () => {
   const [isConversationOpen, setIsConversationOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
-  const [focusedCard, setFocusedCard] = useState<string | null>(null);
+  const [focusedCards, setFocusedCards] = useState<string[]>([]);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [lastUserMessage, setLastUserMessage] = useState<string>('');
   const [lastAiResponse, setLastAiResponse] = useState<string>('');
+
+  // Card priority system
+  const { sortedCards, cardMeta } = useCardPriority();
 
   const {
     isRecording,
@@ -136,8 +157,13 @@ const Dashboard = () => {
     stopCurrentAudio
   } = useVoice();
 
+  // Handle multi-card focus callback
+  const handleCardFocus = useCallback((cardIds: string[] | null) => {
+    setFocusedCards(cardIds || []);
+  }, []);
+
   const { messages, aiState, setAiState, isLoading, sendMessage, clearMessages } = useChatWithMemory({
-    onCardFocus: setFocusedCard,
+    onCardFocus: handleCardFocus,
   });
 
   // Wake word callbacks - defined before useWakeWord hook
@@ -196,6 +222,9 @@ const Dashboard = () => {
       : isPlaying 
         ? 'speaking' 
         : aiState;
+
+  // Is Atlas speaking with focused cards?
+  const isSpeakingWithFocus = effectiveAiState === 'speaking' && focusedCards.length > 0;
 
   const handleVoicePress = useCallback(() => {
     stopCurrentAudio();
@@ -317,10 +346,12 @@ const Dashboard = () => {
         {/* Mosaic Grid Layout - Dynamic sizing with minmax */}
         <AnimatePresence mode="wait">
           {!expandedCard ? (
+        <LayoutGroup>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5 auto-rows-[minmax(140px,auto)] w-full">
           {/* Atlas AI Interface - Spans 2 columns, fixed height */}
           <motion.div 
-            className={`md:col-span-2 xl:col-span-2 h-[200px] ${getFocusedClasses('assistant', focusedCard)}`}
+            layoutId="card-assistant"
+            className={`md:col-span-2 xl:col-span-2 h-[200px] transition-all duration-300 ${getFocusedClasses('assistant', focusedCards, isSpeakingWithFocus)}`}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -340,7 +371,9 @@ const Dashboard = () => {
 
           {/* Weather - 2 rows with morphable shape */}
           <motion.div 
-            className={`row-span-2 ${getFocusedClasses('weather', focusedCard)}`}
+            layoutId="card-weather"
+            className={`row-span-2 transition-all duration-300 ${getFocusedClasses('weather', focusedCards, isSpeakingWithFocus)} ${getDimClasses('weather', focusedCards, isSpeakingWithFocus)}`}
+            style={getEmptyStyles(cardMeta['weather']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -353,7 +386,9 @@ const Dashboard = () => {
 
           {/* Travel - 2 rows with morphable shape */}
           <motion.div 
-            className={`row-span-2 ${getFocusedClasses('travel', focusedCard)}`}
+            layoutId="card-travel"
+            className={`row-span-2 transition-all duration-300 ${getFocusedClasses('travel', focusedCards, isSpeakingWithFocus)} ${getDimClasses('travel', focusedCards, isSpeakingWithFocus)}`}
+            style={getEmptyStyles(cardMeta['travel']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -366,7 +401,9 @@ const Dashboard = () => {
 
           {/* Email - 3 rows tall */}
           <motion.div 
-            className={`row-span-3 ${getFocusedClasses('email', focusedCard)}`}
+            layoutId="card-email"
+            className={`row-span-3 transition-all duration-300 ${getFocusedClasses('email', focusedCards, isSpeakingWithFocus)} ${getDimClasses('email', focusedCards, isSpeakingWithFocus)}`}
+            style={getEmptyStyles(cardMeta['email']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -377,7 +414,9 @@ const Dashboard = () => {
 
           {/* Calendar - 3 rows tall */}
           <motion.div 
-            className={`row-span-3 ${getFocusedClasses('calendar', focusedCard)}`}
+            layoutId="card-calendar"
+            className={`row-span-3 transition-all duration-300 ${getFocusedClasses('calendar', focusedCards, isSpeakingWithFocus)} ${getDimClasses('calendar', focusedCards, isSpeakingWithFocus)}`}
+            style={getEmptyStyles(cardMeta['calendar']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -388,7 +427,9 @@ const Dashboard = () => {
 
           {/* Stocks - Wide, 2-3 columns depending on screen */}
           <motion.div 
-            className={`md:col-span-2 xl:col-span-3 2xl:col-span-2 row-span-2 ${getFocusedClasses('stocks', focusedCard)}`}
+            layoutId="card-stocks"
+            className={`md:col-span-2 xl:col-span-3 2xl:col-span-2 row-span-2 transition-all duration-300 ${getFocusedClasses('stocks', focusedCards, isSpeakingWithFocus)} ${getDimClasses('stocks', focusedCards, isSpeakingWithFocus)}`}
+            style={getEmptyStyles(cardMeta['stocks']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -401,7 +442,9 @@ const Dashboard = () => {
 
           {/* Tasks - 2 rows */}
           <motion.div 
-            className={`row-span-2 ${getFocusedClasses('tasks', focusedCard)}`}
+            layoutId="card-tasks"
+            className={`row-span-2 transition-all duration-300 ${getFocusedClasses('tasks', focusedCards, isSpeakingWithFocus)} ${getDimClasses('tasks', focusedCards, isSpeakingWithFocus)}`}
+            style={getEmptyStyles(cardMeta['tasks']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -412,7 +455,9 @@ const Dashboard = () => {
 
           {/* Notes - 2 rows */}
           <motion.div 
-            className={`row-span-2 ${getFocusedClasses('notes', focusedCard)}`}
+            layoutId="card-notes"
+            className={`row-span-2 transition-all duration-300 ${getFocusedClasses('notes', focusedCards, isSpeakingWithFocus)} ${getDimClasses('notes', focusedCards, isSpeakingWithFocus)}`}
+            style={getEmptyStyles(cardMeta['notes']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -423,7 +468,9 @@ const Dashboard = () => {
 
           {/* News - Wide, 2-3 columns depending on screen */}
           <motion.div 
-            className={`md:col-span-2 xl:col-span-3 2xl:col-span-3 row-span-2 ${getFocusedClasses('news', focusedCard)}`}
+            layoutId="card-news"
+            className={`md:col-span-2 xl:col-span-3 2xl:col-span-3 row-span-2 transition-all duration-300 ${getFocusedClasses('news', focusedCards, isSpeakingWithFocus)} ${getDimClasses('news', focusedCards, isSpeakingWithFocus)}`}
+            style={getEmptyStyles(cardMeta['news']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -434,7 +481,9 @@ const Dashboard = () => {
 
           {/* Documents - Wide, 2-3 columns depending on screen */}
           <motion.div 
-            className={`md:col-span-2 xl:col-span-2 2xl:col-span-3 row-span-2 ${getFocusedClasses('documents', focusedCard)}`}
+            layoutId="card-documents"
+            className={`md:col-span-2 xl:col-span-2 2xl:col-span-3 row-span-2 transition-all duration-300 ${getFocusedClasses('documents', focusedCards, isSpeakingWithFocus)} ${getDimClasses('documents', focusedCards, isSpeakingWithFocus)}`}
+            style={getEmptyStyles(cardMeta['documents']?.isEmpty || false)}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -445,6 +494,7 @@ const Dashboard = () => {
             </MorphableCard>
           </motion.div>
         </div>
+        </LayoutGroup>
           ) : (
             <ImmersiveCardShell 
               layoutId={`card-${expandedCard}`}

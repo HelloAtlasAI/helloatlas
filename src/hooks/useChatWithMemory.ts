@@ -7,9 +7,22 @@ import { toast } from "sonner";
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-memory`;
 
 interface UseChatWithMemoryOptions {
-  onCardFocus?: (cardId: string | null) => void;
+  onCardFocus?: (cardIds: string[] | null) => void;
   source?: 'text_chat' | 'voice_chat';
 }
+
+// Keyword mappings for multi-card detection
+const CARD_KEYWORDS: Record<string, string[]> = {
+  email: ['email', 'mail', 'inbox', 'message', 'messages'],
+  calendar: ['calendar', 'meeting', 'schedule', 'event', 'appointment'],
+  stocks: ['stock', 'market', 'investment', 'portfolio', 'trading'],
+  travel: ['travel', 'flight', 'trip', 'vacation', 'booking'],
+  documents: ['document', 'file', 'doc', 'pdf', 'folder'],
+  weather: ['weather', 'temperature', 'forecast', 'rain', 'sunny'],
+  tasks: ['task', 'todo', 'to-do', 'reminder', 'deadline'],
+  notes: ['note', 'notes', 'memo', 'jot'],
+  news: ['news', 'headline', 'article', 'breaking'],
+};
 
 export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChatWithMemoryOptions = {}) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -17,21 +30,19 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
   const [isLoading, setIsLoading] = useState(false);
   const [lastResponse, setLastResponse] = useState<string>("");
 
-  // Detect card focus from message content
+  // Detect multiple card focuses from message content
   const detectCardFocus = useCallback((content: string) => {
     const lowerContent = content.toLowerCase();
-    if (lowerContent.includes("email") || lowerContent.includes("mail") || lowerContent.includes("inbox")) {
-      onCardFocus?.("email");
-    } else if (lowerContent.includes("calendar") || lowerContent.includes("meeting") || lowerContent.includes("schedule")) {
-      onCardFocus?.("calendar");
-    } else if (lowerContent.includes("stock") || lowerContent.includes("market") || lowerContent.includes("investment")) {
-      onCardFocus?.("stocks");
-    } else if (lowerContent.includes("travel") || lowerContent.includes("flight") || lowerContent.includes("trip")) {
-      onCardFocus?.("travel");
-    } else if (lowerContent.includes("document") || lowerContent.includes("file") || lowerContent.includes("doc")) {
-      onCardFocus?.("documents");
-    } else if (lowerContent.includes("weather") || lowerContent.includes("temperature") || lowerContent.includes("forecast")) {
-      onCardFocus?.("weather");
+    const matchedCards: string[] = [];
+
+    Object.entries(CARD_KEYWORDS).forEach(([cardId, keywords]) => {
+      if (keywords.some(keyword => lowerContent.includes(keyword))) {
+        matchedCards.push(cardId);
+      }
+    });
+
+    if (matchedCards.length > 0) {
+      onCardFocus?.(matchedCards);
     }
   }, [onCardFocus]);
 
@@ -151,8 +162,8 @@ export const useChatWithMemory = ({ onCardFocus, source = 'text_chat' }: UseChat
         }
       }
 
-      // Clear card focus after response
-      setTimeout(() => onCardFocus?.(null), 2000);
+      // Clear card focus after response (3 seconds for multi-card)
+      setTimeout(() => onCardFocus?.(null), 3000);
 
       // Store the last response for optional TTS
       setLastResponse(assistantContent);
