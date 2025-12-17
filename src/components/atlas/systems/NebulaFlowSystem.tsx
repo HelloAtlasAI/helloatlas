@@ -35,6 +35,10 @@ interface NebulaFlowSystemProps {
   surfaceBlend?: number;
   uniformSize?: number;
   coherence?: number;
+  // State behavior props
+  thinkingRetraction?: number;
+  audioBreathingIntensity?: number;
+  transitionSpeed?: number;
 }
 
 export const NebulaFlowSystem = memo(({
@@ -64,9 +68,19 @@ export const NebulaFlowSystem = memo(({
   surfaceBlend = 1.5,
   uniformSize = 1.8,
   coherence = 0.9,
+  thinkingRetraction = 0.25,
+  audioBreathingIntensity = 0.15,
+  transitionSpeed = 1.5,
 }: NebulaFlowSystemProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+  
+  // Cache target colors to avoid GC pressure - reuse these objects
+  const targetColorsRef = useRef({
+    start: new THREE.Color(),
+    mid: new THREE.Color(),
+    end: new THREE.Color()
+  });
   
   // Store current interpolated state values
   const currentStateRef = useRef({
@@ -81,6 +95,7 @@ export const NebulaFlowSystem = memo(({
     breathingAmount: breathingAmount,
     radiusNoise: radiusNoise,
     glowIntensity: glowIntensity,
+    coreRetraction: 0,
   });
 
   // Generate particle attributes with flow bands - Fibonacci sphere for solid surface
@@ -182,6 +197,10 @@ export const NebulaFlowSystem = memo(({
       uSurfaceBlend: { value: surfaceBlend },
       uUniformSize: { value: uniformSize },
       uCoherence: { value: coherence },
+      // State behavior uniforms
+      uCoreRetraction: { value: 0 },
+      uAudioReactive: { value: 0 },
+      uAudioBreathing: { value: audioBreathingIntensity },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -193,7 +212,10 @@ export const NebulaFlowSystem = memo(({
     const u = materialRef.current.uniforms;
     const audioLevel = audioLevelRef?.current ?? 0;
     const stateConfig = NEBULA_STATE_CONFIGS[state];
-    const lerpSpeed = delta * 2.5;
+    
+    // Exponential easing for smoother transitions
+    const baseLerpSpeed = transitionSpeed;
+    const smoothLerpSpeed = 1 - Math.pow(1 - Math.min(baseLerpSpeed * delta, 0.99), 2);
 
     // Update time
     u.uTime.value += delta;
@@ -205,29 +227,41 @@ export const NebulaFlowSystem = memo(({
     // State-reactive interpolation
     if (stateReactive && stateConfig) {
       const current = currentStateRef.current;
+      const targets = targetColorsRef.current;
       
-      // Interpolate colors
-      const targetStart = new THREE.Color(stateConfig.colorStart);
-      const targetMid = new THREE.Color(stateConfig.colorMid);
-      const targetEnd = new THREE.Color(stateConfig.colorEnd);
+      // Set target colors (reuse objects, no allocation)
+      targets.start.set(stateConfig.colorStart);
+      targets.mid.set(stateConfig.colorMid);
+      targets.end.set(stateConfig.colorEnd);
       
-      current.colorStart.lerp(targetStart, lerpSpeed);
-      current.colorMid.lerp(targetMid, lerpSpeed);
-      current.colorEnd.lerp(targetEnd, lerpSpeed);
+      // Interpolate colors toward cached targets
+      current.colorStart.lerp(targets.start, smoothLerpSpeed);
+      current.colorMid.lerp(targets.mid, smoothLerpSpeed);
+      current.colorEnd.lerp(targets.end, smoothLerpSpeed);
       
       u.uColorStart.value.copy(current.colorStart);
       u.uColorMid.value.copy(current.colorMid);
       u.uColorEnd.value.copy(current.colorEnd);
       
-      // Interpolate other state values
-      current.flowSpeed = THREE.MathUtils.lerp(current.flowSpeed, stateConfig.flowSpeed, lerpSpeed);
-      current.flowStrength = THREE.MathUtils.lerp(current.flowStrength, stateConfig.flowStrength, lerpSpeed);
-      current.rimIntensity = THREE.MathUtils.lerp(current.rimIntensity, stateConfig.rimIntensity, lerpSpeed);
-      current.hotSpotIntensity = THREE.MathUtils.lerp(current.hotSpotIntensity, stateConfig.hotSpotIntensity, lerpSpeed);
-      current.breathingSpeed = THREE.MathUtils.lerp(current.breathingSpeed, stateConfig.breathingSpeed, lerpSpeed);
-      current.breathingAmount = THREE.MathUtils.lerp(current.breathingAmount, stateConfig.breathingAmount, lerpSpeed);
-      current.radiusNoise = THREE.MathUtils.lerp(current.radiusNoise, stateConfig.radiusNoise, lerpSpeed);
-      current.glowIntensity = THREE.MathUtils.lerp(current.glowIntensity, stateConfig.glowIntensity, lerpSpeed);
+      // Interpolate other state values with damping for large changes
+      const lerpValue = (currentVal: number, targetVal: number) => {
+        const diff = Math.abs(targetVal - currentVal);
+        const dampedSpeed = diff > 0.5 ? smoothLerpSpeed * 0.5 : smoothLerpSpeed;
+        return THREE.MathUtils.lerp(currentVal, targetVal, dampedSpeed);
+      };
+      
+      current.flowSpeed = lerpValue(current.flowSpeed, stateConfig.flowSpeed);
+      current.flowStrength = lerpValue(current.flowStrength, stateConfig.flowStrength);
+      current.rimIntensity = lerpValue(current.rimIntensity, stateConfig.rimIntensity);
+      current.hotSpotIntensity = lerpValue(current.hotSpotIntensity, stateConfig.hotSpotIntensity);
+      current.breathingSpeed = lerpValue(current.breathingSpeed, stateConfig.breathingSpeed);
+      current.breathingAmount = lerpValue(current.breathingAmount, stateConfig.breathingAmount);
+      current.radiusNoise = lerpValue(current.radiusNoise, stateConfig.radiusNoise);
+      current.glowIntensity = lerpValue(current.glowIntensity, stateConfig.glowIntensity);
+      
+      // Core retraction for thinking state
+      const targetRetraction = stateConfig.coreRetraction * thinkingRetraction / 0.25; // Scale by user setting
+      current.coreRetraction = lerpValue(current.coreRetraction, targetRetraction);
       
       u.uFlowSpeed.value = current.flowSpeed;
       u.uFlowStrength.value = current.flowStrength;
@@ -237,6 +271,17 @@ export const NebulaFlowSystem = memo(({
       u.uBreathingAmount.value = current.breathingAmount;
       u.uRadiusNoise.value = current.radiusNoise;
       u.uGlowIntensity.value = current.glowIntensity;
+      u.uCoreRetraction.value = current.coreRetraction;
+      
+      // Audio reactive mode - instant switch based on state config
+      u.uAudioReactive.value = stateConfig.audioReactive ? 1.0 : 0.0;
+      
+      // Enhanced audio breathing during speaking state
+      if (stateConfig.audioReactive) {
+        u.uAudioBreathing.value = audioBreathingIntensity + audioLevel * 0.12;
+      } else {
+        u.uAudioBreathing.value = audioBreathingIntensity;
+      }
     } else {
       // Manual mode - use prop values directly
       u.uFlowStrength.value = flowStrength;
@@ -247,6 +292,9 @@ export const NebulaFlowSystem = memo(({
       u.uRimIntensity.value = rimIntensity;
       u.uHotSpotIntensity.value = hotSpotIntensity;
       u.uGlowIntensity.value = glowIntensity;
+      u.uCoreRetraction.value = 0;
+      u.uAudioReactive.value = 0;
+      u.uAudioBreathing.value = audioBreathingIntensity;
       
       u.uColorStart.value.set(colorStart);
       u.uColorMid.value.set(colorMid);

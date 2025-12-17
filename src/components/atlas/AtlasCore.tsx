@@ -74,6 +74,10 @@ export interface AtlasCoreProps {
   nebulaSurfaceBlend?: number;
   nebulaUniformSize?: number;
   nebulaCoherence?: number;
+  // State behavior settings
+  nebulaThinkingRetraction?: number;
+  nebulaAudioBreathingIntensity?: number;
+  nebulaTransitionSpeed?: number;
 }
 
 // Bloom wrapper - lower quality for performance
@@ -182,6 +186,9 @@ const ParticleSystem = memo(({
   nebulaSurfaceBlend = 1.5,
   nebulaUniformSize = 1.8,
   nebulaCoherence = 0.9,
+  nebulaThinkingRetraction = 0.25,
+  nebulaAudioBreathingIntensity = 0.15,
+  nebulaTransitionSpeed = 1.5,
 }: Omit<AtlasCoreProps, 'audioLevel'> & {
   audioLevelRef: MutableRefObject<number>;
   mousePosition: MutableRefObject<{ x: number; y: number; active: boolean }>;
@@ -220,6 +227,9 @@ const ParticleSystem = memo(({
           surfaceBlend={nebulaSurfaceBlend}
           uniformSize={nebulaUniformSize}
           coherence={nebulaCoherence}
+          thinkingRetraction={nebulaThinkingRetraction}
+          audioBreathingIntensity={nebulaAudioBreathingIntensity}
+          transitionSpeed={nebulaTransitionSpeed}
         />
       </group>
     );
@@ -359,6 +369,9 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   nebulaSurfaceBlend = 1.5,
   nebulaUniformSize = 1.8,
   nebulaCoherence = 0.9,
+  nebulaThinkingRetraction = 0.25,
+  nebulaAudioBreathingIntensity = 0.15,
+  nebulaTransitionSpeed = 1.5,
 }, ref) => {
   const mousePositionRef = useRef({ x: 0, y: 0, active: false });
   const internalAudioLevelRef = useRef(audioLevel);
@@ -455,6 +468,9 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           nebulaSurfaceBlend={nebulaSurfaceBlend}
           nebulaUniformSize={nebulaUniformSize}
           nebulaCoherence={nebulaCoherence}
+          nebulaThinkingRetraction={nebulaThinkingRetraction}
+          nebulaAudioBreathingIntensity={nebulaAudioBreathingIntensity}
+          nebulaTransitionSpeed={nebulaTransitionSpeed}
         />
         
         {enableBloom && <BloomEffect intensity={bloomIntensity} />}

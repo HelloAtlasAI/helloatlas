@@ -260,6 +260,9 @@ export default function AtlasDemo() {
                 nebulaSurfaceBlend={settings.nebulaSurfaceBlend}
                 nebulaUniformSize={settings.nebulaUniformSize}
                 nebulaCoherence={settings.nebulaCoherence}
+                nebulaThinkingRetraction={settings.nebulaThinkingRetraction}
+                nebulaAudioBreathingIntensity={settings.nebulaAudioBreathingIntensity}
+                nebulaTransitionSpeed={settings.nebulaTransitionSpeed}
               />
             </div>
           </div>
@@ -479,6 +482,24 @@ export default function AtlasDemo() {
                       <SliderControl label="Coherence" value={settings.nebulaCoherence} onChange={(v) => setSetting('nebulaCoherence', v)} min={0} max={1} step={0.05} color="emerald" decimals={2} hint={['Varied', 'Unified']} />
                     </>
                   )}
+                </div>
+                
+                {/* State Behaviors */}
+                <div className="space-y-3 pt-2 border-t border-amber-500/20">
+                  <span className="text-xs text-amber-300 font-medium">State Behaviors</span>
+                  <div className="text-[10px] text-muted-foreground space-y-1 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400" />
+                      <span>Speaking: Audio-reactive pulse</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-purple-400" />
+                      <span>Thinking: Core retraction</span>
+                    </div>
+                  </div>
+                  <SliderControl label="Transition Speed" value={settings.nebulaTransitionSpeed} onChange={(v) => setSetting('nebulaTransitionSpeed', v)} min={0.5} max={3} step={0.1} color="cyan" decimals={1} hint={['Slow', 'Fast']} />
+                  <SliderControl label="Thinking Retraction" value={settings.nebulaThinkingRetraction} onChange={(v) => setSetting('nebulaThinkingRetraction', v)} min={0} max={0.5} step={0.05} color="violet" decimals={2} hint={['None', 'Deep']} />
+                  <SliderControl label="Audio Breathing" value={settings.nebulaAudioBreathingIntensity} onChange={(v) => setSetting('nebulaAudioBreathingIntensity', v)} min={0} max={0.4} step={0.02} color="amber" decimals={2} hint={['Subtle', 'Strong']} />
                 </div>
                 
                 {/* Color Pickers - only show in manual mode */}
