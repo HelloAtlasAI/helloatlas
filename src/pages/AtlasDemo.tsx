@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc, Droplets } from 'lucide-react';
@@ -54,24 +54,39 @@ export default function AtlasDemo() {
   // Use the unified settings hook - single source of truth
   const { settings, setSetting, setMultiple, reset, exportSettings, importSettings } = useAtlasSettings();
   
+  // Use ref for audioLevel to avoid 60fps re-renders
+  const audioLevelRef = useRef(settings.audioLevel);
+  const [displayAudioLevel, setDisplayAudioLevel] = useState(settings.audioLevel);
+  
   // Local UI state only
   const [isAnimating, setIsAnimating] = useState(false);
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [performanceMode, setPerformanceMode] = useState<PerformanceMode>('balanced');
 
-  // Simulate audio levels when autoAudio is enabled
+  // Simulate audio levels when autoAudio is enabled - uses ref to avoid re-renders
   useEffect(() => {
-    if (!settings.autoAudio) return;
+    if (!settings.autoAudio) {
+      audioLevelRef.current = settings.audioLevel;
+      return;
+    }
     
     let frame: number;
-    const animate = () => {
-      const noise = Math.sin(Date.now() * 0.005) * 0.3 + Math.random() * 0.4;
-      setSetting('audioLevel', Math.max(0, Math.min(1, noise)));
+    let lastDisplayUpdate = 0;
+    const animate = (time: number) => {
+      const noise = Math.sin(time * 0.005) * 0.3 + Math.random() * 0.4;
+      audioLevelRef.current = Math.max(0, Math.min(1, noise));
+      
+      // Only update display every 100ms for UI slider
+      if (time - lastDisplayUpdate > 100) {
+        setDisplayAudioLevel(audioLevelRef.current);
+        lastDisplayUpdate = time;
+      }
+      
       frame = requestAnimationFrame(animate);
     };
-    animate();
+    frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
-  }, [settings.autoAudio, setSetting]);
+  }, [settings.autoAudio, settings.audioLevel]);
 
   // Cycle through states automatically
   const startStateAnimation = () => {
@@ -89,6 +104,8 @@ export default function AtlasDemo() {
   };
 
   const applyPreset = (preset: Preset) => {
+    audioLevelRef.current = preset.audioLevel;
+    setDisplayAudioLevel(preset.audioLevel);
     setMultiple({
       state: preset.state,
       morphProgress: preset.morphProgress,
@@ -177,7 +194,7 @@ export default function AtlasDemo() {
             <div className="w-[460px] h-[460px] flex-shrink-0">
               <AtlasCore
                 state={settings.state}
-                audioLevel={settings.audioLevel}
+                audioLevelRef={audioLevelRef}
                 morphProgress={settings.morphProgress}
                 enableTrails={settings.enableTrails}
                 trailLength={settings.trailLength}

@@ -1,4 +1,4 @@
-import { useRef, useMemo, memo } from 'react';
+import { useRef, useMemo, memo, MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { WakeWordState } from '@/hooks/useWakeWord';
@@ -7,7 +7,7 @@ import { STATE_CONFIGS } from '../utils/stateConfigs';
 
 interface GPUParticleSystemProps {
   state: WakeWordState;
-  audioLevel: number;
+  audioLevelRef: MutableRefObject<number>;
   morphProgress: number;
   particleCount?: number;
   particleSize?: number;
@@ -19,12 +19,12 @@ interface GPUParticleSystemProps {
   mouseMode?: 'attract' | 'repulse';
   mouseStrength?: number;
   mouseInfluenceRadius?: number;
-  mousePosition: React.MutableRefObject<{ x: number; y: number; active: boolean }>;
+  mousePosition: MutableRefObject<{ x: number; y: number; active: boolean }>;
 }
 
 export const GPUParticleSystem = memo(({
   state,
-  audioLevel,
+  audioLevelRef,
   morphProgress,
   particleCount = 2000,
   particleSize = 0.08,
@@ -109,12 +109,13 @@ export const GPUParticleSystem = memo(({
     });
   }, []);
 
-  // Optimized animation - skip frames for non-critical updates
+  // Optimized animation - reads audioLevel from ref (no re-renders)
   useFrame((_, delta) => {
     if (!materialRef.current || !pointsRef.current) return;
     
     frameCount.current++;
     const uniforms = materialRef.current.uniforms;
+    const audioLevel = audioLevelRef.current;
     
     // Always update time and morph
     uniforms.uTime.value += delta;
