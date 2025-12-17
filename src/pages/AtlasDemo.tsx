@@ -40,13 +40,13 @@ interface Preset {
 }
 
 const presets: Preset[] = [
-  { name: 'Idle Ambient', description: 'Calm, scattered particles drifting peacefully', state: 'dormant', morphProgress: 0.15, audioLevel: 0, autoAudio: false, icon: '🌙', gradient: 'from-slate-500/20 to-slate-600/20' },
-  { name: 'Awaiting Input', description: 'Gentle sphere formation, ready to listen', state: 'passive', morphProgress: 0.5, audioLevel: 0.05, autoAudio: false, icon: '👂', gradient: 'from-orange-500/20 to-amber-500/20' },
+  { name: 'Idle Ambient', description: 'Calm, loosely formed sphere drifting peacefully', state: 'dormant', morphProgress: 0.5, audioLevel: 0, autoAudio: false, icon: '🌙', gradient: 'from-slate-500/20 to-slate-600/20' },
+  { name: 'Awaiting Input', description: 'Gentle sphere formation, ready to listen', state: 'passive', morphProgress: 0.7, audioLevel: 0.05, autoAudio: false, icon: '👂', gradient: 'from-orange-500/20 to-amber-500/20' },
   { name: 'Wake Word Detected', description: 'Bright activation burst, particles converge', state: 'activated', morphProgress: 1.0, audioLevel: 0.3, autoAudio: false, icon: '⚡', gradient: 'from-yellow-400/20 to-amber-400/20' },
   { name: 'Active Listening', description: 'Cyan vortex formation, audio-reactive', state: 'listening', morphProgress: 1.0, audioLevel: 0.4, autoAudio: true, icon: '🎙️', gradient: 'from-cyan-500/20 to-blue-500/20' },
   { name: 'Deep Processing', description: 'Purple pulsing sphere, rapid internal rotation', state: 'thinking', morphProgress: 1.0, audioLevel: 0.2, autoAudio: false, icon: '🧠', gradient: 'from-purple-500/20 to-violet-500/20' },
   { name: 'Speaking Response', description: 'Gold ripples emanating with voice output', state: 'speaking', morphProgress: 1.0, audioLevel: 0.6, autoAudio: true, icon: '🔊', gradient: 'from-amber-400/20 to-orange-400/20' },
-  { name: 'Scattered Chaos', description: 'Maximum dispersion with audio reactivity', state: 'passive', morphProgress: 0.0, audioLevel: 0.8, autoAudio: true, icon: '🌀', gradient: 'from-red-500/20 to-pink-500/20' },
+  { name: 'Loose Formation', description: 'Semi-scattered sphere with audio reactivity', state: 'passive', morphProgress: 0.4, audioLevel: 0.8, autoAudio: true, icon: '🌀', gradient: 'from-red-500/20 to-pink-500/20' },
   { name: 'Perfect Sphere', description: 'Tight formation, minimal movement', state: 'listening', morphProgress: 1.0, audioLevel: 0.0, autoAudio: false, icon: '🔮', gradient: 'from-teal-500/20 to-cyan-500/20' },
 ];
 
@@ -134,6 +134,11 @@ export default function AtlasDemo() {
     reset();
     setActivePreset(null);
     toast.success('Reset to defaults');
+  };
+
+  const clearCacheAndReload = () => {
+    localStorage.removeItem('atlas-demo-settings');
+    window.location.reload();
   };
 
   const handleExport = () => {
@@ -317,6 +322,12 @@ export default function AtlasDemo() {
                   <RotateCcw className="w-4 h-4" />
                 </button>
               </div>
+              <button
+                onClick={clearCacheAndReload}
+                className="w-full mt-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500/50 text-red-400 text-xs transition-all"
+              >
+                Clear Saved Settings & Reload
+              </button>
             </div>
 
             {/* Performance Mode */}
