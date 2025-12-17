@@ -12,7 +12,8 @@ import {
   Bot,
   Sparkles,
   TrendingUp,
-  CircuitBoard
+  CircuitBoard,
+  Settings
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -29,19 +30,25 @@ import { SystemStatusPanel } from './SystemStatusPanel';
 import { AgentConfigPanel } from './AgentConfigPanel';
 import { LiveRunTimeline } from './LiveRunTimeline';
 import { ModelUsageAnalytics } from './ModelUsageAnalytics';
+import { AtlasSettingsPanel } from './AtlasSettingsPanel';
 import { useAtlasHealth } from '@/hooks/useAtlasHealth';
 import { useAtlasKnowledge } from '@/hooks/useAtlasKnowledge';
 import { useAtlasResearch } from '@/hooks/useAtlasResearch';
 import { useApprovals } from '@/hooks/useApprovals';
+import { useAtlasNotifications } from '@/hooks/useAtlasNotifications';
 import { UnifiedAtlasSphere } from '@/components/atlas/UnifiedAtlasSphere';
 
 const AtlasCoreDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const { stats, isLoading: statsLoading, refetch: refetchStats } = useAtlasHealth();
   const { knowledge, isLoading: knowledgeLoading } = useAtlasKnowledge();
   const { topics, isLoading: researchLoading, startResearch } = useAtlasResearch();
   const { pendingCount } = useApprovals();
+  
+  // Enable real-time notifications
+  useAtlasNotifications({ enabled: true });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -222,17 +229,42 @@ const AtlasCoreDashboard = () => {
               </TabsTrigger>
             </TabsList>
 
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="backdrop-blur-xl bg-background/40 border-border/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowSettings(!showSettings)}
+                className={`backdrop-blur-xl bg-background/40 border-border/30 hover:bg-primary/10 hover:border-primary/50 transition-all ${showSettings ? 'bg-primary/20 border-primary/50' : ''}`}
+              >
+                <Settings className={`w-4 h-4 mr-2 ${showSettings ? 'animate-spin' : ''}`} />
+                Settings
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="backdrop-blur-xl bg-background/40 border-border/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
+
+          {/* Settings Panel */}
+          <AnimatePresence>
+            {showSettings && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-6 overflow-hidden"
+              >
+                <AtlasSettingsPanel onClose={() => setShowSettings(false)} />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Tab Content */}
           <AnimatePresence mode="wait">
