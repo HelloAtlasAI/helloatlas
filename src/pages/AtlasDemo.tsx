@@ -827,7 +827,9 @@ interface SliderControlProps {
 }
 
 function SliderControl({ label, value, onChange, min, max, step, color, decimals = 0, hint, suffix = '' }: SliderControlProps) {
-  const displayValue = decimals > 0 ? value.toFixed(decimals) : value;
+  // Safeguard against undefined values from old localStorage settings
+  const safeValue = typeof value === 'number' ? value : min;
+  const displayValue = decimals > 0 ? safeValue.toFixed(decimals) : safeValue;
   
   return (
     <div className="space-y-2">
@@ -836,7 +838,7 @@ function SliderControl({ label, value, onChange, min, max, step, color, decimals
         <span className={`text-xs font-mono text-${color}-400`}>{displayValue}{suffix}</span>
       </div>
       <Slider
-        value={[value]}
+        value={[safeValue]}
         onValueChange={([v]) => onChange(v)}
         min={min}
         max={max}
