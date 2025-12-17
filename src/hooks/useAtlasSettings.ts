@@ -2,7 +2,7 @@ import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 const STORAGE_KEY = 'atlas-demo-settings';
-const SETTINGS_VERSION = 4; // Bump this to force reset of corrupted settings
+const SETTINGS_VERSION = 5; // Bump this to force reset of corrupted settings
 
 // Complete settings interface for Atlas visualization
 export interface AtlasSettings {
@@ -90,6 +90,12 @@ export interface AtlasSettings {
   nebulaGlowIntensity: number;
   nebulaDepthFade: number;
   nebulaCoreGlow: number;
+  
+  // Solid Surface settings
+  nebulaSolidSurface: boolean;
+  nebulaSurfaceBlend: number;
+  nebulaUniformSize: number;
+  nebulaCoherence: number;
 }
 
 // Default settings - optimized for performance
@@ -156,6 +162,11 @@ export const defaultAtlasSettings: AtlasSettings = {
   nebulaGlowIntensity: 1.0,
   nebulaDepthFade: 0.3,
   nebulaCoreGlow: 1.0,
+  // Solid Surface defaults
+  nebulaSolidSurface: false,
+  nebulaSurfaceBlend: 1.5,
+  nebulaUniformSize: 1.8,
+  nebulaCoherence: 0.9,
 };
 
 // Action types

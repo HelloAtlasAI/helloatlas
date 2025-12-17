@@ -111,6 +111,10 @@ uniform float uFlowSpeed;
 uniform float uBreathingSpeed;
 uniform float uBreathingAmount;
 uniform float uRadiusNoise;
+uniform float uSolidSurface;
+uniform float uCoherence;
+uniform float uSurfaceBlend;
+uniform float uUniformSize;
 
 varying float vIntensity;
 varying float vFlowPosition;
@@ -120,23 +124,30 @@ varying float vBandValue;
 varying float vHotSpot;
 varying float vDepth;
 varying float vRandomSeed;
+varying float vSolidSurface;
 
 void main() {
   vec3 pos = spherePos;
   vec3 normal = normalize(spherePos);
   
-  // Breathing deformation - subtle pulsing
-  float breathe = sin(uTime * uBreathingSpeed + randomSeed * 6.28) * uBreathingAmount;
+  // In solid surface mode, all particles breathe together uniformly
+  float breathePhase = uSolidSurface > 0.5 
+    ? uTime * uBreathingSpeed  // Uniform breathing for solid surface
+    : uTime * uBreathingSpeed + randomSeed * 6.28;  // Per-particle variation
+    
+  float breathe = sin(breathePhase) * uBreathingAmount;
   float radiusMultiplier = 1.0 + breathe;
   
-  // Noise-displaced radius for organic metaball feel
-  float radiusNoise = snoise(normal * 2.0 + uTime * 0.1) * uRadiusNoise;
+  // Mix between coherent and per-particle noise based on coherence setting
+  float coherentNoise = snoise(normal * 2.0 + uTime * 0.1);
+  float particleNoise = snoise(normal * 2.0 + uTime * 0.1 + randomSeed * 10.0);
+  float radiusNoise = mix(particleNoise, coherentNoise, uCoherence) * uRadiusNoise;
   radiusMultiplier += radiusNoise;
   
   // Apply radius modifications
   pos = normal * length(spherePos) * radiusMultiplier;
   
-  // Curl noise flow - advect particles along flow field
+  // Curl noise flow - coherent in solid surface mode
   vec3 flowPos = pos * 0.5 + vec3(uTime * uFlowSpeed * 0.1);
   vec3 curlDir = curlNoise(flowPos, uTime * uFlowSpeed);
   
@@ -144,23 +155,30 @@ void main() {
   vec3 tangentFlow = curlDir - normal * dot(curlDir, normal);
   tangentFlow = normalize(tangentFlow) * uFlowStrength;
   
-  // Apply flow displacement based on band position for contour effect
+  // Apply flow displacement - in solid surface mode, more coherent
   float bandPhase = bandIndex * 6.28 + uTime * uFlowSpeed * 0.5;
-  float bandModulation = sin(bandPhase + flowOffset * 3.14159) * 0.5 + 0.5;
+  float flowModulation = uSolidSurface > 0.5
+    ? sin(bandPhase) * 0.5 + 0.5  // Coherent wave
+    : sin(bandPhase + flowOffset * 3.14159) * 0.5 + 0.5;  // Per-particle variation
   
-  pos += tangentFlow * bandModulation * 0.3;
+  pos += tangentFlow * flowModulation * 0.3 * (1.0 - uSolidSurface * 0.5);
   
   // Audio reactivity with multi-layer displacement
-  float audioWave = sin(uTime * 4.0 + randomSeed * 6.28) * 0.5 + 0.5;
+  float audioWave = uSolidSurface > 0.5
+    ? sin(uTime * 4.0) * 0.5 + 0.5  // Uniform audio wave
+    : sin(uTime * 4.0 + randomSeed * 6.28) * 0.5 + 0.5;  // Per-particle variation
   pos += normal * uAudioLevel * 0.25 * (0.5 + audioWave * 0.5);
   
   // Calculate intensity for coloring - more variation
   vIntensity = 0.5 + randomSeed * 0.5;
   vIntensity += uAudioLevel * 0.4;
-  vIntensity *= (0.8 + bandModulation * 0.4);
+  vIntensity *= (0.8 + flowModulation * 0.4);
+  
+  // In solid surface mode, more uniform intensity
+  vIntensity = mix(vIntensity, 0.85, uSolidSurface * 0.7);
   
   // Flow position for gradient (0-1 along flow bands)
-  vFlowPosition = bandModulation;
+  vFlowPosition = flowModulation;
   
   // Band value for contour coloring
   vBandValue = bandIndex;
@@ -169,8 +187,12 @@ void main() {
   float hotSpotNoise = snoise(pos * 3.0 + vec3(uTime * 0.2, 0.0, 0.0));
   vHotSpot = smoothstep(0.3, 0.8, hotSpotNoise);
   
+  // In solid surface mode, reduce hot spot variation
+  vHotSpot = mix(vHotSpot, 0.5, uSolidSurface * 0.6);
+  
   // Random seed for fragment shader
   vRandomSeed = randomSeed;
+  vSolidSurface = uSolidSurface;
   
   // Transform to view space for rim lighting
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
@@ -184,6 +206,11 @@ void main() {
   float depthFactor = smoothstep(2.0, 8.0, -mvPosition.z);
   float sizeMultiplier = 1.0 + uAudioLevel * 0.6;
   sizeMultiplier *= (1.0 + depthFactor * 0.3); // Bigger particles farther away for volumetric feel
+  
+  // In solid surface mode, use larger uniform size for overlap
+  float solidSizeBoost = uSolidSurface * uUniformSize;
+  sizeMultiplier *= (1.0 + solidSizeBoost);
+  
   gl_PointSize = uParticleSize * (300.0 / -mvPosition.z) * sizeMultiplier;
 }
 `;
@@ -199,6 +226,7 @@ uniform float uGlowIntensity;
 uniform float uDepthFade;
 uniform float uCoreGlow;
 uniform float uAudioLevel;
+uniform float uSurfaceBlend;
 
 varying float vIntensity;
 varying float vFlowPosition;
@@ -208,6 +236,7 @@ varying float vBandValue;
 varying float vHotSpot;
 varying float vDepth;
 varying float vRandomSeed;
+varying float vSolidSurface;
 
 void main() {
   // High-quality circular point with Gaussian falloff
@@ -215,19 +244,26 @@ void main() {
   float dist = length(center);
   if (dist > 0.5) discard;
   
-  // Gaussian falloff for smooth, high-quality particles
-  float gaussFalloff = exp(-dist * dist * 6.0);
+  // Softer falloff for solid surface mode - particles blend together seamlessly
+  float blendFactor = vSolidSurface > 0.5 ? uSurfaceBlend : 1.0;
   
-  // Inner core glow - bright center
-  float core = exp(-dist * dist * 16.0) * uCoreGlow;
+  // Much softer Gaussian for blending in solid surface mode
+  float gaussFalloff = exp(-dist * dist * (6.0 / blendFactor));
   
-  // Soft edge for blending
-  float softEdge = 1.0 - smoothstep(0.3, 0.5, dist);
+  // Inner core glow - bright center (reduced in solid surface mode for smooth look)
+  float coreFactor = vSolidSurface > 0.5 ? 0.5 : 1.0;
+  float core = exp(-dist * dist * 16.0) * uCoreGlow * coreFactor;
+  
+  // Softer edges that blend seamlessly
+  float softEdge = 1.0 - smoothstep(0.2 * blendFactor, 0.5, dist);
   
   // Rim lighting - brighter at edges based on view direction
   vec3 viewDir = normalize(-vViewPosition);
   float rimDot = 1.0 - abs(dot(vWorldNormal, viewDir));
   float rim = pow(rimDot, 2.0) * uRimIntensity;
+  
+  // In solid surface mode, reduce rim for more uniform appearance
+  rim *= (1.0 - vSolidSurface * 0.5);
   
   // Audio-reactive rim boost
   rim *= (1.0 + uAudioLevel * 0.5);
@@ -266,13 +302,19 @@ void main() {
   // Multi-layer alpha for depth and soft blending
   float luminance = dot(color, vec3(0.299, 0.587, 0.114));
   float alpha = gaussFalloff * softEdge * uOpacity * vIntensity;
+  
+  // In solid surface mode, boost alpha for overlap and seamless blending
+  float solidAlphaBoost = vSolidSurface > 0.5 ? blendFactor * 0.7 : 1.0;
+  alpha *= solidAlphaBoost;
+  
   alpha *= (0.6 + luminance * 0.4); // Brighter particles more opaque
-  alpha += rim * 0.25; // Extra glow at rim
+  alpha += rim * 0.25 * (1.0 - vSolidSurface * 0.5); // Extra glow at rim
   alpha += core * 0.3; // Core is more solid
   alpha = clamp(alpha, 0.0, 1.0);
   
-  // Subtle variation per particle
-  alpha *= (0.85 + vRandomSeed * 0.15);
+  // Subtle variation per particle (less in solid surface mode)
+  float variationAmount = vSolidSurface > 0.5 ? 0.05 : 0.15;
+  alpha *= (1.0 - variationAmount + vRandomSeed * variationAmount);
   
   gl_FragColor = vec4(color, alpha);
 }
