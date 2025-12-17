@@ -126,6 +126,15 @@ export const GPUParticleSystem = memo(({
     uniforms.uAudioLevel.value = audioLevel;
     uniforms.uAudioMultiplier.value = state === 'speaking' ? 2.0 : 1.0;
     
+    // Update prop-driven uniforms dynamically
+    uniforms.uParticleSize.value = particleSize;
+    uniforms.uDensity.value = density;
+    uniforms.uTurbulenceAmplitude.value = turbulenceAmplitude;
+    uniforms.uEnableTurbulence.value = enableTurbulence ? 1.0 : 0.0;
+    uniforms.uMouseStrength.value = mouseStrength;
+    uniforms.uMouseRadius.value = mouseInfluenceRadius;
+    uniforms.uMouseMode.value = mouseMode === 'attract' ? 1.0 : -1.0;
+    
     // Mouse - update every frame when active
     if (enableMouseInteraction && mousePosition.current.active) {
       uniforms.uMousePos.value.set(
