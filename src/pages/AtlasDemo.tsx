@@ -58,12 +58,14 @@ interface AtlasDemoSettings {
 // Performance presets
 type PerformanceMode = 'performance' | 'balanced' | 'quality';
 
-const performancePresets: Record<PerformanceMode, { particleCount: number; trailLength: number; enableBloom: boolean; coreParticleCount: number; label: string }> = {
-  performance: { particleCount: 2000, trailLength: 0, enableBloom: false, coreParticleCount: 150, label: 'Performance' },
-  balanced: { particleCount: 5000, trailLength: 2, enableBloom: true, coreParticleCount: 300, label: 'Balanced' },
-  quality: { particleCount: 12000, trailLength: 4, enableBloom: true, coreParticleCount: 500, label: 'Quality' },
+// Optimized for 460px sphere
+const performancePresets: Record<PerformanceMode, { particleCount: number; trailLength: number; enableBloom: boolean; coreParticleCount: number; density: number; particleSize: number; label: string }> = {
+  performance: { particleCount: 2500, trailLength: 0, enableBloom: false, coreParticleCount: 200, density: 0.9, particleSize: 0.07, label: 'Performance' },
+  balanced: { particleCount: 5200, trailLength: 2, enableBloom: true, coreParticleCount: 350, density: 0.98, particleSize: 0.065, label: 'Balanced' },
+  quality: { particleCount: 8000, trailLength: 4, enableBloom: true, coreParticleCount: 500, density: 1.0, particleSize: 0.06, label: 'Quality' },
 };
 
+// Optimized defaults for 460px sphere
 const defaultSettings: AtlasDemoSettings = {
   state: 'dormant',
   morphProgress: 0.2,
@@ -75,9 +77,9 @@ const defaultSettings: AtlasDemoSettings = {
   trailColorGradient: true,
   trailStartColor: '#ff9500',
   trailEndColor: '#1a0a2e',
-  particleCount: 5000,
-  particleSize: 0.08,
-  density: 1.0,
+  particleCount: 5200,       // Optimized for 460px
+  particleSize: 0.065,       // Balanced size for density
+  density: 0.98,             // High density for fuller sphere
   rotationSpeed: 0.5,
   enableBloom: true,
   bloomIntensity: 0.8,
@@ -520,6 +522,8 @@ export default function AtlasDemo() {
     const preset = performancePresets[mode];
     setPerformanceMode(mode);
     setParticleCount(preset.particleCount);
+    setDensity(preset.density);
+    setParticleSize(preset.particleSize);
     setTrailLength(preset.trailLength);
     setEnableBloom(preset.enableBloom);
     setCoreParticleCount(preset.coreParticleCount);
@@ -630,8 +634,9 @@ export default function AtlasDemo() {
         {/* Main visualization area */}
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-full max-w-3xl aspect-square">
-              <AtlasCoreFixed 
+            {/* Fixed 460px sphere size */}
+            <div className="w-[460px] h-[460px] flex-shrink-0">
+              <AtlasCoreFixed
                 state={state} 
                 audioLevel={audioLevel} 
                 morphProgress={morphProgress}
