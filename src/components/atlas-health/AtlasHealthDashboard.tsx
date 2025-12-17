@@ -24,6 +24,8 @@ import { ApprovalsQueuePanel } from './ApprovalsQueuePanel';
 import { SchedulesPanel } from './SchedulesPanel';
 import { SystemStatusPanel } from './SystemStatusPanel';
 import { AgentConfigPanel } from './AgentConfigPanel';
+import { LiveRunTimeline } from './LiveRunTimeline';
+import { ModelUsageAnalytics } from './ModelUsageAnalytics';
 import { useAtlasHealth } from '@/hooks/useAtlasHealth';
 import { useAtlasKnowledge } from '@/hooks/useAtlasKnowledge';
 import { useAtlasResearch } from '@/hooks/useAtlasResearch';
@@ -168,6 +170,12 @@ const AtlasHealthDashboard = () => {
             </TabsContent>
 
             <TabsContent value="agent" className="space-y-6">
+              {/* Live Timeline + Model Analytics */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <LiveRunTimeline />
+                <ModelUsageAnalytics />
+              </div>
+
               {/* Agent Config + System Status */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
