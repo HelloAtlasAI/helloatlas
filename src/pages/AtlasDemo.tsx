@@ -233,14 +233,40 @@ export default function AtlasDemo() {
         {/* Main visualization area */}
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-[420px] h-[420px] flex-shrink-0">
-              <UnifiedAtlasSphere
-                state={settings.state}
-                audioLevel={displayAudioLevel}
-                responsive={false}
-                className="w-full h-full"
-              />
-            </div>
+            {/* Dashboard Preview Mode - shows exactly how it looks on dashboard */}
+            {settings.dashboardPreview ? (
+              <div className="relative">
+                {/* Dashboard preview container with exact dashboard sizing */}
+                <div className="w-[140px] h-[140px] flex-shrink-0 relative">
+                  <UnifiedAtlasSphere
+                    state={settings.state}
+                    audioLevel={displayAudioLevel}
+                    responsive={true}
+                    className="w-full h-full"
+                  />
+                  {/* Radial mask like dashboard */}
+                  <div 
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background: 'radial-gradient(circle at center, transparent 45%, hsl(var(--background)) 70%)',
+                    }}
+                  />
+                </div>
+                {/* Dashboard preview indicator */}
+                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40">
+                  <span className="text-xs text-emerald-300 font-medium">Dashboard Preview</span>
+                </div>
+              </div>
+            ) : (
+              <div className="w-[420px] h-[420px] flex-shrink-0">
+                <UnifiedAtlasSphere
+                  state={settings.state}
+                  audioLevel={displayAudioLevel}
+                  responsive={false}
+                  className="w-full h-full"
+                />
+              </div>
+            )}
           </div>
 
           {/* Current state indicator */}
@@ -298,13 +324,29 @@ export default function AtlasDemo() {
                 </button>
               </div>
               
-              {/* Dashboard indicator */}
-              <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+              {/* Dashboard Preview Toggle */}
+              <button
+                onClick={() => setSetting('dashboardPreview', !settings.dashboardPreview)}
+                className={`w-full flex items-center justify-between p-3 rounded-lg transition-all ${
+                  settings.dashboardPreview
+                    ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300'
+                    : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground'
+                }`}
+              >
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs text-emerald-300">Active on Dashboard</span>
+                  <div className={`w-2 h-2 rounded-full ${settings.dashboardPreview ? 'bg-emerald-400 animate-pulse' : 'bg-muted-foreground'}`} />
+                  <span className="text-xs font-medium">Dashboard Preview</span>
                 </div>
-                <span className="text-xs text-emerald-400 font-medium">
+                <span className="text-[10px] opacity-70">140px + mask</span>
+              </button>
+              
+              {/* Dashboard indicator */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/30">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                  <span className="text-xs text-primary">Synced with Dashboard</span>
+                </div>
+                <span className="text-xs text-primary/70 font-medium">
                   {settings.visualizationMode === 'classic' ? '🔥 Classic' : '🌌 Nebula'}
                 </span>
               </div>

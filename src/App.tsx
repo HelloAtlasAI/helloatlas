@@ -11,7 +11,7 @@ import NotFound from "./pages/NotFound";
 // Lazy load heavy pages
 const LegacyIndex = lazy(() => import("./pages/Index"));
 const AtlasDemo = lazy(() => import("./pages/AtlasDemo"));
-const AtlasHealth = lazy(() => import("./pages/AtlasHealth"));
+const AtlasCore = lazy(() => import("./pages/AtlasCore"));
 
 const queryClient = new QueryClient();
 
@@ -34,12 +34,12 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/auth" element={<Auth />} />
           
-          {/* Atlas Health Dashboard */}
+          {/* Atlas Core Dashboard */}
           <Route 
-            path="/atlas-health" 
+            path="/atlas-core" 
             element={
               <Suspense fallback={<PageLoader />}>
-                <AtlasHealth />
+                <AtlasCore />
               </Suspense>
             } 
           />

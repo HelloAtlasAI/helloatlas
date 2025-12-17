@@ -82,11 +82,11 @@ const getEmptyClasses = (isEmpty: boolean) => {
   return 'row-span-1 !h-[60px] opacity-60';
 };
 
-// Get empty card styles
-const getEmptyStyles = (isEmpty: boolean) => {
-  if (!isEmpty) return {};
+// Get empty card styles with order for grid positioning
+const getCardStyles = (isEmpty: boolean, order: number) => {
   return {
-    opacity: 0.6,
+    opacity: isEmpty ? 0.6 : 1,
+    order: order, // CSS Grid order property
   };
 };
 
@@ -456,7 +456,7 @@ const Dashboard = () => {
           <motion.div 
             layoutId="card-weather"
             className={`row-span-2 transition-all duration-300 ${getFocusedClasses('weather', focusedCards, isSpeakingWithFocus)} ${getDimClasses('weather', focusedCards, isSpeakingWithFocus)}`}
-            style={getEmptyStyles(cardMeta['weather']?.isEmpty || false)}
+            style={getCardStyles(cardMeta['weather']?.isEmpty || false, sortedCards.indexOf('weather'))}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -471,7 +471,7 @@ const Dashboard = () => {
           <motion.div 
             layoutId="card-travel"
             className={`${cardMeta['travel']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('travel', focusedCards, isSpeakingWithFocus)} ${getDimClasses('travel', focusedCards, isSpeakingWithFocus)}`}
-            style={getEmptyStyles(cardMeta['travel']?.isEmpty || false)}
+            style={getCardStyles(cardMeta['travel']?.isEmpty || false, sortedCards.indexOf('travel'))}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -486,7 +486,7 @@ const Dashboard = () => {
           <motion.div 
             layoutId="card-email"
             className={`row-span-3 transition-all duration-300 ${getFocusedClasses('email', focusedCards, isSpeakingWithFocus)} ${getDimClasses('email', focusedCards, isSpeakingWithFocus)}`}
-            style={getEmptyStyles(cardMeta['email']?.isEmpty || false)}
+            style={getCardStyles(cardMeta['email']?.isEmpty || false, sortedCards.indexOf('email'))}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -499,7 +499,7 @@ const Dashboard = () => {
           <motion.div 
             layoutId="card-calendar"
             className={`${cardMeta['calendar']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-3'} transition-all duration-300 ${getFocusedClasses('calendar', focusedCards, isSpeakingWithFocus)} ${getDimClasses('calendar', focusedCards, isSpeakingWithFocus)}`}
-            style={getEmptyStyles(cardMeta['calendar']?.isEmpty || false)}
+            style={getCardStyles(cardMeta['calendar']?.isEmpty || false, sortedCards.indexOf('calendar'))}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -512,7 +512,7 @@ const Dashboard = () => {
           <motion.div 
             layoutId="card-stocks"
             className={`md:col-span-2 xl:col-span-2 2xl:col-span-2 ${cardMeta['stocks']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('stocks', focusedCards, isSpeakingWithFocus)} ${getDimClasses('stocks', focusedCards, isSpeakingWithFocus)}`}
-            style={getEmptyStyles(cardMeta['stocks']?.isEmpty || false)}
+            style={getCardStyles(cardMeta['stocks']?.isEmpty || false, sortedCards.indexOf('stocks'))}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -527,7 +527,7 @@ const Dashboard = () => {
           <motion.div 
             layoutId="card-tasks"
             className={`${cardMeta['tasks']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('tasks', focusedCards, isSpeakingWithFocus)} ${getDimClasses('tasks', focusedCards, isSpeakingWithFocus)}`}
-            style={getEmptyStyles(cardMeta['tasks']?.isEmpty || false)}
+            style={getCardStyles(cardMeta['tasks']?.isEmpty || false, sortedCards.indexOf('tasks'))}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -540,7 +540,7 @@ const Dashboard = () => {
           <motion.div 
             layoutId="card-notes"
             className={`${cardMeta['notes']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('notes', focusedCards, isSpeakingWithFocus)} ${getDimClasses('notes', focusedCards, isSpeakingWithFocus)}`}
-            style={getEmptyStyles(cardMeta['notes']?.isEmpty || false)}
+            style={getCardStyles(cardMeta['notes']?.isEmpty || false, sortedCards.indexOf('notes'))}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -553,7 +553,7 @@ const Dashboard = () => {
           <motion.div 
             layoutId="card-news"
             className={`md:col-span-2 xl:col-span-2 2xl:col-span-3 ${cardMeta['news']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('news', focusedCards, isSpeakingWithFocus)} ${getDimClasses('news', focusedCards, isSpeakingWithFocus)}`}
-            style={getEmptyStyles(cardMeta['news']?.isEmpty || false)}
+            style={getCardStyles(cardMeta['news']?.isEmpty || false, sortedCards.indexOf('news'))}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
@@ -566,7 +566,7 @@ const Dashboard = () => {
           <motion.div 
             layoutId="card-documents"
             className={`md:col-span-2 xl:col-span-2 2xl:col-span-2 ${cardMeta['documents']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('documents', focusedCards, isSpeakingWithFocus)} ${getDimClasses('documents', focusedCards, isSpeakingWithFocus)}`}
-            style={getEmptyStyles(cardMeta['documents']?.isEmpty || false)}
+            style={getCardStyles(cardMeta['documents']?.isEmpty || false, sortedCards.indexOf('documents'))}
             variants={cardVariants}
             initial="hidden"
             animate="visible"
