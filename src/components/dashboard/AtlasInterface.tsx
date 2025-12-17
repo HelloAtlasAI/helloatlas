@@ -47,18 +47,15 @@ const AtlasInterfaceComponent = ({
 
   return (
     <div className="relative w-full h-full flex items-center justify-center gap-4 px-4">
-      {/* Atlas Core Sphere - responsive sizing with extended canvas for glow */}
-      <div className="relative flex-shrink-0 w-full h-full max-w-[200px] max-h-[200px] aspect-square z-10">
-        {/* Extended canvas container for glow effect - overflow visible */}
-        <div className="absolute inset-[-50%] pointer-events-none">
-          <UnifiedAtlasSphere 
-            state={state}
-            audioLevel={audioLevel}
-            overrideMorphProgress={1.0}
-            responsive={true}
-            className="w-full h-full"
-          />
-        </div>
+      {/* Atlas Core Sphere - responsive sizing */}
+      <div className="relative flex-shrink-0 w-full h-full max-w-[200px] max-h-[200px] aspect-square z-10 flex items-center justify-center">
+        <UnifiedAtlasSphere 
+          state={state}
+          audioLevel={audioLevel}
+          overrideMorphProgress={1.0}
+          responsive={true}
+          className="w-full h-full"
+        />
       </div>
 
       {/* Status and info - to the right */}
