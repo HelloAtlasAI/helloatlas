@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { Brain, Search, Lightbulb, BookOpen } from 'lucide-react';
+import { useHolographicToast } from '@/hooks/useHolographicToast';
 
 interface NotificationConfig {
   enabled?: boolean;
@@ -11,6 +10,7 @@ interface NotificationConfig {
 export const useAtlasNotifications = (config: NotificationConfig = {}) => {
   const { enabled = true, soundEnabled = false } = config;
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { knowledge, research, learning, info } = useHolographicToast();
 
   // Play notification sound
   const playNotificationSound = useCallback(() => {
@@ -26,21 +26,16 @@ export const useAtlasNotifications = (config: NotificationConfig = {}) => {
     description: string,
     type: 'knowledge' | 'research' | 'learning' | 'discovery'
   ) => {
-    const icons = {
-      knowledge: '🧠',
-      research: '🔍',
-      learning: '💡',
-      discovery: '📚',
-    };
+    const toastFn = {
+      knowledge,
+      research,
+      learning,
+      discovery: info,
+    }[type];
 
-    toast({
-      title: `${icons[type]} ${title}`,
-      description,
-      duration: 5000,
-    });
-
+    toastFn({ title, description, duration: 5000 });
     playNotificationSound();
-  }, [playNotificationSound]);
+  }, [playNotificationSound, knowledge, research, learning, info]);
 
   useEffect(() => {
     if (!enabled) return;
