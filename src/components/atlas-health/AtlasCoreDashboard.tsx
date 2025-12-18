@@ -102,7 +102,6 @@ const AtlasCoreDashboard = () => {
               <ScaledAtlasSphere
                 state={stats?.healthScore && stats.healthScore > 90 ? 'passive' : stats?.healthScore && stats.healthScore > 70 ? 'thinking' : 'activated'}
                 audioLevel={0.1}
-                className="w-full h-full"
               />
             </motion.div>
 
