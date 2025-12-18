@@ -297,7 +297,8 @@ const AtlasTeach = () => {
     return () => {
       mounted = false;
     };
-  }, [connect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - connect is stable via refs
 
   // Fetch existing memories and subscribe to changes
   useEffect(() => {

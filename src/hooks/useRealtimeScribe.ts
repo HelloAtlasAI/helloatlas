@@ -12,7 +12,9 @@ interface UseRealtimeScribeOptions {
 
 export const useRealtimeScribe = (options: UseRealtimeScribeOptions = {}) => {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [hasConnected, setHasConnected] = useState(false);
   const optionsRef = useRef(options);
+  const connectingRef = useRef(false);
   optionsRef.current = options;
 
   // Track if user is speaking
@@ -48,8 +50,19 @@ export const useRealtimeScribe = (options: UseRealtimeScribeOptions = {}) => {
     },
   });
 
+  // Store scribe in ref to avoid dependency issues
+  const scribeRef = useRef(scribe);
+  scribeRef.current = scribe;
+
   const connect = useCallback(async () => {
+    // Prevent multiple simultaneous connection attempts
+    if (connectingRef.current || scribeRef.current.isConnected) {
+      console.log("[Scribe] Already connecting or connected, skipping...");
+      return scribeRef.current.isConnected;
+    }
+    
     try {
+      connectingRef.current = true;
       setIsConnecting(true);
       
       console.log("[Scribe] Getting token...");
@@ -64,7 +77,7 @@ export const useRealtimeScribe = (options: UseRealtimeScribeOptions = {}) => {
       console.log("[Scribe] Token received, connecting...");
 
       // Connect using official SDK
-      await scribe.connect({
+      await scribeRef.current.connect({
         token: data.token,
         microphone: {
           echoCancellation: true,
@@ -75,19 +88,23 @@ export const useRealtimeScribe = (options: UseRealtimeScribeOptions = {}) => {
 
       console.log("[Scribe] Connected successfully");
       setIsConnecting(false);
+      setHasConnected(true);
+      connectingRef.current = false;
       return true;
     } catch (error) {
       console.error("[Scribe] Connection error:", error);
       setIsConnecting(false);
+      connectingRef.current = false;
       optionsRef.current.onError?.(error instanceof Error ? error : new Error("Connection failed"));
       return false;
     }
-  }, [scribe]);
+  }, []); // No dependencies - uses refs
 
   const disconnect = useCallback(() => {
     console.log("[Scribe] Disconnecting...");
-    scribe.disconnect();
-  }, [scribe]);
+    scribeRef.current.disconnect();
+    setHasConnected(false);
+  }, []);
 
   // Track speech activity via our speaking state (more accurate than partial transcript)
   const isListening = scribe.isConnected && isSpeaking;
