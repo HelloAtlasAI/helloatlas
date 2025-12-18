@@ -215,20 +215,17 @@ void main() {
   float solidSizeBoost = uSolidSurface * uUniformSize * 0.3;
   baseSizePx *= (1.0 + solidSizeBoost);
   
-  // Proper perspective projection for screen-space stable sizing
-  // Use canvas height and camera FOV (50 degrees) for correct projection
-  float tanHalfFov = 0.4663; // tan(50° / 2) = tan(25°)
-  float screenHeight = max(uResolution.y, 50.0);
-  float depth = max(-mvPosition.z, 0.1);
+  // Simple reference-depth approach for perspective
+  // At depth 4.0 (sphere center), particles are exactly baseSizePx
+  float referenceDepth = 4.0;
+  float depth = max(-mvPosition.z, 0.5);
+  float depthScale = clamp(referenceDepth / depth, 0.5, 2.0);
   
-  // Project to screen space: how many pixels should this point be?
-  float projectedSize = (baseSizePx * screenHeight) / (tanHalfFov * depth * 2.0);
+  // Final size: base * pixelRatio * subtle perspective
+  gl_PointSize = baseSizePx * uPixelRatio * depthScale;
   
-  // Scale by pixel ratio for crisp high-DPI rendering
-  gl_PointSize = projectedSize * uPixelRatio;
-  
-  // Clamp to reasonable range - particles should be small dots, not squares
-  gl_PointSize = clamp(gl_PointSize, 1.0, 48.0);
+  // Clamp to reasonable range - particles should be small dots
+  gl_PointSize = clamp(gl_PointSize, 1.0, 16.0);
 }
 `;
 
