@@ -19,6 +19,9 @@ interface PriceUpdate {
   timestamp: number;
 }
 
+const MAX_RECONNECT_ATTEMPTS = 3;
+const INITIAL_RECONNECT_DELAY = 2000;
+
 export const useStocksRealtime = (symbols: string[]) => {
   const [stocks, setStocks] = useState<Map<string, RealtimeStock>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
@@ -27,6 +30,7 @@ export const useStocksRealtime = (symbols: string[]) => {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fallbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptRef = useRef(0);
 
   // Initialize with baseline prices
   const initializeStocks = useCallback(async () => {
@@ -97,6 +101,7 @@ export const useStocksRealtime = (symbols: string[]) => {
       ws.onopen = () => {
         setIsConnected(true);
         setIsLive(true);
+        reconnectAttemptRef.current = 0; // Reset on successful connection
         
         // Subscribe to symbols
         ws.send(JSON.stringify({
@@ -133,10 +138,19 @@ export const useStocksRealtime = (symbols: string[]) => {
         setIsConnected(false);
         setIsLive(false);
         
-        // Attempt reconnection after 5 seconds
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connectWebSocket();
-        }, 5000);
+        // Attempt reconnection with exponential backoff, up to max attempts
+        if (reconnectAttemptRef.current < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttemptRef.current += 1;
+          const delay = INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttemptRef.current - 1);
+          console.log(`[Stocks] WebSocket closed, reconnecting in ${delay}ms (attempt ${reconnectAttemptRef.current}/${MAX_RECONNECT_ATTEMPTS})`);
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connectWebSocket();
+          }, delay);
+        } else {
+          console.log('[Stocks] Max reconnection attempts reached, falling back to polling');
+          startPollingFallback();
+        }
       };
     } catch (err) {
       console.error('Failed to connect WebSocket:', err);

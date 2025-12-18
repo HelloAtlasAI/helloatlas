@@ -198,12 +198,33 @@ const Dashboard = () => {
     },
   });
 
-  // Start passive listening on mount
+  // Voice permission state - only start wake word after user enables it
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    // Check if user previously enabled voice
+    return localStorage.getItem('atlas-voice-enabled') === 'true';
+  });
+
+  // Enable voice handler - called when user clicks the Atlas interface
+  const handleEnableVoice = useCallback(async () => {
+    try {
+      // Request microphone permission
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop()); // Stop immediately, just checking permission
+      
+      setVoiceEnabled(true);
+      localStorage.setItem('atlas-voice-enabled', 'true');
+      startPassiveListening();
+    } catch (error) {
+      console.warn('[Dashboard] Microphone permission denied:', error);
+    }
+  }, [startPassiveListening]);
+
+  // Start passive listening only when voice is enabled and permission granted
   useEffect(() => {
-    if (user && !authLoading) {
+    if (user && !authLoading && voiceEnabled) {
       startPassiveListening();
     }
-  }, [user, authLoading, startPassiveListening]);
+  }, [user, authLoading, voiceEnabled, startPassiveListening]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -455,7 +476,9 @@ const Dashboard = () => {
               lastMessage={lastUserMessage}
               lastResponse={lastAiResponse}
               isSupported={isWakeWordSupported}
+              voiceEnabled={voiceEnabled}
               onManualActivate={handleManualActivate}
+              onEnableVoice={handleEnableVoice}
             />
           </motion.div>
 
