@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ChevronRight, ChevronLeft, Brain, Heart, User, Sparkles, Briefcase, Shield, Rocket, Smile, Users, Activity, Star, Clock, Trophy, LucideIcon } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ChevronRight, ChevronLeft, Brain, Heart, User, Sparkles, Briefcase, Shield, Rocket, Smile, Users, Activity, Star, Clock, Trophy, LucideIcon, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRealtimeScribe } from '@/hooks/useRealtimeScribe';
 import { useStreamingTTS } from '@/hooks/useStreamingTTS';
+import { useWakeWordFixed, WakeWordState } from '@/hooks/useWakeWordFixed';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AtlasSphere } from '@/components/atlas';
-import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 interface Memory {
   id: string;
@@ -21,6 +21,13 @@ interface Memory {
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+}
+
+interface LearnedItem {
+  id: string;
+  key: string;
+  category: string;
+  timestamp: number;
 }
 
 const TEACHING_SYSTEM_PROMPT = `You are Atlas, a deeply empathetic AI in TEACHING MODE. The user wants you to truly understand them - their soul, their story, their nature.
@@ -65,18 +72,29 @@ const AtlasTeach = () => {
   const [atlasState, setAtlasState] = useState<WakeWordState>('dormant');
   const [isMuted, setIsMuted] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
+  const [recentlyLearned, setRecentlyLearned] = useState<LearnedItem[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scribeConnectedRef = useRef(false);
   const { toast } = useToast();
 
   // Streaming TTS
   const { isPlaying, audioLevel, speak, stopPlayback } = useStreamingTTS({
     onPlaybackStart: () => setAtlasState('speaking'),
-    onPlaybackEnd: () => setAtlasState('dormant'),
+    onPlaybackEnd: () => {
+      setAtlasState('dormant');
+      // Resume wake word after speaking
+      resumeWakeWordRef.current?.();
+    },
     onError: (error) => {
       console.error('TTS error:', error);
       setAtlasState('dormant');
+      resumeWakeWordRef.current?.();
     },
   });
+
+  // Refs to store wake word functions (resolved after hook init)
+  const pauseWakeWordRef = useRef<() => void>();
+  const resumeWakeWordRef = useRef<() => void>();
 
   // Send message to Atlas
   const sendToAtlas = useCallback(async (userMessage: string) => {
@@ -115,9 +133,11 @@ const AtlasTeach = () => {
 
       // Speak the response immediately using streaming TTS
       if (!isMuted && responseText) {
+        pauseWakeWordRef.current?.();
         await speak(responseText);
       } else {
         setAtlasState('dormant');
+        resumeWakeWordRef.current?.();
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -128,6 +148,7 @@ const AtlasTeach = () => {
       });
       setIsProcessing(false);
       setAtlasState('dormant');
+      resumeWakeWordRef.current?.();
     }
   }, [messages, isMuted, speak, toast]);
 
@@ -182,11 +203,14 @@ const AtlasTeach = () => {
     }
   }, [isListening, isProcessing, isPlaying, isConnected]);
 
-  // Fetch existing memories
+  // Fetch existing memories and subscribe to changes with learning notifications
   useEffect(() => {
+    let userId: string | undefined;
+    
     const fetchMemories = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      userId = user.id;
 
       const { data, error } = await supabase
         .from('ai_memory')
@@ -202,12 +226,28 @@ const AtlasTeach = () => {
 
     fetchMemories();
 
-    // Subscribe to memory changes
+    // Subscribe to memory changes - detect new learnings
     const channel = supabase
       .channel('teach_memories')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'ai_memory' },
+        { event: 'INSERT', schema: 'public', table: 'ai_memory' },
+        (payload) => {
+          const newMemory = payload.new as Memory;
+          // Add to recently learned for notification
+          setRecentlyLearned(prev => [{
+            id: newMemory.id,
+            key: newMemory.key,
+            category: newMemory.category,
+            timestamp: Date.now()
+          }, ...prev.slice(0, 4)]); // Keep last 5
+          
+          fetchMemories();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'ai_memory' },
         () => {
           fetchMemories();
         }
@@ -219,22 +259,68 @@ const AtlasTeach = () => {
     };
   }, []);
 
+  // Auto-dismiss learning notifications after 5 seconds
+  useEffect(() => {
+    if (recentlyLearned.length === 0) return;
+    
+    const timer = setTimeout(() => {
+      setRecentlyLearned(prev => 
+        prev.filter(item => Date.now() - item.timestamp < 5000)
+      );
+    }, 5000);
+    
+    return () => clearTimeout(timer);
+  }, [recentlyLearned]);
+
   // Auto-scroll messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Wake word detection - auto-start and trigger mic on "Atlas"
+  const { 
+    state: wakeWordState, 
+    isSupported: wakeWordSupported,
+    pauseListening: pauseWakeWord,
+    resumeListening: resumeWakeWord,
+  } = useWakeWordFixed({
+    keyword: 'atlas',
+    autoStart: true,
+    onWakeWordDetected: () => {
+      console.log('[Teach] Wake word detected! Activating voice input...');
+      if (!isConnected && !isProcessing) {
+        // Trigger mic click
+        pauseWakeWord();
+        connect().then(success => {
+          if (!success) {
+            resumeWakeWord();
+          }
+        });
+      }
+    },
+    timeoutDuration: 15000,
+  });
+
+  // Store wake word functions in refs for use in callbacks
+  useEffect(() => {
+    pauseWakeWordRef.current = pauseWakeWord;
+    resumeWakeWordRef.current = resumeWakeWord;
+  }, [pauseWakeWord, resumeWakeWord]);
 
   // Handle mic button click
   const handleMicClick = useCallback(async () => {
     if (isConnected) {
       disconnect();
       setLiveTranscript("");
+      resumeWakeWord();
     } else {
       if (isPlaying) {
         stopPlayback();
       }
+      pauseWakeWord();
       const success = await connect();
       if (!success) {
+        resumeWakeWord();
         toast({
           title: 'Connection Failed',
           description: 'Could not start voice recognition',
@@ -242,7 +328,7 @@ const AtlasTeach = () => {
         });
       }
     }
-  }, [isConnected, isPlaying, connect, disconnect, stopPlayback, toast]);
+  }, [isConnected, isPlaying, connect, disconnect, stopPlayback, toast, pauseWakeWord, resumeWakeWord]);
 
   const toggleMute = useCallback(() => {
     if (isPlaying) {
@@ -311,20 +397,56 @@ const AtlasTeach = () => {
         }}
       />
 
+      {/* Learning Notifications - floating in top left */}
+      <div className="fixed top-20 left-4 z-30 space-y-2 max-w-xs">
+        <AnimatePresence>
+          {recentlyLearned.map((item) => {
+            const Icon = categoryIcons[item.category] || Brain;
+            return (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, x: -100, scale: 0.8 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -50, scale: 0.8 }}
+                transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                className="bg-primary/10 backdrop-blur-md border border-primary/20 rounded-lg p-3 flex items-center gap-3 shadow-lg shadow-primary/5"
+              >
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Icon className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Zap className="w-3 h-3 text-primary" />
+                    <p className="text-xs text-primary font-medium">Learned {item.category}</p>
+                  </div>
+                  <p className="text-sm font-medium truncate mt-0.5">{item.key}</p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
+
       {/* Main content - centered Atlas */}
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-4">
         
         {/* State indicator */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={atlasState + (isConnected ? '-connected' : '')}
+            key={atlasState + (isConnected ? '-connected' : '') + (wakeWordState)}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             className="mb-8 text-center"
           >
             <p className="text-lg text-muted-foreground capitalize">
-              {!isConnected && 'Tap to start'}
+              {!isConnected && wakeWordSupported && wakeWordState === 'passive' && (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  Say "Atlas" to start
+                </span>
+              )}
+              {!isConnected && (!wakeWordSupported || wakeWordState === 'dormant') && 'Tap to start'}
               {isConnected && atlasState === 'dormant' && 'Listening for speech...'}
               {atlasState === 'listening' && 'Hearing you...'}
               {atlasState === 'thinking' && 'Processing...'}
@@ -441,7 +563,11 @@ const AtlasTeach = () => {
             transition={{ delay: 1 }}
             className="mt-8 text-muted-foreground text-center max-w-md"
           >
-            Press the microphone to start teaching Atlas about yourself.
+            {wakeWordSupported ? (
+              <>Just say <span className="font-semibold text-primary">"Atlas"</span> to start, or tap the microphone.</>
+            ) : (
+              <>Press the microphone to start teaching Atlas about yourself.</>
+            )}
             <br />
             <span className="text-sm opacity-70">
               Share your name, interests, values, or anything you'd like me to remember.
