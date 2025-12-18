@@ -6,7 +6,7 @@ import { useRealtimeScribe } from '@/hooks/useRealtimeScribe';
 import { useStreamingTTS } from '@/hooks/useStreamingTTS';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ScaledAtlasSphere } from '@/components/atlas/ScaledAtlasSphere';
+import { AtlasSphere } from '@/components/atlas';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 interface Memory {
@@ -307,9 +307,10 @@ const AtlasTeach = () => {
 
         {/* Atlas Sphere - CSS scaled, uses global settings */}
         <div className="relative w-[400px] h-[400px] mb-8">
-          <ScaledAtlasSphere
+          <AtlasSphere
             state={atlasState}
             audioLevel={isPlaying ? audioLevel : (isListening ? 0.3 : 0)}
+            context="teach"
           />
         </div>
 

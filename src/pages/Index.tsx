@@ -1,10 +1,10 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { HolographicCards, demoHolographicCards } from "@/components/aria/HolographicCard";
 import { StateIndicator } from "@/components/aria/StateIndicator";
 import { ChatInput } from "@/components/aria/ChatInput";
 import { ConversationPanel } from "@/components/aria/ConversationPanel";
-import AtlasCoreFixed from "@/components/dashboard/AtlasCoreFixed";
+import { AtlasSphere } from '@/components/atlas';
 import { useChat } from "@/hooks/useChat";
 import { useVoice } from "@/hooks/useVoice";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,22 +19,6 @@ const Index = () => {
   const [cards, setCards] = useState(demoHolographicCards);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const APP_NAME = "Atlas";
-
-  // Load saved Atlas settings from localStorage
-  const savedSettings = useMemo(() => {
-    try {
-      const stored = localStorage.getItem('atlas-demo-settings');
-      console.log('Atlas settings from localStorage:', stored);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        console.log('Parsed Atlas settings:', parsed);
-        return parsed;
-      }
-    } catch (e) {
-      console.warn('Failed to load Atlas settings:', e);
-    }
-    return {};
-  }, []);
 
   const {
     isRecording,
@@ -104,10 +88,10 @@ const Index = () => {
       {/* Atlas Sphere - centered but offset upward to leave room for input */}
       <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none pb-48">
         <div className="w-[60vmin] h-[60vmin] max-w-[600px] max-h-[600px]">
-          <AtlasCoreFixed
+          <AtlasSphere
             state={getWakeWordState(effectiveAiState)}
             audioLevel={audioLevel}
-            {...savedSettings}
+            context="legacy"
           />
         </div>
       </div>
