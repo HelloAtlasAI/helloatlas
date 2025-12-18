@@ -39,11 +39,20 @@ interface PerplexityResponse {
   citations?: string[];
 }
 
+interface RootTopicContext {
+  root_topic: string;
+  root_description?: string;
+  jurisdiction?: string;
+  domain?: string;
+  parent_chain: string[];
+  focus_keywords: string[];
+}
+
 // Provider configuration
 const PROVIDERS = {
   perplexity: {
     url: "https://api.perplexity.ai/chat/completions",
-    model: "sonar-pro", // Deep research model with 2x citations
+    model: "sonar-pro",
   },
   lovable: {
     url: "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -51,18 +60,176 @@ const PROVIDERS = {
   },
 };
 
+// Extract context from root topic
+function extractTopicContext(topic: string, description: string | null): RootTopicContext {
+  const lowerTopic = topic.toLowerCase();
+  const lowerDesc = (description || '').toLowerCase();
+  const combined = `${lowerTopic} ${lowerDesc}`;
+  
+  // Detect jurisdiction/country
+  const countryPatterns: Record<string, string[]> = {
+    'danish': ['danish', 'denmark', 'dk'],
+    'german': ['german', 'germany', 'deutschland'],
+    'french': ['french', 'france'],
+    'british': ['british', 'uk', 'united kingdom', 'england'],
+    'american': ['american', 'usa', 'united states', 'u.s.'],
+    'european': ['european', 'eu', 'europe'],
+  };
+
+  let jurisdiction: string | undefined;
+  for (const [key, patterns] of Object.entries(countryPatterns)) {
+    if (patterns.some(p => combined.includes(p))) {
+      jurisdiction = key;
+      break;
+    }
+  }
+
+  // Detect domain
+  const domainPatterns: Record<string, string[]> = {
+    'law': ['law', 'legal', 'criminal', 'civil', 'constitutional', 'court', 'legislation'],
+    'history': ['history', 'historical', 'century', 'era', 'ancient', 'medieval', 'modern'],
+    'science': ['science', 'scientific', 'research', 'study', 'experiment'],
+    'technology': ['technology', 'tech', 'software', 'hardware', 'digital', 'computing'],
+    'medicine': ['medicine', 'medical', 'health', 'disease', 'treatment', 'clinical'],
+    'economics': ['economics', 'economic', 'finance', 'market', 'trade', 'business'],
+  };
+
+  let domain: string | undefined;
+  for (const [key, patterns] of Object.entries(domainPatterns)) {
+    if (patterns.some(p => combined.includes(p))) {
+      domain = key;
+      break;
+    }
+  }
+
+  // Extract focus keywords (significant words)
+  const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'about']);
+  const words = topic.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w.toLowerCase()));
+
+  return {
+    root_topic: topic,
+    root_description: description || undefined,
+    jurisdiction,
+    domain,
+    parent_chain: [topic],
+    focus_keywords: words.slice(0, 5),
+  };
+}
+
+// Build context-aware research prompt
+function buildResearchPrompt(
+  topic: string,
+  description: string | null,
+  depth: number,
+  context: RootTopicContext | null
+): string {
+  let contextSection = '';
+  
+  if (context) {
+    contextSection = `
+CRITICAL CONTEXT - YOU MUST STAY FOCUSED:
+- Root Topic: "${context.root_topic}"
+${context.jurisdiction ? `- Jurisdiction/Country: ${context.jurisdiction.toUpperCase()} - ALL findings MUST relate to this jurisdiction` : ''}
+${context.domain ? `- Domain: ${context.domain}` : ''}
+- Topic Chain: ${context.parent_chain.join(' → ')}
+- Focus Keywords: ${context.focus_keywords.join(', ')}
+
+IMPORTANT INSTRUCTIONS:
+1. ALL findings must be directly relevant to the ROOT topic context
+2. ${context.jurisdiction ? `Do NOT include information about other countries/jurisdictions unless explicitly comparing to ${context.jurisdiction}` : 'Stay focused on the geographic/domain context implied by the root topic'}
+3. Sub-topics should drill deeper INTO the root topic, not branch away from it
+4. If you cannot find specific information for the requested context, say so rather than providing generic or off-topic information
+`;
+  }
+
+  return `Research this topic comprehensively: "${topic}"${description ? `\n\nContext: ${description}` : ''}
+${contextSection}
+Current research depth: ${depth} (0 = root topic, higher = more specific)
+
+Provide your findings in this exact JSON format:
+{
+  "findings": [
+    {
+      "title": "Finding title",
+      "summary": "One-sentence summary",
+      "details": "Detailed explanation with specific facts",
+      "confidence": 0.85,
+      "relevance_to_root": 0.9
+    }
+  ],
+  "subTopics": [
+    {
+      "topic": "Sub-topic to research - MUST include original context keywords",
+      "description": "Why this is worth exploring",
+      "priority": 8
+    }
+  ]
+}
+
+${depth >= 3 ? 'Do NOT include subTopics at this depth.' : 'Only include subTopics that stay within the original context.'}
+Be precise, factual, and STAY ON TOPIC.`;
+}
+
+// Validate findings against root context
+function validateFindingsRelevance(
+  findings: ResearchFinding[],
+  context: RootTopicContext | null
+): ResearchFinding[] {
+  if (!context) return findings;
+
+  return findings.map(finding => {
+    const combinedText = `${finding.title} ${finding.summary} ${finding.details}`.toLowerCase();
+    
+    // Check jurisdiction relevance
+    let jurisdictionScore = 1.0;
+    if (context.jurisdiction) {
+      const hasCorrectJurisdiction = combinedText.includes(context.jurisdiction) || 
+        combinedText.includes(context.root_topic.toLowerCase());
+      
+      // Check for wrong jurisdictions
+      const wrongJurisdictions = ['american', 'usa', 'united states', 'u.s.'].filter(
+        j => j !== context.jurisdiction && combinedText.includes(j)
+      );
+      
+      if (wrongJurisdictions.length > 0 && !hasCorrectJurisdiction) {
+        jurisdictionScore = 0.3; // Heavily penalize wrong jurisdiction
+        console.log(`[atlas-research] Flagged potentially off-topic finding: "${finding.title}" - wrong jurisdiction detected`);
+      } else if (!hasCorrectJurisdiction) {
+        jurisdictionScore = 0.6;
+      }
+    }
+
+    // Check keyword relevance
+    const keywordHits = context.focus_keywords.filter(kw => 
+      combinedText.includes(kw.toLowerCase())
+    ).length;
+    const keywordScore = Math.min(1.0, 0.5 + (keywordHits / context.focus_keywords.length) * 0.5);
+
+    // Combined relevance score
+    const relevanceScore = (jurisdictionScore * 0.6) + (keywordScore * 0.4);
+
+    return {
+      ...finding,
+      confidence: Math.min(finding.confidence, relevanceScore),
+    };
+  });
+}
+
 // Perform research using Perplexity or fallback to Lovable AI
 async function researchTopic(
   topic: string,
   description: string | null,
   depth: number,
   perplexityKey: string | null,
-  lovableKey: string
+  lovableKey: string,
+  context: RootTopicContext | null
 ): Promise<{ findings: ResearchFinding[]; subTopics: SubTopic[]; citations: string[] }> {
   
+  const researchPrompt = buildResearchPrompt(topic, description, depth, context);
+
   // Try Perplexity first for grounded research with real citations
   if (perplexityKey) {
-    console.log(`[atlas-research] Using Perplexity sonar-pro for: ${topic}`);
+    console.log(`[atlas-research] Using Perplexity sonar-pro for: ${topic} (context: ${context?.root_topic || 'none'})`);
     
     try {
       const response = await fetch(PROVIDERS.perplexity.url, {
@@ -76,41 +243,21 @@ async function researchTopic(
           messages: [
             {
               role: "system",
-              content: `You are Atlas, an expert research AI. Your task is to research topics deeply and provide comprehensive, well-sourced findings.
+              content: `You are Atlas, an expert research AI specializing in deep, focused research.
 
-When researching:
-1. Generate 3-5 key findings with detailed insights
-2. Provide specific, factual information with high confidence
-3. Identify 2-4 sub-topics that warrant deeper investigation (only if depth < 3)
+CRITICAL RULES:
+1. Stay STRICTLY within the topic context provided
+2. If a jurisdiction/country is specified, ALL findings must relate to that jurisdiction
+3. Do NOT default to US/American information unless specifically requested
+4. Be precise and cite specific facts and figures when available
+5. Generate 3-5 key findings with detailed insights
+6. Identify 2-4 sub-topics that go DEEPER into the same context (only if depth < 3)
 
-Current research depth: ${depth} (0 = root topic, higher = more specific)
-
-Be thorough, accurate, and cite specific facts and figures when available.`
+Current research depth: ${depth} (0 = root topic, higher = more specific)`
             },
             {
               role: "user",
-              content: `Research this topic comprehensively: "${topic}"${description ? `\n\nContext: ${description}` : ''}
-
-Provide your findings in this exact JSON format:
-{
-  "findings": [
-    {
-      "title": "Finding title",
-      "summary": "One-sentence summary",
-      "details": "Detailed explanation with specific facts",
-      "confidence": 0.85
-    }
-  ],
-  "subTopics": [
-    {
-      "topic": "Sub-topic to research",
-      "description": "Why this is worth exploring",
-      "priority": 8
-    }
-  ]
-}
-
-Only include subTopics if depth < 3. Be precise and factual.`
+              content: researchPrompt
             }
           ],
         }),
@@ -135,16 +282,32 @@ Only include subTopics if depth < 3. Be precise and factual.`
           const parsed = JSON.parse(jsonMatch[0]);
           
           // Add citations to findings
-          const findingsWithSources = (parsed.findings || []).map((f: ResearchFinding, idx: number) => ({
+          let findings = (parsed.findings || []).map((f: ResearchFinding, idx: number) => ({
             ...f,
             source_url: citations[idx] || citations[0] || null
           }));
 
-          return {
-            findings: findingsWithSources,
-            subTopics: depth < 3 ? (parsed.subTopics || []) : [],
-            citations
-          };
+          // Validate findings against root context
+          findings = validateFindingsRelevance(findings, context);
+
+          // Filter sub-topics to maintain context
+          let subTopics = depth < 3 ? (parsed.subTopics || []) : [];
+          if (context && subTopics.length > 0) {
+            subTopics = subTopics.filter((st: SubTopic) => {
+              const stLower = st.topic.toLowerCase();
+              // Ensure sub-topics maintain context
+              const hasContext = context.focus_keywords.some(kw => 
+                stLower.includes(kw.toLowerCase())
+              ) || stLower.includes(context.root_topic.toLowerCase().split(' ')[0]);
+              
+              if (!hasContext) {
+                console.log(`[atlas-research] Filtered off-context sub-topic: "${st.topic}"`);
+              }
+              return hasContext;
+            });
+          }
+
+          return { findings, subTopics, citations };
         }
       } catch (parseError) {
         console.error("[atlas-research] Failed to parse Perplexity response:", parseError);
@@ -181,25 +344,18 @@ Only include subTopics if depth < 3. Be precise and factual.`
       messages: [
         {
           role: "system",
-          content: `You are Atlas, an autonomous research AI. Your task is to research topics deeply and thoroughly.
+          content: `You are Atlas, an autonomous research AI. Stay STRICTLY within the topic context provided.
 
-When researching a topic:
-1. Generate 3-5 key findings with detailed insights
-2. Identify 2-4 sub-topics that warrant deeper investigation
-3. Be thorough, accurate, and cite your reasoning
-
-Current research depth: ${depth} (0 = root, higher = more specific)
-Maximum useful depth is typically 3-4 levels.
-
-Provide structured research output that adds genuine value and knowledge.`
+CRITICAL RULES:
+1. If a jurisdiction/country is specified, ALL findings must relate to that jurisdiction
+2. Do NOT default to US/American information
+3. Generate 3-5 key findings with detailed insights
+4. Identify 2-4 sub-topics that go DEEPER (not sideways) into the topic
+5. Current research depth: ${depth} (0 = root, higher = more specific)`
         },
         {
           role: "user",
-          content: `Research this topic: "${topic}"${description ? `\n\nContext: ${description}` : ''}
-
-Provide:
-1. Key findings (facts, insights, important information)
-2. Sub-topics for deeper research (if depth < 3)`
+          content: researchPrompt
         }
       ],
       tools: [
@@ -258,8 +414,9 @@ Provide:
     const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
       const parsed = JSON.parse(toolCall.function.arguments);
+      let findings = validateFindingsRelevance(parsed.findings || [], context);
       return {
-        findings: parsed.findings || [],
+        findings,
         subTopics: depth < 3 ? (parsed.subTopics || []) : [],
         citations: []
       };
@@ -277,7 +434,16 @@ serve(async (req) => {
   }
 
   try {
-    const { topicId, action, topic, description, userId, autoDeepen = true, maxDepth = 3 } = await req.json();
+    const { 
+      topicId, 
+      action, 
+      topic, 
+      description, 
+      userId, 
+      autoDeepen = true, 
+      maxDepth = 3,
+      learningSessionId = null
+    } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
@@ -306,24 +472,55 @@ serve(async (req) => {
         throw new Error("Topic not found");
       }
 
-      console.log(`[atlas-research] Starting research on: ${topicData.topic} (depth: ${topicData.depth_level})`);
+      // Get or create root topic context
+      let context: RootTopicContext | null = topicData.root_topic_context as RootTopicContext | null;
+      
+      if (!context && topicData.depth_level === 0) {
+        // This is the root topic - extract context
+        context = extractTopicContext(topicData.topic, topicData.description);
+        console.log(`[atlas-research] Extracted root context:`, JSON.stringify(context));
+      } else if (!context && topicData.parent_id) {
+        // Get context from parent
+        const { data: parentData } = await supabase
+          .from("atlas_research_topics")
+          .select("topic, root_topic_context")
+          .eq("id", topicData.parent_id)
+          .single();
+        
+        if (parentData?.root_topic_context) {
+          context = parentData.root_topic_context as RootTopicContext;
+          // Add current topic to parent chain
+          context.parent_chain = [...context.parent_chain, topicData.topic];
+        }
+      }
 
-      // Update status to researching
+      console.log(`[atlas-research] Starting research on: ${topicData.topic} (depth: ${topicData.depth_level}, context: ${context?.root_topic || 'none'})`);
+
+      // Update status to researching and save context
       await supabase
         .from("atlas_research_topics")
-        .update({ status: "researching", updated_at: new Date().toISOString() })
+        .update({ 
+          status: "researching", 
+          updated_at: new Date().toISOString(),
+          root_topic_context: context
+        })
         .eq("id", topicId);
 
-      // Perform research
+      // Perform research with context
       const { findings, subTopics, citations } = await researchTopic(
         topicData.topic,
         topicData.description,
         topicData.depth_level,
         PERPLEXITY_API_KEY || null,
-        LOVABLE_API_KEY
+        LOVABLE_API_KEY,
+        context
       );
 
-      console.log(`[atlas-research] Research complete: ${findings.length} findings, ${subTopics.length} sub-topics, ${citations.length} citations`);
+      // Count validated vs flagged findings
+      const validatedFindings = findings.filter(f => f.confidence >= 0.6);
+      const flaggedFindings = findings.filter(f => f.confidence < 0.6);
+
+      console.log(`[atlas-research] Research complete: ${findings.length} findings (${validatedFindings.length} validated, ${flaggedFindings.length} flagged), ${subTopics.length} sub-topics, ${citations.length} citations`);
 
       // Update topic with findings and sources
       const { error: updateError } = await supabase
@@ -341,28 +538,59 @@ serve(async (req) => {
         console.error("[atlas-research] Failed to update topic:", updateError);
       }
 
-      // Store findings as knowledge entries
+      // Store findings as knowledge entries with validation status
       if (findings.length > 0) {
-        const knowledgeEntries = findings
-          .filter(f => f.confidence >= 0.6)
-          .map(f => ({
-            user_id: topicData.user_id || null,
-            topic: f.title,
-            content: { 
-              summary: f.summary, 
-              details: f.details,
-              source_url: f.source_url 
-            },
-            category: "research_finding",
-            source: f.source_url || `research:${topicData.topic}`,
-            confidence: f.confidence,
-            relevance_score: f.confidence
-          }));
+        const knowledgeEntries = findings.map(f => ({
+          user_id: topicData.user_id || null,
+          topic: f.title,
+          content: { 
+            summary: f.summary, 
+            details: f.details,
+            source_url: f.source_url 
+          },
+          category: "research_finding",
+          source: f.source_url || `research:${topicData.topic}`,
+          confidence: f.confidence,
+          relevance_score: f.confidence,
+          research_topic_id: topicId,
+          relevance_to_root: f.confidence,
+          validation_status: f.confidence >= 0.6 ? 'validated' : 'flagged',
+          root_topic_context: context
+        }));
 
-        if (knowledgeEntries.length > 0) {
-          await supabase.from("atlas_knowledge_entries").insert(knowledgeEntries);
-          console.log(`[atlas-research] Stored ${knowledgeEntries.length} knowledge entries`);
-        }
+        await supabase.from("atlas_knowledge_entries").insert(knowledgeEntries);
+        console.log(`[atlas-research] Stored ${knowledgeEntries.length} knowledge entries`);
+      }
+
+      // Update learning session discoveries if linked
+      if (topicData.learning_session_id || learningSessionId) {
+        const sessionId = topicData.learning_session_id || learningSessionId;
+        
+        // Get current discoveries
+        const { data: sessionData } = await supabase
+          .from("atlas_learning_sessions")
+          .select("discoveries")
+          .eq("id", sessionId)
+          .single();
+        
+        const currentDiscoveries = (sessionData?.discoveries as unknown[]) || [];
+        const newDiscoveries = findings.map(f => ({
+          type: 'research_finding',
+          topic: f.title,
+          summary: f.summary,
+          confidence: f.confidence,
+          timestamp: new Date().toISOString(),
+          research_topic_id: topicId
+        }));
+        
+        await supabase
+          .from("atlas_learning_sessions")
+          .update({ 
+            discoveries: [...currentDiscoveries, ...newDiscoveries]
+          })
+          .eq("id", sessionId);
+        
+        console.log(`[atlas-research] Updated learning session ${sessionId} with ${newDiscoveries.length} discoveries`);
       }
 
       // Store citations as research citations
@@ -373,7 +601,7 @@ serve(async (req) => {
           url,
           domain: new URL(url).hostname,
           citation_type: "web",
-          credibility_score: 0.7, // Default score, could be improved with domain analysis
+          credibility_score: 0.7,
           accessed_at: new Date().toISOString()
         }));
 
@@ -395,7 +623,12 @@ serve(async (req) => {
           priority: st.priority,
           auto_generated: true,
           findings: [],
-          sources: []
+          sources: [],
+          root_topic_context: context ? {
+            ...context,
+            parent_chain: [...context.parent_chain, st.topic]
+          } : null,
+          learning_session_id: topicData.learning_session_id || learningSessionId
         }));
 
         const { data: createdSubTopics, error: subError } = await supabase
@@ -410,7 +643,6 @@ serve(async (req) => {
 
           // Queue up research for sub-topics (process top priority first)
           for (const subTopic of createdSubTopics.slice(0, 2)) {
-            // Only auto-research top 2 priority sub-topics to avoid explosion
             EdgeRuntime.waitUntil(
               fetch(`${SUPABASE_URL}/functions/v1/atlas-research`, {
                 method: "POST",
@@ -422,7 +654,8 @@ serve(async (req) => {
                   topicId: subTopic.id,
                   action: "start",
                   autoDeepen: true,
-                  maxDepth
+                  maxDepth,
+                  learningSessionId: topicData.learning_session_id || learningSessionId
                 })
               }).catch(e => console.error("[atlas-research] Sub-topic research failed:", e))
             );
@@ -434,9 +667,12 @@ serve(async (req) => {
         JSON.stringify({ 
           success: true, 
           findings: findings.length,
+          validated: validatedFindings.length,
+          flagged: flaggedFindings.length,
           subTopics: subTopics.length,
           citations: citations.length,
-          provider: PERPLEXITY_API_KEY ? "perplexity" : "lovable"
+          provider: PERPLEXITY_API_KEY ? "perplexity" : "lovable",
+          context: context?.root_topic || null
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -444,6 +680,9 @@ serve(async (req) => {
 
     // Create new research topic
     if (action === "create" || (!action && topic)) {
+      // Extract context for new root topic
+      const context = extractTopicContext(topic, description || null);
+
       const { data: newTopic, error: createError } = await supabase
         .from("atlas_research_topics")
         .insert({
@@ -455,7 +694,9 @@ serve(async (req) => {
           priority: 5,
           auto_generated: false,
           findings: [],
-          sources: []
+          sources: [],
+          root_topic_context: context,
+          learning_session_id: learningSessionId
         })
         .select()
         .single();
@@ -464,7 +705,7 @@ serve(async (req) => {
         throw new Error(`Failed to create topic: ${createError.message}`);
       }
 
-      console.log(`[atlas-research] Created research topic: ${newTopic.id}`);
+      console.log(`[atlas-research] Created research topic: ${newTopic.id} with context: ${context.root_topic}`);
 
       // Start researching immediately
       EdgeRuntime.waitUntil(
@@ -478,13 +719,14 @@ serve(async (req) => {
             topicId: newTopic.id,
             action: "start",
             autoDeepen,
-            maxDepth
+            maxDepth,
+            learningSessionId
           })
         }).catch(e => console.error("[atlas-research] Research start failed:", e))
       );
 
       return new Response(
-        JSON.stringify({ success: true, topicId: newTopic.id }),
+        JSON.stringify({ success: true, topicId: newTopic.id, context: context.root_topic }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
