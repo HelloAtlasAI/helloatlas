@@ -53,7 +53,7 @@ const presets: Preset[] = [
 
 export default function AtlasDemo() {
   // Use the unified settings hook - single source of truth
-  const { settings, setSetting, setMultiple, reset, exportSettings, importSettings } = useAtlasSettings();
+  const { settings, setSetting, setMultiple, reset, clearOverrides, exportSettings, importSettings } = useAtlasSettings();
   
   // Custom presets
   const { allPresets, customPresets, savePreset, deletePreset, isBuiltIn } = useAtlasPresets();
@@ -144,6 +144,11 @@ export default function AtlasDemo() {
     toast.success('Reset to defaults');
   };
 
+  const handleClearOverrides = () => {
+    clearOverrides();
+    toast.success('Returned to state-reactive mode');
+  };
+
   const clearCacheAndReload = () => {
     localStorage.removeItem('atlas-demo-settings');
     window.location.reload();
@@ -203,6 +208,17 @@ export default function AtlasDemo() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            {/* Manual overrides indicator */}
+            {settings._manualOverrides.length > 0 && (
+              <button
+                onClick={handleClearOverrides}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 hover:border-amber-500/60 text-amber-300 transition-all"
+                title="Click to return to auto mode"
+              >
+                <span className="text-xs font-medium">{settings._manualOverrides.length} manual</span>
+                <X className="w-3 h-3" />
+              </button>
+            )}
             <button
               onClick={() => toast.success('Settings auto-saved!')}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 hover:border-amber-500/60 text-amber-300 transition-all"

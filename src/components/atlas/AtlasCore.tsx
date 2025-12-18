@@ -95,6 +95,8 @@ export interface AtlasCoreProps {
   nebulaThinkingRetraction?: number;
   nebulaAudioBreathingIntensity?: number;
   nebulaTransitionSpeed?: number;
+  // Manual override tracking
+  nebulaManualOverrides?: string[];
 }
 
 // Bloom wrapper - lower quality for performance
@@ -212,6 +214,7 @@ const ParticleSystem = memo(({
   nebulaThinkingRetraction = 0.25,
   nebulaAudioBreathingIntensity = 0.15,
   nebulaTransitionSpeed = 1.5,
+  nebulaManualOverrides = [],
 }: Omit<AtlasCoreProps, 'audioLevel'> & {
   audioLevelRef: MutableRefObject<number>;
   mousePosition: MutableRefObject<{ x: number; y: number; active: boolean }>;
@@ -256,6 +259,8 @@ const ParticleSystem = memo(({
           thinkingRetraction={nebulaThinkingRetraction}
           audioBreathingIntensity={nebulaAudioBreathingIntensity}
           transitionSpeed={nebulaTransitionSpeed}
+          // Manual overrides for per-property blending
+          manualOverrides={nebulaManualOverrides}
           // Pixel-stable rendering props
           pixelRatio={pixelRatio}
           containerWidth={containerWidth}
@@ -409,6 +414,7 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   nebulaThinkingRetraction = 0.25,
   nebulaAudioBreathingIntensity = 0.15,
   nebulaTransitionSpeed = 1.5,
+  nebulaManualOverrides = [],
 }, ref) => {
   const mousePositionRef = useRef({ x: 0, y: 0, active: false });
   const internalAudioLevelRef = useRef(audioLevel);
@@ -512,6 +518,7 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           nebulaThinkingRetraction={nebulaThinkingRetraction}
           nebulaAudioBreathingIntensity={nebulaAudioBreathingIntensity}
           nebulaTransitionSpeed={nebulaTransitionSpeed}
+          nebulaManualOverrides={nebulaManualOverrides}
         />
         
         {enableBloom && <BloomEffect intensity={bloomIntensity} />}
