@@ -68,7 +68,7 @@ const ScaledAtlasSphereComponent = ({
       ref={containerRef} 
       className={cn("relative w-full h-full overflow-hidden", className)}
     >
-      {/* Centered, scaled sphere */}
+      {/* Centered, scaled sphere (centering independent of scale) */}
       <div
         className="absolute"
         style={{
@@ -78,6 +78,7 @@ const ScaledAtlasSphereComponent = ({
           top: '50%',
           transform: `translate(-50%, -50%) scale(${scale})`,
           transformOrigin: 'center center',
+          willChange: 'transform',
         }}
       >
         <AtlasCore
