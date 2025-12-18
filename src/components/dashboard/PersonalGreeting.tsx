@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { UserProfile } from "@/hooks/useUserProfile";
-import { AIState } from "@/components/aria/AIOrb";
+import { AIState } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Edit2, Check, X } from "lucide-react";

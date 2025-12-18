@@ -1,7 +1,7 @@
 import { Suspense, memo, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { AIState } from '@/components/aria/AIOrb';
+import { AIState } from '@/types';
 
 interface PureNebulaSphereProps {
   state: AIState;

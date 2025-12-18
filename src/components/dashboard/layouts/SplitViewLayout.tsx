@@ -8,7 +8,7 @@ import { StocksCard } from '@/components/dashboard/StocksCard';
 import { TravelCard } from '@/components/dashboard/TravelCard';
 import { DocumentsCard } from '@/components/dashboard/DocumentsCard';
 import { WeatherCard } from '@/components/dashboard/WeatherCard';
-import { AIState } from '@/components/aria/AIOrb';
+import { AIState } from '@/types';
 import { CardId } from '@/hooks/useCardFocus';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
