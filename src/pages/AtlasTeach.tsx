@@ -111,6 +111,9 @@ const AtlasTeach = () => {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Please sign in to use Atlas Teach.');
+      }
 
       const { data, error } = await supabase.functions.invoke('chat-with-memory', {
         body: {
@@ -118,7 +121,7 @@ const AtlasTeach = () => {
             role: m.role,
             content: m.content,
           })),
-          userId: user?.id,
+          userId: user.id,
           teachingMode: true,
           systemPromptOverride: TEACHING_SYSTEM_PROMPT,
         },
@@ -147,7 +150,7 @@ const AtlasTeach = () => {
       console.error('Chat error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to process your message',
+        description: error instanceof Error ? error.message : 'Failed to process your message',
         variant: 'destructive',
       });
       setIsProcessing(false);

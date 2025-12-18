@@ -15,6 +15,7 @@ export const useRealtimeScribe = (options: UseRealtimeScribeOptions = {}) => {
   const [hasConnected, setHasConnected] = useState(false);
   const optionsRef = useRef(options);
   const connectingRef = useRef(false);
+  const lastConnectAttemptRef = useRef(0);
   optionsRef.current = options;
 
   // Track if user is speaking
@@ -54,29 +55,54 @@ export const useRealtimeScribe = (options: UseRealtimeScribeOptions = {}) => {
   const scribeRef = useRef(scribe);
   scribeRef.current = scribe;
 
+  const CONNECT_COOLDOWN_MS = 3000;
+
   const connect = useCallback(async () => {
+    const now = Date.now();
+
+    // Prevent spammy retries (rate limits / auth bootstrapping)
+    if (now - lastConnectAttemptRef.current < CONNECT_COOLDOWN_MS) {
+      console.log("[Scribe] Connect called too soon, throttling...");
+      return false;
+    }
+
     // Prevent multiple simultaneous connection attempts
     if (connectingRef.current || scribeRef.current.isConnected) {
       console.log("[Scribe] Already connecting or connected, skipping...");
       return scribeRef.current.isConnected;
     }
-    
+
+    lastConnectAttemptRef.current = now;
+    connectingRef.current = true;
+    setIsConnecting(true);
+
     try {
-      connectingRef.current = true;
-      setIsConnecting(true);
-      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Please sign in to enable voice.");
+      }
+
       console.log("[Scribe] Getting token...");
-      
-      // Get token from edge function
+
       const { data, error } = await supabase.functions.invoke("elevenlabs-scribe-token");
-      
-      if (error || !data?.token) {
-        throw new Error(error?.message || "Failed to get scribe token");
+
+      if (error) {
+        const details =
+          (error as any)?.context ||
+          (error as any)?.details ||
+          (error as any)?.hint ||
+          "";
+
+        console.error("[Scribe] Token request error:", error, details);
+        throw new Error(details ? `${error.message}: ${details}` : error.message);
+      }
+
+      if (!data?.token) {
+        throw new Error("No token received from token service");
       }
 
       console.log("[Scribe] Token received, connecting...");
 
-      // Connect using official SDK
       await scribeRef.current.connect({
         token: data.token,
         microphone: {
@@ -87,16 +113,15 @@ export const useRealtimeScribe = (options: UseRealtimeScribeOptions = {}) => {
       });
 
       console.log("[Scribe] Connected successfully");
-      setIsConnecting(false);
       setHasConnected(true);
-      connectingRef.current = false;
       return true;
     } catch (error) {
       console.error("[Scribe] Connection error:", error);
-      setIsConnecting(false);
-      connectingRef.current = false;
       optionsRef.current.onError?.(error instanceof Error ? error : new Error("Connection failed"));
       return false;
+    } finally {
+      setIsConnecting(false);
+      connectingRef.current = false;
     }
   }, []); // No dependencies - uses refs
 
