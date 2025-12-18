@@ -44,9 +44,16 @@ const ScaledAtlasSphereComponent = ({
 
     const calculateScale = () => {
       if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const containerSize = Math.min(rect.width, rect.height);
-      setScale(containerSize / CANONICAL_SIZE);
+      // Use offsetWidth/offsetHeight instead of getBoundingClientRect()
+      // These return CSS layout dimensions BEFORE transforms, making them
+      // immune to parent Framer Motion scale animations
+      const containerSize = Math.min(
+        containerRef.current.offsetWidth,
+        containerRef.current.offsetHeight
+      );
+      if (containerSize > 0) {
+        setScale(containerSize / CANONICAL_SIZE);
+      }
     };
 
     const observer = new ResizeObserver(calculateScale);
