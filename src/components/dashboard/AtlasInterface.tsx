@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useCallback } from 'react';
-import { ScaledAtlasSphere } from '@/components/atlas/ScaledAtlasSphere';
+import { AtlasSphere } from '@/components/atlas';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 interface AtlasInterfaceProps {
@@ -43,9 +43,10 @@ const AtlasInterfaceComponent = ({
         className={`relative flex-shrink-0 w-[140px] h-[140px] z-10 ${canActivate ? 'cursor-pointer' : ''}`}
         onClick={handleClick}
       >
-        <ScaledAtlasSphere 
+        <AtlasSphere 
           state={state}
           audioLevel={audioLevel}
+          context="dashboard"
           className="w-full h-full"
         />
       </div>

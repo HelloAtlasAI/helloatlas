@@ -1,50 +1,118 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { AtlasCore } from '@/components/atlas';
+import { AtlasCore } from './AtlasCore';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 import { useAtlasSettingsReadOnly } from '@/hooks/useAtlasSettings';
 import { cn } from '@/lib/utils';
 
 // Canonical render size - the WebGL canvas renders at this size and we scale it via CSS.
-// This avoids WebGL sizing issues when parent containers animate using CSS transforms
-// (e.g., Framer Motion scale animations).
 const CANONICAL_SIZE = 520;
 
-export interface ScaledAtlasSphereProps {
+/**
+ * Context presets for different usage scenarios.
+ * Each preset configures camera distance and other optimizations for its context.
+ */
+export type AtlasSphereContext = 'dashboard' | 'core' | 'teach' | 'demo' | 'legacy';
+
+interface ContextPreset {
+  /** Camera Z distance - larger = more headroom for bloom */
+  cameraZ: number;
+  /** Whether to force morphProgress to 1.0 */
+  forceMorph: boolean;
+  /** Description for debugging */
+  description: string;
+}
+
+const CONTEXT_PRESETS: Record<AtlasSphereContext, ContextPreset> = {
+  dashboard: {
+    cameraZ: 10.0, // Far back for 140px container - prevents bloom clipping
+    forceMorph: true,
+    description: 'Dashboard AI card (140px)',
+  },
+  core: {
+    cameraZ: 9.0, // Medium distance for 200px container
+    forceMorph: false,
+    description: 'Atlas Core health dashboard (200px)',
+  },
+  teach: {
+    cameraZ: 7.5, // Standard distance for 400px container
+    forceMorph: false,
+    description: 'Atlas Teach page (400px)',
+  },
+  demo: {
+    cameraZ: 7.5, // Standard distance, may vary by size
+    forceMorph: false,
+    description: 'Atlas Demo page (variable sizes)',
+  },
+  legacy: {
+    cameraZ: 7.5, // Standard distance for legacy fullscreen
+    forceMorph: false,
+    description: 'Legacy Index page (60vmin)',
+  },
+};
+
+export interface AtlasSphereProps {
+  /** AI state */
   state: WakeWordState;
+  /** Audio level 0-1 */
   audioLevel: number;
+  /** Context preset - determines camera distance and optimizations */
+  context?: AtlasSphereContext;
+  /** Override morph progress (0-1) */
   overrideMorphProgress?: number;
+  /** Override state for demo purposes */
   overrideState?: WakeWordState;
+  /** Custom camera Z (overrides context preset) */
+  cameraZ?: number;
+  /** Additional CSS classes */
   className?: string;
 }
 
 /**
- * ScaledAtlasSphere
- * - Renders AtlasCore at a fixed, high-quality size (CANONICAL_SIZE)
- * - Scales it to fit the container using CSS `transform: scale()`
- *
- * Important: We center using flexbox (not translate(-50%, -50%)), because translate
- * percent values are based on the element's pre-transform size and can drift when scaled.
+ * AtlasSphere - Unified sphere component with context-aware presets.
+ * 
+ * Renders AtlasCore at a fixed CANONICAL_SIZE and scales via CSS transform
+ * to fit the container. This prevents WebGL resize issues during animations.
+ * 
+ * @example
+ * // Dashboard usage (140px container)
+ * <AtlasSphere state={state} audioLevel={level} context="dashboard" />
+ * 
+ * @example
+ * // Teach page (400px container)
+ * <AtlasSphere state={state} audioLevel={level} context="teach" />
+ * 
+ * @example
+ * // Demo with custom settings
+ * <AtlasSphere state={state} audioLevel={level} context="demo" overrideState="listening" />
  */
-const ScaledAtlasSphereComponent = ({
+const AtlasSphereComponent = ({
   state,
   audioLevel,
+  context = 'demo',
   overrideMorphProgress,
   overrideState,
+  cameraZ: customCameraZ,
   className,
-}: ScaledAtlasSphereProps) => {
+}: AtlasSphereProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
   // Read settings from localStorage (single source of truth)
   const settings = useAtlasSettingsReadOnly();
 
+  // Get context preset
+  const preset = CONTEXT_PRESETS[context];
+
   // Apply overrides
   const effectiveState = overrideState ?? state;
-  const effectiveMorphProgress = overrideMorphProgress ?? settings.morphProgress;
+  const effectiveMorphProgress = preset.forceMorph 
+    ? 1.0 
+    : (overrideMorphProgress ?? settings.morphProgress);
 
-  // For very small containers (e.g. 140px dashboard), move camera back to avoid
-  // bloom hitting canvas edges (which shows up as a visible square).
-  const cameraZ = scale < 0.3 ? 10.0 : scale < 0.4 ? 9.0 : 7.5;
+  // Camera Z: custom > scale-based > preset
+  // For very small containers, move camera further back to avoid bloom clipping
+  const scaledCameraZ = scale < 0.3 ? 10.0 : scale < 0.4 ? 9.0 : preset.cameraZ;
+  const finalCameraZ = customCameraZ ?? scaledCameraZ;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -82,7 +150,7 @@ const ScaledAtlasSphereComponent = ({
         <AtlasCore
           state={effectiveState}
           audioLevel={audioLevel}
-          cameraZ={cameraZ}
+          cameraZ={finalCameraZ}
           morphProgress={effectiveMorphProgress}
           enableTrails={settings.enableTrails}
           trailLength={settings.trailLength}
@@ -152,4 +220,4 @@ const ScaledAtlasSphereComponent = ({
   );
 };
 
-export const ScaledAtlasSphere = memo(ScaledAtlasSphereComponent);
+export const AtlasSphere = memo(AtlasSphereComponent);

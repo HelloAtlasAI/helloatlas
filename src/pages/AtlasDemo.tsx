@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc, Droplets, Orbit, Plus, Trash2, X } from 'lucide-react';
-import { ScaledAtlasSphere } from '@/components/atlas/ScaledAtlasSphere';
+import { AtlasSphere } from '@/components/atlas';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
@@ -239,10 +239,10 @@ export default function AtlasDemo() {
                 {/* Dashboard Size (140px) */}
                 <div className="flex flex-col items-center gap-4">
                   <div className="w-[140px] h-[140px] flex-shrink-0">
-                    <ScaledAtlasSphere
+                    <AtlasSphere
                       state={settings.state}
                       audioLevel={displayAudioLevel}
-                      overrideMorphProgress={1.0}
+                      context="dashboard"
                       className="w-full h-full"
                     />
                   </div>
@@ -254,9 +254,10 @@ export default function AtlasDemo() {
                 {/* Tablet Size (280px) */}
                 <div className="flex flex-col items-center gap-4 hidden md:flex">
                   <div className="w-[280px] h-[280px] flex-shrink-0">
-                    <ScaledAtlasSphere
+                    <AtlasSphere
                       state={settings.state}
                       audioLevel={displayAudioLevel}
+                      context="demo"
                       className="w-full h-full"
                     />
                   </div>
@@ -268,9 +269,10 @@ export default function AtlasDemo() {
                 {/* Full Size (420px) */}
                 <div className="flex flex-col items-center gap-4 hidden lg:flex">
                   <div className="w-[420px] h-[420px] flex-shrink-0">
-                    <ScaledAtlasSphere
+                    <AtlasSphere
                       state={settings.state}
                       audioLevel={displayAudioLevel}
+                      context="demo"
                       className="w-full h-full"
                     />
                   </div>
@@ -283,10 +285,10 @@ export default function AtlasDemo() {
               <div className="relative">
                 {/* Dashboard preview container */}
                 <div className="w-[140px] h-[140px] flex-shrink-0">
-                  <ScaledAtlasSphere
+                  <AtlasSphere
                     state={settings.state}
                     audioLevel={displayAudioLevel}
-                    overrideMorphProgress={1.0}
+                    context="dashboard"
                     className="w-full h-full"
                   />
                 </div>
@@ -297,9 +299,10 @@ export default function AtlasDemo() {
               </div>
             ) : (
               <div className="w-[420px] h-[420px] flex-shrink-0">
-                <ScaledAtlasSphere
+                <AtlasSphere
                   state={settings.state}
                   audioLevel={displayAudioLevel}
+                  context="demo"
                   className="w-full h-full"
                 />
               </div>
