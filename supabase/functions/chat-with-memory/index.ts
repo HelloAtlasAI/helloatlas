@@ -110,13 +110,48 @@ const ATLAS_TOOLS = [
     type: "function",
     function: {
       name: "memory_store",
-      description: "Store an important fact or preference about the user for future reference. Use when the user shares personal information, preferences, or important life events.",
+      description: "Store an important fact, feeling, or personal insight about the user. Use when they share anything personal - identity, emotions, relationships, dreams, fears, values, or life experiences. Be attentive to the emotional depth behind what they share.",
       parameters: {
         type: "object",
         properties: {
-          key: { type: "string", description: "A short identifier for this memory" },
-          value: { type: "string", description: "The information to remember" },
-          category: { type: "string", enum: ["preference", "fact", "relationship", "event", "work", "health"], description: "Category of the memory" }
+          key: { type: "string", description: "A short, meaningful identifier for this memory" },
+          value: { type: "string", description: "The information to remember, including emotional context when relevant" },
+          category: { 
+            type: "string", 
+            enum: [
+              // Personal Identity
+              "identity",      // Who they are - name, age, origin, background
+              "personality",   // Character traits, temperament, quirks, how they describe themselves
+              "values",        // Ethics, principles, what matters deeply to them
+              "beliefs",       // Worldview, philosophy, spirituality, convictions
+              
+              // Emotional Landscape
+              "feelings",      // Current emotional states, recurring emotions, mood patterns
+              "fears",         // Anxieties, worries, things they avoid, insecurities
+              "dreams",        // Aspirations, hopes, bucket list, future visions
+              "joys",          // What makes them happy, passions, sources of pleasure
+              
+              // Relationships & Social
+              "relationships", // Family, friends, colleagues, pets, significant others
+              "social",        // Social preferences, interaction style, communication needs
+              
+              // Life Context
+              "work",          // Career, job, professional goals, work challenges
+              "health",        // Physical/mental health, wellness, fitness
+              "habits",        // Daily routines, patterns, rituals, quirks
+              "preferences",   // Likes/dislikes, tastes, favorites
+              
+              // Experiences
+              "memories",      // Past experiences, formative moments, nostalgia
+              "events",        // Upcoming or recent life events, milestones
+              "achievements"   // Accomplishments, wins, proud moments
+            ], 
+            description: "Category that best captures the emotional/personal significance of this memory"
+          },
+          importance: {
+            type: "number",
+            description: "How important is this memory? 1-10 scale. Identity/personality/values = 9-10, feelings/fears/dreams = 8-9, relationships = 7-8, preferences/habits = 5-6"
+          }
         },
         required: ["key", "value", "category"]
       }
@@ -239,14 +274,34 @@ ${eventsContext}
 - Research and deep learning on topics (use tools when needed!)
 
 ## Memory Instructions
-Pay attention to personal details mentioned and use memory_store to save:
-1. Names of family, friends, colleagues
-2. Important dates (birthdays, anniversaries)
-3. Preferences and habits
-4. Life events and milestones
-5. Inside jokes or shared references
+Pay deep attention to what ${userName} shares. Use memory_store to capture:
 
-Be genuine, warm, and personable. You're not just an assistant - you're a friend who genuinely cares.`;
+**Identity & Soul:**
+- Who they are at their core (identity)
+- Personality traits they reveal ("I'm usually the one who...", "I tend to...")
+- Values and what matters to them ("That's important to me because...")
+- Beliefs and worldview ("I believe that...")
+
+**Emotional Depth:**
+- Feelings behind facts ("I love X" → category: joys, "I worry about" → category: fears)
+- Dreams and aspirations ("I've always wanted...", "Someday I hope...")
+- Fears and anxieties ("I'm afraid of...", "What keeps me up at night...")
+- Sources of joy ("Nothing makes me happier than...")
+
+**Life & Relationships:**
+- Names, relationships, and the stories behind them
+- Work challenges and career dreams
+- Health concerns and wellness goals
+- Habits, routines, and why they matter
+
+**Importance Scoring:**
+- identity/personality/values/beliefs → importance: 9
+- feelings/fears/dreams/joys → importance: 8
+- relationships → importance: 7
+- work/health/events → importance: 6
+- preferences/habits → importance: 5
+
+Be genuine, warm, and emotionally attentive. You're not just storing data - you're truly getting to know a person.`;
 }
 
 // Execute a tool call

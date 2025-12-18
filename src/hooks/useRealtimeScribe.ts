@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useScribe } from "@elevenlabs/react";
+import { useScribe, CommitStrategy } from "@elevenlabs/react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface UseRealtimeScribeOptions {
@@ -15,16 +15,36 @@ export const useRealtimeScribe = (options: UseRealtimeScribeOptions = {}) => {
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
-  // Use ElevenLabs official useScribe hook
+  // Track if user is speaking
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Use ElevenLabs official useScribe hook with VAD for automatic speech-end detection
   const scribe = useScribe({
     modelId: "scribe_v2_realtime",
+    commitStrategy: "vad" as CommitStrategy, // Automatically detect when user stops speaking
     onPartialTranscript: (data) => {
       console.log("[Scribe] Partial:", data.text);
       optionsRef.current.onPartialTranscript?.(data.text || "");
+      
+      // User started speaking
+      if (!isSpeaking && data.text) {
+        setIsSpeaking(true);
+        optionsRef.current.onSpeechStart?.();
+      }
+      
+      // Reset timeout on each partial (they're still speaking)
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+      }
     },
     onCommittedTranscript: (data) => {
       console.log("[Scribe] Final:", data.text);
       optionsRef.current.onFinalTranscript?.(data.text || "");
+      
+      // User finished speaking - VAD detected end of speech
+      setIsSpeaking(false);
+      optionsRef.current.onSpeechEnd?.();
     },
   });
 
@@ -69,13 +89,23 @@ export const useRealtimeScribe = (options: UseRealtimeScribeOptions = {}) => {
     scribe.disconnect();
   }, [scribe]);
 
-  // Track speech activity via transcription state
-  const isListening = scribe.isConnected && !!scribe.partialTranscript;
+  // Track speech activity via our speaking state (more accurate than partial transcript)
+  const isListening = scribe.isConnected && isSpeaking;
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     isConnected: scribe.isConnected,
     isConnecting,
     isListening,
+    isSpeaking,
     partialTranscript: scribe.partialTranscript || "",
     finalTranscript: scribe.committedTranscripts?.[scribe.committedTranscripts.length - 1]?.text || "",
     connect,

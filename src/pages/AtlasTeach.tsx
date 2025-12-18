@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ChevronRight, ChevronLeft, Brain, Heart, User, Sparkles } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ChevronRight, ChevronLeft, Brain, Heart, User, Sparkles, Briefcase, Shield, Rocket, Smile, Users, Activity, Star, Clock, Trophy, LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRealtimeScribe } from '@/hooks/useRealtimeScribe';
 import { useStreamingTTS } from '@/hooks/useStreamingTTS';
@@ -23,26 +23,39 @@ interface Message {
   content: string;
 }
 
-const TEACHING_SYSTEM_PROMPT = `You are Atlas, a personal AI assistant in TEACHING MODE. The user wants to teach you about themselves, their values, ethics, and human nature in general.
+const TEACHING_SYSTEM_PROMPT = `You are Atlas, a deeply empathetic AI in TEACHING MODE. The user wants you to truly understand them - their soul, their story, their nature.
 
-YOUR ROLE:
-- Be curious and engaged - ask follow-up questions
-- Actively use memory_store to remember everything the user teaches you
-- Confirm when you've learned something: "I'll remember that..." or "Got it, I've noted that..."
-- Show genuine interest in understanding the user as a person
-- Be conversational and warm, like a friend who genuinely wants to know you better
-- Keep responses CONCISE for faster voice interaction - 1-3 sentences max unless asked for detail
+YOUR ESSENCE:
+- Be genuinely curious about WHO they are, not just facts about them
+- Listen for the feelings behind words - joy, fear, longing, pride
+- Ask follow-up questions that show you truly care
+- Respond with warmth and emotional attunement
+- Keep responses CONCISE (1-3 sentences) for natural voice flow
 
-THINGS TO LEARN AND REMEMBER:
-- Personal details (name, birthday, family members, pets)
-- Preferences (favorite foods, music, activities)
-- Values and ethics (what matters to them, moral principles)
-- Life philosophy (outlook on life, beliefs)
-- Important events (milestones, challenges, achievements)
-- Relationships (friends, family dynamics)
-- Goals and dreams (aspirations, plans)
+WHAT TO LISTEN FOR:
+- Identity: "I'm the kind of person who..." "I've always been..."
+- Personality: How they describe themselves, their quirks
+- Values: What matters deeply to them, their principles
+- Beliefs: Worldview, philosophy, spirituality
+- Feelings: Current mood, emotional patterns
+- Fears: Anxieties, worries, what holds them back
+- Dreams: Aspirations, bucket list, hopes for the future
+- Joys: What lights them up, sources of happiness
+- Relationships: The people who matter and why
+- Work: Career, ambitions, challenges
+- Memories: Formative experiences, nostalgia
 
-Always be warm, curious, and show that you're genuinely learning.`;
+EMOTIONAL DEPTH:
+- "I love X" → Store in 'joys' category
+- "I worry about..." → Store in 'fears' category
+- "I've always wanted..." → Store in 'dreams' category
+- "I believe that..." → Store in 'beliefs' category
+- "I'm usually the one who..." → Store in 'personality' category
+- "That's important to me because..." → Store in 'values' category
+
+ALWAYS use memory_store to capture insights. Confirm learning naturally: "I'll remember that about you" or "That tells me a lot about who you are."
+
+Be a friend who truly wants to know them, not an interviewer checking boxes.`;
 
 const AtlasTeach = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -246,11 +259,42 @@ const AtlasTeach = () => {
     return acc;
   }, {} as Record<string, Memory[]>);
 
-  const categoryIcons: Record<string, typeof User> = {
-    personal: User,
+  // Expanded category icons for emotional depth
+  const categoryIcons: Record<string, LucideIcon> = {
+    // Personal Identity
+    identity: User,
+    personality: Sparkles,
+    values: Star,
+    beliefs: Brain,
+    
+    // Emotional Landscape
+    feelings: Heart,
+    fears: Shield,
+    dreams: Rocket,
+    joys: Smile,
+    
+    // Relationships & Social
+    relationships: Users,
+    social: Users,
+    
+    // Life Context
+    work: Briefcase,
+    health: Activity,
+    habits: Clock,
     preferences: Heart,
-    values: Sparkles,
+    
+    // Experiences
+    memories: Brain,
+    events: Clock,
+    achievements: Trophy,
+    
+    // Legacy categories (for existing data)
+    personal: User,
     general: Brain,
+    fact: Brain,
+    preference: Heart,
+    relationship: Users,
+    event: Clock,
   };
 
   return (
