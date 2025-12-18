@@ -25,7 +25,7 @@ export interface AtlasSphereConfig {
 }
 
 export const defaultSphereConfig: AtlasSphereConfig = {
-  pointSizePx: 3.5,
+  pointSizePx: 2.5,
   pointSoftness: 0.65,
   
   particleMode: 'density',
