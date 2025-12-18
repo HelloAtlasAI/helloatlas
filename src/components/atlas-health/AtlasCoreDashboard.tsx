@@ -104,13 +104,6 @@ const AtlasCoreDashboard = () => {
                 audioLevel={0.1}
                 className="w-full h-full"
               />
-              {/* Glow ring */}
-              <div 
-                className="absolute inset-0 rounded-full pointer-events-none"
-                style={{
-                  background: 'radial-gradient(circle at center, transparent 40%, hsl(var(--primary) / 0.1) 60%, transparent 70%)',
-                }}
-              />
             </motion.div>
 
             {/* Stats Cards */}
