@@ -396,66 +396,47 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Fetch user profile
-    let profile: UserProfile | null = null;
-    if (userId) {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("first_name, nickname, birthday, timezone, communication_style")
-        .eq("user_id", userId)
-        .single();
-      profile = profileData;
-    }
+    // Parallelize all database queries for faster response
+    const [profileResult, memoriesResult, knowledgeResult, upcomingResult, recentResult] = await Promise.all([
+      // Fetch user profile
+      userId 
+        ? supabase.from("profiles").select("first_name, nickname, birthday, timezone, communication_style").eq("user_id", userId).single()
+        : Promise.resolve({ data: null }),
+      
+      // Fetch memories (limit to most important)
+      userId
+        ? supabase.from("ai_memory").select("key, value, category, importance").eq("user_id", userId).order("importance", { ascending: false }).limit(10)
+        : Promise.resolve({ data: [] }),
+      
+      // Fetch knowledge bank (limit for speed)
+      userId
+        ? supabase.from("atlas_knowledge_entries").select("topic, content, category").eq("user_id", userId).order("relevance_score", { ascending: false }).limit(15)
+        : Promise.resolve({ data: [] }),
+      
+      // Fetch upcoming life events
+      userId
+        ? (() => {
+            const today = new Date().toISOString().split("T")[0];
+            const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+            return supabase.from("user_life_events").select("event_type, event_date, description, sentiment").eq("user_id", userId).gte("event_date", today).lte("event_date", weekFromNow);
+          })()
+        : Promise.resolve({ data: [] }),
+      
+      // Fetch recent events to follow up on
+      userId
+        ? (() => {
+            const today = new Date().toISOString().split("T")[0];
+            const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+            return supabase.from("user_life_events").select("event_type, event_date, description, sentiment").eq("user_id", userId).eq("should_follow_up", true).gte("event_date", twoWeeksAgo).lt("event_date", today);
+          })()
+        : Promise.resolve({ data: [] }),
+    ]);
 
-    // Fetch memories
-    let memories: Memory[] = [];
-    if (userId) {
-      const { data: memoryData } = await supabase
-        .from("ai_memory")
-        .select("key, value, category, importance")
-        .eq("user_id", userId)
-        .order("importance", { ascending: false })
-        .limit(20);
-      memories = memoryData || [];
-    }
-
-    // Fetch knowledge bank entries
-    let knowledgeBank: KnowledgeEntry[] = [];
-    if (userId) {
-      const { data: knowledgeData } = await supabase
-        .from("atlas_knowledge_entries")
-        .select("topic, content, category")
-        .eq("user_id", userId)
-        .order("relevance_score", { ascending: false })
-        .limit(30);
-      knowledgeBank = (knowledgeData || []) as KnowledgeEntry[];
-    }
-
-    // Fetch life events
-    let upcomingEvents: LifeEvent[] = [];
-    let recentEvents: LifeEvent[] = [];
-    if (userId) {
-      const today = new Date().toISOString().split("T")[0];
-      const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-      const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-
-      const { data: upcomingData } = await supabase
-        .from("user_life_events")
-        .select("event_type, event_date, description, sentiment")
-        .eq("user_id", userId)
-        .gte("event_date", today)
-        .lte("event_date", weekFromNow);
-      upcomingEvents = upcomingData || [];
-
-      const { data: recentData } = await supabase
-        .from("user_life_events")
-        .select("event_type, event_date, description, sentiment")
-        .eq("user_id", userId)
-        .eq("should_follow_up", true)
-        .gte("event_date", twoWeeksAgo)
-        .lt("event_date", today);
-      recentEvents = recentData || [];
-    }
+    const profile: UserProfile | null = profileResult.data;
+    const memories: Memory[] = memoriesResult.data || [];
+    const knowledgeBank: KnowledgeEntry[] = (knowledgeResult.data || []) as KnowledgeEntry[];
+    const upcomingEvents: LifeEvent[] = upcomingResult.data || [];
+    const recentEvents: LifeEvent[] = recentResult.data || [];
 
     console.log("[chat-with-memory] Processing chat for user:", userId);
     console.log("[chat-with-memory] Profile:", profile?.first_name);

@@ -262,7 +262,7 @@ const Dashboard = () => {
       
       if (transcribedText && transcribedText.trim()) {
         setLastUserMessage(transcribedText);
-        setIsConversationOpen(true);
+        // Don't auto-open conversation drawer - let user manually trigger it
         
         console.log('[Dashboard] Sending message to chat...');
         const response = await sendMessage(transcribedText);
