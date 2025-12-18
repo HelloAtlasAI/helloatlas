@@ -274,30 +274,10 @@ const AtlasTeach = () => {
     }
   }, [isListening, isProcessing, isPlaying, listeningMode]);
 
-  // Auto-connect Scribe on mount for always-on listening
+  // Log ready state - user taps mic to start (avoids 403 errors on auto-connect)
   useEffect(() => {
-    let mounted = true;
-    
-    const autoConnect = async () => {
-      // Small delay to ensure component is ready
-      await new Promise(r => setTimeout(r, 500));
-      if (!mounted) return;
-      
-      console.log('[Teach] Auto-connecting Scribe for wake word detection...');
-      const success = await connect();
-      if (success) {
-        console.log('[Teach] Scribe connected - listening for "Atlas"');
-      } else {
-        console.log('[Teach] Scribe auto-connect failed - user can tap mic');
-      }
-    };
-    
-    autoConnect();
-    
-    return () => {
-      mounted = false;
-    };
-  }, [connect]);
+    console.log('[Teach] Ready - tap mic to enable voice recognition');
+  }, []);
 
   // Fetch existing memories and subscribe to changes
   useEffect(() => {
