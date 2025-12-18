@@ -6,7 +6,7 @@ import { useRealtimeScribe } from '@/hooks/useRealtimeScribe';
 import { useStreamingTTS } from '@/hooks/useStreamingTTS';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { UnifiedAtlasSphere } from '@/components/atlas/UnifiedAtlasSphere';
+import { ScaledAtlasSphere } from '@/components/atlas/ScaledAtlasSphere';
 
 interface Memory {
   id: string;
@@ -304,12 +304,11 @@ const AtlasTeach = () => {
           </motion.div>
         )}
 
-        {/* Atlas Sphere */}
+        {/* Atlas Sphere - CSS scaled */}
         <div className="relative w-[400px] h-[400px] mb-8">
-          <UnifiedAtlasSphere
+          <ScaledAtlasSphere
             state="listening"
             audioLevel={isPlaying ? audioLevel : (isListening ? 0.3 : 0)}
-            responsive={false}
             overrideMorphProgress={
               atlasState === 'listening' ? 0.3 :
               atlasState === 'thinking' ? 0.5 :

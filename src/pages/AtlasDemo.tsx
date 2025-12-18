@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc, Droplets, Orbit, Plus, Trash2, X } from 'lucide-react';
-import { UnifiedAtlasSphere } from '@/components/atlas/UnifiedAtlasSphere';
+import { ScaledAtlasSphere } from '@/components/atlas/ScaledAtlasSphere';
 import { WakeWordState } from '@/hooks/useWakeWord';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
@@ -238,26 +238,13 @@ export default function AtlasDemo() {
               <div className="flex items-center gap-8 lg:gap-16">
                 {/* Dashboard Size (140px) */}
                 <div className="flex flex-col items-center gap-4">
-                  <div className="w-[140px] h-[140px] flex-shrink-0 relative">
-                    <div 
-                      className="absolute"
-                      style={{
-                        width: '200%',
-                        height: '200%',
-                        left: '-50%',
-                        top: '-50%',
-                        maskImage: 'radial-gradient(ellipse 60% 60% at center, black 30%, transparent 70%)',
-                        WebkitMaskImage: 'radial-gradient(ellipse 60% 60% at center, black 30%, transparent 70%)',
-                      }}
-                    >
-                      <UnifiedAtlasSphere
-                        state={settings.state}
-                        audioLevel={displayAudioLevel}
-                        overrideMorphProgress={1.0}
-                        responsive={true}
-                        className="w-full h-full"
-                      />
-                    </div>
+                  <div className="w-[140px] h-[140px] flex-shrink-0">
+                    <ScaledAtlasSphere
+                      state={settings.state}
+                      audioLevel={displayAudioLevel}
+                      overrideMorphProgress={1.0}
+                      className="w-full h-full"
+                    />
                   </div>
                   <div className="px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40">
                     <span className="text-xs text-emerald-300 font-medium">Dashboard (140px)</span>
@@ -267,10 +254,9 @@ export default function AtlasDemo() {
                 {/* Tablet Size (280px) */}
                 <div className="flex flex-col items-center gap-4 hidden md:flex">
                   <div className="w-[280px] h-[280px] flex-shrink-0">
-                    <UnifiedAtlasSphere
+                    <ScaledAtlasSphere
                       state={settings.state}
                       audioLevel={displayAudioLevel}
-                      responsive={true}
                       className="w-full h-full"
                     />
                   </div>
@@ -282,10 +268,9 @@ export default function AtlasDemo() {
                 {/* Full Size (420px) */}
                 <div className="flex flex-col items-center gap-4 hidden lg:flex">
                   <div className="w-[420px] h-[420px] flex-shrink-0">
-                    <UnifiedAtlasSphere
+                    <ScaledAtlasSphere
                       state={settings.state}
                       audioLevel={displayAudioLevel}
-                      responsive={false}
                       className="w-full h-full"
                     />
                   </div>
@@ -296,28 +281,14 @@ export default function AtlasDemo() {
               </div>
             ) : settings.dashboardPreview ? (
               <div className="relative">
-                {/* Dashboard preview container - exact match with AtlasInterface.tsx */}
-                <div className="w-[140px] h-[140px] flex-shrink-0 relative">
-                  {/* Extended canvas wrapper - 200% size, centered, for glow room - matches dashboard */}
-                  <div 
-                    className="absolute"
-                    style={{
-                      width: '200%',
-                      height: '200%',
-                      left: '-50%',
-                      top: '-50%',
-                      maskImage: 'radial-gradient(ellipse 60% 60% at center, black 30%, transparent 70%)',
-                      WebkitMaskImage: 'radial-gradient(ellipse 60% 60% at center, black 30%, transparent 70%)',
-                    }}
-                  >
-                    <UnifiedAtlasSphere
-                      state={settings.state}
-                      audioLevel={displayAudioLevel}
-                      overrideMorphProgress={1.0}
-                      responsive={true}
-                      className="w-full h-full"
-                    />
-                  </div>
+                {/* Dashboard preview container */}
+                <div className="w-[140px] h-[140px] flex-shrink-0">
+                  <ScaledAtlasSphere
+                    state={settings.state}
+                    audioLevel={displayAudioLevel}
+                    overrideMorphProgress={1.0}
+                    className="w-full h-full"
+                  />
                 </div>
                 {/* Dashboard preview indicator */}
                 <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40">
@@ -326,10 +297,9 @@ export default function AtlasDemo() {
               </div>
             ) : (
               <div className="w-[420px] h-[420px] flex-shrink-0">
-                <UnifiedAtlasSphere
+                <ScaledAtlasSphere
                   state={settings.state}
                   audioLevel={displayAudioLevel}
-                  responsive={false}
                   className="w-full h-full"
                 />
               </div>

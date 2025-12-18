@@ -37,7 +37,7 @@ import { useAtlasKnowledge } from '@/hooks/useAtlasKnowledge';
 import { useAtlasResearch } from '@/hooks/useAtlasResearch';
 import { useApprovals } from '@/hooks/useApprovals';
 import { useAtlasNotifications } from '@/hooks/useAtlasNotifications';
-import { UnifiedAtlasSphere } from '@/components/atlas/UnifiedAtlasSphere';
+import { ScaledAtlasSphere } from '@/components/atlas/ScaledAtlasSphere';
 
 const AtlasCoreDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -98,10 +98,9 @@ const AtlasCoreDashboard = () => {
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
             >
-              <UnifiedAtlasSphere
+              <ScaledAtlasSphere
                 state={stats?.healthScore && stats.healthScore > 90 ? 'passive' : stats?.healthScore && stats.healthScore > 70 ? 'thinking' : 'activated'}
                 audioLevel={0.1}
-                responsive={false}
                 className="w-full h-full"
               />
               {/* Glow ring */}
