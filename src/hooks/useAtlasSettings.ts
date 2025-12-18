@@ -111,7 +111,7 @@ export interface AtlasSettings {
 
 // Default settings - optimized for performance
 export const defaultAtlasSettings: AtlasSettings = {
-  visualizationMode: 'classic',
+  visualizationMode: 'nebulaFlow',
   dashboardPreview: false,
   comparisonView: false,
   state: 'dormant',
