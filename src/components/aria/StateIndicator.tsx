@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { AIState } from "./AIOrb";
 import { cn } from "@/lib/utils";
+import type { AIState } from "@/types";
 
 interface StateIndicatorProps {
   state: AIState;

@@ -1,12 +1,12 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useVoice } from '@/hooks/useVoice';
-import { useWakeWordFixed as useWakeWord, WakeWordState } from '@/hooks/useWakeWordFixed';
-import { useChatWithMemory } from '@/hooks/useChatWithMemory';
-import { useCardPriority, CardId } from '@/hooks/useCardPriority';
+import { useWakeWordFixed as useWakeWord } from '@/hooks/useWakeWordFixed';
+import { useUnifiedChat } from '@/hooks/useUnifiedChat';
+import { useCardPriority } from '@/hooks/useCardPriority';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { AtlasInterface } from '@/components/dashboard/AtlasInterface';
 import { MiniAICard } from '@/components/dashboard/MiniAICard';
@@ -43,8 +43,7 @@ import {
   DocumentsAtmosphere,
   TravelAtmosphere,
 } from '@/components/dashboard/effects/CardAtmospheres';
-
-type AIState = 'idle' | 'listening' | 'thinking' | 'speaking';
+import type { WakeWordState, AIState } from '@/types';
 
 // Card animation variants
 const cardVariants = {
@@ -168,7 +167,8 @@ const Dashboard = () => {
     setFocusedCards(cardIds || []);
   }, []);
 
-  const { messages, aiState, setAiState, isLoading, sendMessage, clearMessages } = useChatWithMemory({
+  const { messages, aiState, setAiState, isLoading, sendMessage, clearMessages } = useUnifiedChat({
+    enableMemory: true,
     onCardFocus: handleCardFocus,
   });
 
