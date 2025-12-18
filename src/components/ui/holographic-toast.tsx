@@ -71,9 +71,10 @@ export const HolographicToast = React.forwardRef<
   HTMLDivElement,
   HolographicToastProps
 >(({ id, title, description, action, onDismiss, variant = "default", duration = 5000 }, ref) => {
-  const Icon = iconMap[variant || "default"];
-  const glowColor = glowColorMap[variant || "default"];
-  const iconBg = iconBgMap[variant || "default"];
+  const safeVariant = (variant && variant in iconMap) ? variant : "default";
+  const Icon = iconMap[safeVariant] || iconMap.default;
+  const glowColor = glowColorMap[safeVariant] || glowColorMap.default;
+  const iconBg = iconBgMap[safeVariant] || iconBgMap.default;
   
   const [progress, setProgress] = React.useState(100);
   
