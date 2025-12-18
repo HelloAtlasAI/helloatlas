@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback, useMemo } from 'react';
+import { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 const STORAGE_KEY = 'atlas-demo-settings';
@@ -323,5 +323,6 @@ export function useAtlasSettings(): UseAtlasSettingsReturn {
 
 // Read-only hook for components that just need to display the sphere
 export function useAtlasSettingsReadOnly(): AtlasSettings {
-  return useMemo(() => loadSettings(), []);
+  const [settings] = useState<AtlasSettings>(() => loadSettings());
+  return settings;
 }

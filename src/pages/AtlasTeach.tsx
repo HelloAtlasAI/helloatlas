@@ -7,6 +7,7 @@ import { useStreamingTTS } from '@/hooks/useStreamingTTS';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ScaledAtlasSphere } from '@/components/atlas/ScaledAtlasSphere';
+import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 interface Memory {
   id: string;
@@ -48,7 +49,7 @@ const AtlasTeach = () => {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [atlasState, setAtlasState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
+  const [atlasState, setAtlasState] = useState<WakeWordState>('dormant');
   const [isMuted, setIsMuted] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -57,10 +58,10 @@ const AtlasTeach = () => {
   // Streaming TTS
   const { isPlaying, audioLevel, speak, stopPlayback } = useStreamingTTS({
     onPlaybackStart: () => setAtlasState('speaking'),
-    onPlaybackEnd: () => setAtlasState('idle'),
+    onPlaybackEnd: () => setAtlasState('dormant'),
     onError: (error) => {
       console.error('TTS error:', error);
-      setAtlasState('idle');
+      setAtlasState('dormant');
     },
   });
 
@@ -103,7 +104,7 @@ const AtlasTeach = () => {
       if (!isMuted && responseText) {
         await speak(responseText);
       } else {
-        setAtlasState('idle');
+        setAtlasState('dormant');
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -113,7 +114,7 @@ const AtlasTeach = () => {
         variant: 'destructive',
       });
       setIsProcessing(false);
-      setAtlasState('idle');
+      setAtlasState('dormant');
     }
   }, [messages, isMuted, speak, toast]);
 
@@ -164,7 +165,7 @@ const AtlasTeach = () => {
     } else if (isPlaying) {
       setAtlasState('speaking');
     } else if (!isConnected) {
-      setAtlasState('idle');
+      setAtlasState('dormant');
     }
   }, [isListening, isProcessing, isPlaying, isConnected]);
 
@@ -280,7 +281,7 @@ const AtlasTeach = () => {
           >
             <p className="text-lg text-muted-foreground capitalize">
               {!isConnected && 'Tap to start'}
-              {isConnected && atlasState === 'idle' && 'Listening for speech...'}
+              {isConnected && atlasState === 'dormant' && 'Listening for speech...'}
               {atlasState === 'listening' && 'Hearing you...'}
               {atlasState === 'thinking' && 'Processing...'}
               {atlasState === 'speaking' && 'Speaking...'}
@@ -307,7 +308,7 @@ const AtlasTeach = () => {
         {/* Atlas Sphere - CSS scaled */}
         <div className="relative w-[400px] h-[400px] mb-8">
           <ScaledAtlasSphere
-            state="listening"
+            state={atlasState}
             audioLevel={isPlaying ? audioLevel : (isListening ? 0.3 : 0)}
             overrideMorphProgress={
               atlasState === 'listening' ? 0.3 :
