@@ -204,7 +204,7 @@ export const NebulaFlowSystem = memo(({
       // Pixel-stable rendering uniforms
       uPixelRatio: { value: pixelRatio },
       uResolution: { value: new THREE.Vector2(containerWidth, containerHeight) },
-      uPointSizePx: { value: 2.8 }, // Base point size in CSS pixels
+      uPointSizePx: { value: 3.5 }, // Base point size in CSS pixels
       // Solid Surface uniforms
       uSolidSurface: { value: solidSurface ? 1.0 : 0.0 },
       uSurfaceBlend: { value: surfaceBlend },
