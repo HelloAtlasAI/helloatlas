@@ -1,7 +1,7 @@
 import { memo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
-import { CleanSphere } from './CleanSphere';
+import { AtlasSphere } from '@/components/atlas';
 
 interface AIAssistantCardProps {
   state: 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -71,9 +71,10 @@ const AIAssistantCardComponent = ({
       <div className="relative z-10 p-4 h-full flex items-center gap-4">
         {/* Compact Sphere */}
         <div className="w-20 h-20 flex-shrink-0">
-          <CleanSphere
+          <AtlasSphere
             state={state}
             audioLevel={audioLevel}
+            context="mini"
             onClick={onClick}
             className="w-full h-full"
           />

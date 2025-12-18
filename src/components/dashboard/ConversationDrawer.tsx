@@ -4,13 +4,7 @@ import { X, Send, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Citation } from '@/components/aria/ConversationPanel';
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  citations?: Citation[];
-}
+import type { Message, Citation, AIState } from '@/types';
 
 interface ConversationDrawerProps {
   isOpen: boolean;

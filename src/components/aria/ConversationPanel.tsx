@@ -1,19 +1,8 @@
 import { cn } from "@/lib/utils";
 import { Bot, User, ExternalLink } from "lucide-react";
+import type { Message, Citation } from "@/types";
 
-export interface Citation {
-  url: string;
-  title?: string;
-  domain?: string;
-}
-
-export interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  citations?: Citation[];
-}
+export type { Message, Citation };
 
 interface ConversationPanelProps {
   messages: Message[];

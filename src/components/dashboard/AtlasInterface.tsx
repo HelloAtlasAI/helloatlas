@@ -1,6 +1,6 @@
 import { memo, useState, useEffect, useCallback } from 'react';
 import { AtlasSphere } from '@/components/atlas';
-import { WakeWordState } from '@/hooks/useWakeWordFixed';
+import type { WakeWordState } from '@/types';
 
 interface AtlasInterfaceProps {
   state: WakeWordState;

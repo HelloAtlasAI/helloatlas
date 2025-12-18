@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import type { WakeWordState } from '@/types';
 
-export type WakeWordState = 'dormant' | 'passive' | 'activated' | 'listening' | 'thinking' | 'speaking';
+export type { WakeWordState };
 
 interface UseWakeWordOptions {
   keyword?: string;

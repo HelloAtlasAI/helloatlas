@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import type { AIState } from "@/types";
 
-export type AIState = "idle" | "listening" | "thinking" | "speaking";
+export type { AIState };
 
 interface AIOrbProps {
   state: AIState;

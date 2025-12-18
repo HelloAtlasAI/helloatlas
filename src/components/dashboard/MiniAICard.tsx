@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
-import { CleanSphere } from './CleanSphere';
+import { AtlasSphere } from '@/components/atlas';
 
 interface MiniAICardProps {
   state: 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -42,9 +42,10 @@ const MiniAICardComponent = ({
         
         {/* Mini Sphere */}
         <div className="w-12 h-12 relative z-10">
-          <CleanSphere
+          <AtlasSphere
             state={state}
             audioLevel={audioLevel}
+            context="mini"
             className="w-full h-full"
           />
         </div>

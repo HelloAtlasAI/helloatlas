@@ -1,8 +1,8 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { AtlasCore } from './AtlasCore';
-import { WakeWordState } from '@/hooks/useWakeWordFixed';
 import { useAtlasSettingsReadOnly } from '@/hooks/useAtlasSettings';
 import { cn } from '@/lib/utils';
+import type { WakeWordState, AIState } from '@/types';
 
 // Canonical render size - the WebGL canvas renders at this size and we scale it via CSS.
 const CANONICAL_SIZE = 520;
@@ -11,7 +11,7 @@ const CANONICAL_SIZE = 520;
  * Context presets for different usage scenarios.
  * Each preset configures camera distance and other optimizations for its context.
  */
-export type AtlasSphereContext = 'dashboard' | 'core' | 'teach' | 'demo' | 'legacy';
+export type AtlasSphereContext = 'dashboard' | 'core' | 'teach' | 'demo' | 'legacy' | 'mini';
 
 interface ContextPreset {
   /** Camera Z distance - larger = more headroom for bloom */
@@ -48,11 +48,27 @@ const CONTEXT_PRESETS: Record<AtlasSphereContext, ContextPreset> = {
     forceMorph: false,
     description: 'Legacy Index page (60vmin)',
   },
+  mini: {
+    cameraZ: 12.0, // Very far back for tiny containers (48-80px)
+    forceMorph: true,
+    description: 'Mini AI card (48-80px)',
+  },
+};
+
+// Helper to convert AIState to WakeWordState
+const aiStateToWakeWord = (state: AIState): WakeWordState => {
+  const stateMap: Record<AIState, WakeWordState> = {
+    'idle': 'passive',
+    'listening': 'listening',
+    'thinking': 'thinking',
+    'speaking': 'speaking',
+  };
+  return stateMap[state] || 'passive';
 };
 
 export interface AtlasSphereProps {
-  /** AI state */
-  state: WakeWordState;
+  /** AI state - accepts both WakeWordState and AIState */
+  state: WakeWordState | AIState;
   /** Audio level 0-1 */
   audioLevel: number;
   /** Context preset - determines camera distance and optimizations */
@@ -63,6 +79,8 @@ export interface AtlasSphereProps {
   overrideState?: WakeWordState;
   /** Custom camera Z (overrides context preset) */
   cameraZ?: number;
+  /** Click handler */
+  onClick?: () => void;
   /** Additional CSS classes */
   className?: string;
 }
@@ -92,6 +110,7 @@ const AtlasSphereComponent = ({
   overrideMorphProgress,
   overrideState,
   cameraZ: customCameraZ,
+  onClick,
   className,
 }: AtlasSphereProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -103,8 +122,13 @@ const AtlasSphereComponent = ({
   // Get context preset
   const preset = CONTEXT_PRESETS[context];
 
+  // Normalize state to WakeWordState
+  const normalizedState: WakeWordState = ['idle', 'listening', 'thinking', 'speaking'].includes(state)
+    ? aiStateToWakeWord(state as AIState)
+    : state as WakeWordState;
+
   // Apply overrides
-  const effectiveState = overrideState ?? state;
+  const effectiveState = overrideState ?? normalizedState;
   const effectiveMorphProgress = preset.forceMorph 
     ? 1.0 
     : (overrideMorphProgress ?? settings.morphProgress);
@@ -136,7 +160,8 @@ const AtlasSphereComponent = ({
   return (
     <div
       ref={containerRef}
-      className={cn('relative w-full h-full flex items-center justify-center', className)}
+      className={cn('relative w-full h-full flex items-center justify-center cursor-pointer', className)}
+      onClick={onClick}
     >
       <div
         style={{

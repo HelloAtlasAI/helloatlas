@@ -5,13 +5,13 @@ import { StateIndicator } from "@/components/aria/StateIndicator";
 import { ChatInput } from "@/components/aria/ChatInput";
 import { ConversationPanel } from "@/components/aria/ConversationPanel";
 import { AtlasSphere } from '@/components/atlas';
-import { useChat } from "@/hooks/useChat";
+import { useUnifiedChat } from "@/hooks/useUnifiedChat";
 import { useVoice } from "@/hooks/useVoice";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Loader2, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { WakeWordState } from "@/hooks/useWakeWord";
+import type { WakeWordState } from "@/types";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -35,7 +35,8 @@ const Index = () => {
     }
   }, [voiceEnabled, speakText]);
 
-  const { messages, aiState, setAiState, isLoading, sendMessage } = useChat({
+  const { messages, aiState, setAiState, isLoading, sendMessage } = useUnifiedChat({
+    enableMemory: false,
     onSpeakResponse: handleSpeakResponse,
   });
 
