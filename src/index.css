@@ -58,6 +58,15 @@
     --gradient-mid: 260 80% 55%;
     --gradient-end: 280 70% 50%;
 
+    /* Toast notification colors */
+    --toast-success: 142 76% 36%;
+    --toast-error: 0 84% 60%;
+    --toast-warning: 38 92% 50%;
+    --toast-info: 217 91% 60%;
+    --toast-knowledge: 280 80% 60%;
+    --toast-research: 195 100% 50%;
+    --toast-learning: 48 96% 53%;
+
     --sidebar-background: 230 25% 8%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 195 100% 50%;

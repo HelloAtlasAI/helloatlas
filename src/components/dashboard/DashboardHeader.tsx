@@ -23,7 +23,7 @@ export const DashboardHeader = ({
       className="relative z-50"
     >
       {/* Glass container */}
-      <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden">
+      <div className="relative mx-4 mt-4 rounded-2xl overflow-visible">
         {/* Background with blur */}
         <div className="absolute inset-0 bg-card/40 backdrop-blur-xl" />
         
