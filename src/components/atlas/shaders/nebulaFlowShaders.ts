@@ -106,10 +106,14 @@ uniform float uSolidSurface;
 uniform float uCoherence;
 uniform float uSurfaceBlend;
 uniform float uUniformSize;
-// New uniforms for state behaviors
-uniform float uCoreRetraction;    // 0-0.5, pulls particles toward center
-uniform float uAudioReactive;     // 1.0 when audio drives breathing
-uniform float uAudioBreathing;    // Audio-modulated breathing intensity
+// Pixel-stable rendering uniforms
+uniform float uPixelRatio;
+uniform vec2 uResolution;
+uniform float uPointSizePx;
+// State behavior uniforms
+uniform float uCoreRetraction;
+uniform float uAudioReactive;
+uniform float uAudioBreathing;
 
 varying float vIntensity;
 varying float vFlowPosition;
@@ -126,87 +130,76 @@ void main() {
   vec3 normal = normalize(spherePos);
   
   // Core retraction - particles pull toward center during thinking state
-  float retractionAmount = uCoreRetraction * 0.4; // Max 40% pull-in
+  float retractionAmount = uCoreRetraction * 0.4;
   float baseRadius = length(spherePos) * (1.0 - retractionAmount);
   
-  // In solid surface mode, all particles breathe together uniformly
+  // Breathing phase
   float breathePhase = uSolidSurface > 0.5 
-    ? uTime * uBreathingSpeed  // Uniform breathing for solid surface
-    : uTime * uBreathingSpeed + randomSeed * 6.28;  // Per-particle variation
+    ? uTime * uBreathingSpeed
+    : uTime * uBreathingSpeed + randomSeed * 6.28;
   
-  // Audio-reactive breathing during speaking state
+  // Audio-reactive breathing
   float effectiveBreathingAmount = uAudioReactive > 0.5 
-    ? uAudioLevel * uAudioBreathing * 2.5  // Audio drives breathing amplitude
-    : uBreathingAmount;                     // Normal breathing
+    ? uAudioLevel * uAudioBreathing * 2.5
+    : uBreathingAmount;
     
   float breathe = sin(breathePhase) * effectiveBreathingAmount;
   float radiusMultiplier = 1.0 + breathe;
   
-  // Direct audio pulse for speaking - immediate response
-  float audioDirectPulse = uAudioReactive > 0.5 
-    ? uAudioLevel * 0.1   // Immediate audio response
-    : 0.0;
+  // Direct audio pulse for speaking
+  float audioDirectPulse = uAudioReactive > 0.5 ? uAudioLevel * 0.1 : 0.0;
   radiusMultiplier += audioDirectPulse;
   
-  // Mix between coherent and per-particle noise based on coherence setting
-  // Use slower time for smoother animation
+  // Mix between coherent and per-particle noise
   float slowNoiseTime = uTime * 0.15;
   float coherentNoise = snoise(normal * 1.5 + slowNoiseTime);
   float particleNoise = snoise(normal * 1.5 + slowNoiseTime + randomSeed * 10.0);
   float radiusNoise = mix(particleNoise, coherentNoise, uCoherence) * uRadiusNoise;
   radiusMultiplier += radiusNoise;
   
-  // Apply radius modifications with core retraction
+  // Apply radius modifications
   pos = normal * baseRadius * radiusMultiplier;
   
-  // Optimized curl noise flow - using fast version
+  // Curl noise flow
   vec3 flowPos = pos * 0.4 + vec3(uTime * uFlowSpeed * 0.08);
   vec3 curlDir = curlNoiseFast(flowPos, uTime * uFlowSpeed);
   
-  // Flow along surface - project curl onto tangent plane
+  // Flow along surface
   vec3 tangentFlow = curlDir - normal * dot(curlDir, normal);
   tangentFlow = normalize(tangentFlow) * uFlowStrength;
   
-  // Apply flow displacement - in solid surface mode, more coherent
+  // Apply flow displacement
   float bandPhase = bandIndex * 6.28 + uTime * uFlowSpeed * 0.4;
   float flowModulation = uSolidSurface > 0.5
-    ? sin(bandPhase) * 0.5 + 0.5  // Coherent wave
-    : sin(bandPhase + flowOffset * 3.14159) * 0.5 + 0.5;  // Per-particle variation
+    ? sin(bandPhase) * 0.5 + 0.5
+    : sin(bandPhase + flowOffset * 3.14159) * 0.5 + 0.5;
   
   pos += tangentFlow * flowModulation * 0.25 * (1.0 - uSolidSurface * 0.5);
   
-  // Audio reactivity with multi-layer displacement
+  // Audio reactivity
   float audioWave = uSolidSurface > 0.5
-    ? sin(uTime * 3.0) * 0.5 + 0.5  // Uniform audio wave (slower)
-    : sin(uTime * 3.0 + randomSeed * 6.28) * 0.5 + 0.5;  // Per-particle variation
+    ? sin(uTime * 3.0) * 0.5 + 0.5
+    : sin(uTime * 3.0 + randomSeed * 6.28) * 0.5 + 0.5;
   pos += normal * uAudioLevel * 0.2 * (0.5 + audioWave * 0.5);
   
-  // Calculate intensity for coloring - more variation
+  // Calculate intensity
   vIntensity = 0.5 + randomSeed * 0.5;
   vIntensity += uAudioLevel * 0.4;
   vIntensity *= (0.8 + flowModulation * 0.4);
-  
-  // In solid surface mode, more uniform intensity
   vIntensity = mix(vIntensity, 0.85, uSolidSurface * 0.7);
   
-  // Flow position for gradient (0-1 along flow bands)
   vFlowPosition = flowModulation;
-  
-  // Band value for contour coloring
   vBandValue = bandIndex;
   
-  // Hot spot noise - slower, smoother (optimized frequency and speed)
+  // Hot spot noise
   float hotSpotNoise = snoise(pos * 1.8 + vec3(uTime * 0.12, 0.0, 0.0));
   vHotSpot = smoothstep(0.3, 0.8, hotSpotNoise);
-  
-  // In solid surface mode, reduce hot spot variation
   vHotSpot = mix(vHotSpot, 0.5, uSolidSurface * 0.6);
   
-  // Random seed for fragment shader
   vRandomSeed = randomSeed;
   vSolidSurface = uSolidSurface;
   
-  // Transform to view space for rim lighting
+  // Transform to view space
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   vViewPosition = mvPosition.xyz;
   vWorldNormal = normalize(normalMatrix * normal);
@@ -214,16 +207,22 @@ void main() {
   
   gl_Position = projectionMatrix * mvPosition;
   
-  // Particle size with audio reactivity and depth-based sizing
+  // PIXEL-STABLE POINT SIZE CALCULATION
+  // Base size in CSS pixels with audio reactivity
+  float baseSizePx = uPointSizePx * (1.0 + uAudioLevel * 0.6);
+  
+  // Depth-based adjustment for volumetric feel
   float depthFactor = smoothstep(2.0, 8.0, -mvPosition.z);
-  float sizeMultiplier = 1.0 + uAudioLevel * 0.6;
-  sizeMultiplier *= (1.0 + depthFactor * 0.3); // Bigger particles farther away for volumetric feel
+  baseSizePx *= (1.0 + depthFactor * 0.3);
   
-  // In solid surface mode, use larger uniform size for overlap
+  // Solid surface size boost
   float solidSizeBoost = uSolidSurface * uUniformSize;
-  sizeMultiplier *= (1.0 + solidSizeBoost);
+  baseSizePx *= (1.0 + solidSizeBoost);
   
-  gl_PointSize = uParticleSize * (300.0 / -mvPosition.z) * sizeMultiplier;
+  // Apply pixel-stable sizing: scale by DPR and apply perspective
+  float scaledSize = baseSizePx * uPixelRatio;
+  float perspectiveFactor = 300.0 / max(-mvPosition.z, 0.1);
+  gl_PointSize = scaledSize * perspectiveFactor;
 }
 `;
 
