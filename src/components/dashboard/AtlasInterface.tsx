@@ -49,7 +49,6 @@ const AtlasInterfaceComponent = ({
         <ScaledAtlasSphere 
           state={state}
           audioLevel={audioLevel}
-          overrideMorphProgress={1.0}
           className="w-full h-full"
         />
       </motion.div>

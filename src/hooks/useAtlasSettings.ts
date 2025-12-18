@@ -237,13 +237,15 @@ function loadSettings(): AtlasSettings {
   return defaultAtlasSettings;
 }
 
-// Save settings to localStorage with version
+// Save settings to localStorage with version and notify listeners
 function saveSettings(settings: AtlasSettings) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       ...settings,
       _version: SETTINGS_VERSION
     }));
+    // Dispatch custom event for same-tab listeners
+    window.dispatchEvent(new CustomEvent('atlas-settings-changed'));
   } catch (e) {
     console.error('Failed to save Atlas settings:', e);
   }
@@ -322,7 +324,31 @@ export function useAtlasSettings(): UseAtlasSettingsReturn {
 }
 
 // Read-only hook for components that just need to display the sphere
+// Includes real-time sync via localStorage events
 export function useAtlasSettingsReadOnly(): AtlasSettings {
-  const [settings] = useState<AtlasSettings>(() => loadSettings());
+  const [settings, setSettings] = useState<AtlasSettings>(() => loadSettings());
+
+  // Listen for localStorage changes from other components/tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) {
+        setSettings(loadSettings());
+      }
+    };
+
+    // Also listen for custom events dispatched within the same tab
+    const handleCustomStorageChange = () => {
+      setSettings(loadSettings());
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('atlas-settings-changed', handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('atlas-settings-changed', handleCustomStorageChange);
+    };
+  }, []);
+
   return settings;
 }

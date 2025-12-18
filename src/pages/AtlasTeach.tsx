@@ -305,16 +305,11 @@ const AtlasTeach = () => {
           </motion.div>
         )}
 
-        {/* Atlas Sphere - CSS scaled */}
+        {/* Atlas Sphere - CSS scaled, uses global settings */}
         <div className="relative w-[400px] h-[400px] mb-8">
           <ScaledAtlasSphere
             state={atlasState}
             audioLevel={isPlaying ? audioLevel : (isListening ? 0.3 : 0)}
-            overrideMorphProgress={
-              atlasState === 'listening' ? 0.3 :
-              atlasState === 'thinking' ? 0.5 :
-              atlasState === 'speaking' ? 0.7 : 0.1
-            }
           />
         </div>
 
