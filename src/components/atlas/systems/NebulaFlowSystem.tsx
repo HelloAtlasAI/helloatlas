@@ -3,7 +3,10 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { WakeWordState } from '@/types';
 import { nebulaFlowVertexShader, nebulaFlowFragmentShader } from '../shaders/nebulaFlowShaders';
-import { NEBULA_STATE_CONFIGS } from '../utils/nebulaStateConfigs';
+import { NEBULA_STATE_CONFIGS, NebulaStateConfig } from '../utils/nebulaStateConfigs';
+
+// Per-state customization type
+type StateCustomizations = Partial<Record<WakeWordState, Partial<NebulaStateConfig>>>;
 
 interface NebulaFlowSystemProps {
   state: WakeWordState;
@@ -43,8 +46,8 @@ interface NebulaFlowSystemProps {
   thinkingRetraction?: number;
   audioBreathingIntensity?: number;
   transitionSpeed?: number;
-  // Manual override tracking
-  manualOverrides?: string[];
+  // Per-state customizations
+  stateCustomizations?: StateCustomizations;
 }
 
 export const NebulaFlowSystem = memo(({
@@ -82,8 +85,8 @@ export const NebulaFlowSystem = memo(({
   thinkingRetraction = 0.25,
   audioBreathingIntensity = 0.15,
   transitionSpeed = 1.5,
-  // Manual overrides - when a property is in this array, use prop value instead of state config
-  manualOverrides = [],
+  // Per-state customizations
+  stateCustomizations = {},
 }: NebulaFlowSystemProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
@@ -228,13 +231,11 @@ export const NebulaFlowSystem = memo(({
 
     const u = materialRef.current.uniforms;
     const audioLevel = audioLevelRef?.current ?? 0;
-    const stateConfig = NEBULA_STATE_CONFIGS[state];
     
-    // Create a Set for O(1) lookup of manual overrides
-    const overrideSet = new Set(manualOverrides);
-    
-    // Helper to check if a property is manually overridden
-    const isOverridden = (key: string) => overrideSet.has(key);
+    // Get base state config and merge with per-state customizations
+    const baseConfig = NEBULA_STATE_CONFIGS[state];
+    const customOverrides = stateCustomizations[state] || {};
+    const stateConfig = { ...baseConfig, ...customOverrides };
     
     // Frame-rate independent smoothing using exponential decay
     // lambda controls the speed: higher = faster transitions
@@ -250,30 +251,15 @@ export const NebulaFlowSystem = memo(({
     u.uMorphProgress.value = THREE.MathUtils.damp(u.uMorphProgress.value, morphProgress, 4, clampedDelta);
     u.uAudioLevel.value = audioLevel;
     
-    // Smart per-property blending: use prop value if overridden, otherwise use state config
+    // State-reactive mode: interpolate toward merged state config (base + customizations)
     if (stateReactive && stateConfig) {
       const current = currentStateRef.current;
       const targets = targetColorsRef.current;
       
-      // Determine target values based on override status
-      // Colors - check each color individually
-      if (isOverridden('nebulaColorStart')) {
-        targets.start.set(colorStart);
-      } else {
-        targets.start.set(stateConfig.colorStart);
-      }
-      
-      if (isOverridden('nebulaColorMid')) {
-        targets.mid.set(colorMid);
-      } else {
-        targets.mid.set(stateConfig.colorMid);
-      }
-      
-      if (isOverridden('nebulaColorEnd')) {
-        targets.end.set(colorEnd);
-      } else {
-        targets.end.set(stateConfig.colorEnd);
-      }
+      // Use merged state config values as targets
+      targets.start.set(stateConfig.colorStart);
+      targets.mid.set(stateConfig.colorMid);
+      targets.end.set(stateConfig.colorEnd);
       
       // Color interpolation using exponential decay factor
       const colorDecay = 1 - Math.exp(-lambda * clampedDelta);
@@ -285,15 +271,15 @@ export const NebulaFlowSystem = memo(({
       u.uColorMid.value.copy(current.colorMid);
       u.uColorEnd.value.copy(current.colorEnd);
       
-      // Numeric properties - use override or state config
-      const targetFlowSpeed = isOverridden('nebulaFlowSpeed') ? flowSpeed : stateConfig.flowSpeed;
-      const targetFlowStrength = isOverridden('nebulaFlowStrength') ? flowStrength : stateConfig.flowStrength;
-      const targetRimIntensity = isOverridden('nebulaRimIntensity') ? rimIntensity : stateConfig.rimIntensity;
-      const targetHotSpotIntensity = isOverridden('nebulaHotSpotIntensity') ? hotSpotIntensity : stateConfig.hotSpotIntensity;
-      const targetBreathingSpeed = isOverridden('nebulaBreathingSpeed') ? breathingSpeed : stateConfig.breathingSpeed;
-      const targetBreathingAmount = isOverridden('nebulaBreathingAmount') ? breathingAmount : stateConfig.breathingAmount;
-      const targetRadiusNoise = isOverridden('nebulaRadiusNoise') ? radiusNoise : stateConfig.radiusNoise;
-      const targetGlowIntensity = isOverridden('nebulaGlowIntensity') ? glowIntensity : stateConfig.glowIntensity;
+      // Use merged state config for all numeric properties
+      const targetFlowSpeed = stateConfig.flowSpeed;
+      const targetFlowStrength = stateConfig.flowStrength;
+      const targetRimIntensity = stateConfig.rimIntensity;
+      const targetHotSpotIntensity = stateConfig.hotSpotIntensity;
+      const targetBreathingSpeed = stateConfig.breathingSpeed;
+      const targetBreathingAmount = stateConfig.breathingAmount;
+      const targetRadiusNoise = stateConfig.radiusNoise;
+      const targetGlowIntensity = stateConfig.glowIntensity;
       
       // Smooth interpolation using damp for all numeric values
       current.flowSpeed = THREE.MathUtils.damp(current.flowSpeed, targetFlowSpeed, lambda, clampedDelta);
@@ -305,7 +291,7 @@ export const NebulaFlowSystem = memo(({
       current.radiusNoise = THREE.MathUtils.damp(current.radiusNoise, targetRadiusNoise, lambda, clampedDelta);
       current.glowIntensity = THREE.MathUtils.damp(current.glowIntensity, targetGlowIntensity, lambda, clampedDelta);
       
-      // Core retraction for thinking state (only if not overridden)
+      // Core retraction for thinking state
       const targetRetraction = stateConfig.coreRetraction * thinkingRetraction / 0.25;
       current.coreRetraction = THREE.MathUtils.damp(current.coreRetraction, targetRetraction, lambda, clampedDelta);
       

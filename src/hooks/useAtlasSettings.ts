@@ -1,11 +1,12 @@
-import { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
+import { useReducer, useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import { WakeWordState } from '@/types';
+import { NebulaStateConfig, NEBULA_STATE_CONFIGS } from '@/components/atlas/utils/nebulaStateConfigs';
 
 const STORAGE_KEY = 'atlas-demo-settings';
-const SETTINGS_VERSION = 9; // Bump this to force reset of corrupted settings
+const SETTINGS_VERSION = 10; // Bump for per-state customization system
 
-// Keys that can be manually overridden (nebula visual properties)
-export const NEBULA_OVERRIDE_KEYS = [
+// Keys that can be customized per-state (nebula visual properties)
+export const NEBULA_CUSTOMIZABLE_KEYS = [
   'nebulaFlowStrength',
   'nebulaFlowSpeed',
   'nebulaRimIntensity',
@@ -20,7 +21,26 @@ export const NEBULA_OVERRIDE_KEYS = [
   'nebulaRotationSpeed',
 ] as const;
 
-export type NebulaOverrideKey = typeof NEBULA_OVERRIDE_KEYS[number];
+export type NebulaCustomizableKey = typeof NEBULA_CUSTOMIZABLE_KEYS[number];
+
+// Mapping from settings keys to state config keys
+const SETTING_TO_CONFIG_KEY: Record<NebulaCustomizableKey, keyof NebulaStateConfig> = {
+  nebulaFlowStrength: 'flowStrength',
+  nebulaFlowSpeed: 'flowSpeed',
+  nebulaRimIntensity: 'rimIntensity',
+  nebulaHotSpotIntensity: 'hotSpotIntensity',
+  nebulaBreathingSpeed: 'breathingSpeed',
+  nebulaBreathingAmount: 'breathingAmount',
+  nebulaRadiusNoise: 'radiusNoise',
+  nebulaGlowIntensity: 'glowIntensity',
+  nebulaColorStart: 'colorStart',
+  nebulaColorMid: 'colorMid',
+  nebulaColorEnd: 'colorEnd',
+  nebulaRotationSpeed: 'flowSpeed', // Map rotation to flow for now
+};
+
+// Per-state customization type
+export type StateCustomizations = Partial<Record<WakeWordState, Partial<NebulaStateConfig>>>;
 
 // Complete settings interface for Atlas visualization
 export interface AtlasSettings {
@@ -92,7 +112,7 @@ export interface AtlasSettings {
   // Audio reactivity
   audioReactivitySpeed: number;
   
-  // Nebula Flow settings
+  // Nebula Flow settings (current display values)
   nebulaFlowStrength: number;
   nebulaFlowSpeed: number;
   nebulaBandCount: number;
@@ -122,12 +142,12 @@ export interface AtlasSettings {
   nebulaCoherence: number;
   
   // State behavior settings
-  nebulaThinkingRetraction: number;       // 0-0.5, how much particles pull toward center in thinking state
-  nebulaAudioBreathingIntensity: number;  // 0-0.4, audio breathing strength in speaking state
-  nebulaTransitionSpeed: number;          // 0.5-3.0, how fast states blend together
+  nebulaThinkingRetraction: number;
+  nebulaAudioBreathingIntensity: number;
+  nebulaTransitionSpeed: number;
   
-  // Manual override tracking - which properties have been manually adjusted
-  _manualOverrides: string[];
+  // Per-state customizations - stores overrides for each state individually
+  stateCustomizations: StateCustomizations;
 }
 
 // Default settings - optimized for performance
@@ -136,7 +156,6 @@ export const defaultAtlasSettings: AtlasSettings = {
   dashboardPreview: false,
   comparisonView: false,
   state: 'dormant',
-  // Default to a formed sphere so the demo never looks "broken" on load/reset
   morphProgress: 1.0,
   audioLevel: 0,
   autoAudio: false,
@@ -146,8 +165,8 @@ export const defaultAtlasSettings: AtlasSettings = {
   trailColorGradient: true,
   trailStartColor: '#ff9500',
   trailEndColor: '#1a0a2e',
-  particleCount: 1250,    // Scaled for 420px (was 1500 for 460px)
-  particleSize: 0.085,    // Slightly larger to compensate
+  particleCount: 1250,
+  particleSize: 0.085,
   density: 1.0,
   rotationSpeed: 0.5,
   enableBloom: true,
@@ -163,11 +182,11 @@ export const defaultAtlasSettings: AtlasSettings = {
   enableMouseInteraction: true,
   mouseMode: 'attract',
   mouseStrength: 0.4,
-  mouseInfluenceRadius: 1.85,  // Scaled for 420px
+  mouseInfluenceRadius: 1.85,
   enableCore: true,
-  coreParticleCount: 100,      // Scaled for 420px (was 120)
+  coreParticleCount: 100,
   coreDensity: 0.25,
-  coreParticleSize: 0.045,     // Slightly larger
+  coreParticleSize: 0.045,
   coreIntensity: 1.0,
   corePulseSpeed: 1.5,
   coreRotationOffset: -0.5,
@@ -175,7 +194,7 @@ export const defaultAtlasSettings: AtlasSettings = {
   surfaceTension: 0.5,
   fluidFlow: 0.3,
   audioReactivitySpeed: 1.0,
-  // Nebula Flow defaults
+  // Nebula Flow defaults (will be overwritten by state config)
   nebulaFlowStrength: 0.5,
   nebulaFlowSpeed: 0.5,
   nebulaBandCount: 8,
@@ -188,8 +207,8 @@ export const defaultAtlasSettings: AtlasSettings = {
   nebulaColorMid: '#8b5cf6',
   nebulaColorEnd: '#67e8f9',
   // Enhanced Nebula defaults
-  nebulaParticleCount: 6700,   // Scaled for 420px (was 8000 for 460px)
-  nebulaParticleSize: 0.055,   // Slightly larger to compensate
+  nebulaParticleCount: 6700,
+  nebulaParticleSize: 0.055,
   nebulaDensity: 1.0,
   nebulaRotationSpeed: 0.2,
   nebulaStateReactive: true,
@@ -205,16 +224,30 @@ export const defaultAtlasSettings: AtlasSettings = {
   nebulaThinkingRetraction: 0.25,
   nebulaAudioBreathingIntensity: 0.15,
   nebulaTransitionSpeed: 1.5,
-  // Manual override tracking
-  _manualOverrides: [],
+  // Per-state customizations (empty = use defaults)
+  stateCustomizations: {},
 };
+
+// Helper to get merged config for a state (base + customizations)
+export function getMergedStateConfig(state: WakeWordState, customizations: StateCustomizations): NebulaStateConfig {
+  const baseConfig = NEBULA_STATE_CONFIGS[state];
+  const stateOverrides = customizations[state] || {};
+  return { ...baseConfig, ...stateOverrides };
+}
+
+// Helper to check if a state has any customizations
+export function hasStateCustomizations(state: WakeWordState, customizations: StateCustomizations): boolean {
+  const overrides = customizations[state];
+  return overrides !== undefined && Object.keys(overrides).length > 0;
+}
 
 // Action types
 type SettingsAction =
   | { type: 'SET_SETTING'; key: keyof AtlasSettings; value: AtlasSettings[keyof AtlasSettings] }
   | { type: 'SET_MULTIPLE'; settings: Partial<AtlasSettings> }
-  | { type: 'ADD_OVERRIDE'; key: string }
-  | { type: 'CLEAR_OVERRIDES' }
+  | { type: 'SET_STATE_CUSTOMIZATION'; state: WakeWordState; key: keyof NebulaStateConfig; value: string | number | boolean }
+  | { type: 'RESET_STATE_CUSTOMIZATIONS'; state: WakeWordState }
+  | { type: 'RESET_ALL_CUSTOMIZATIONS' }
   | { type: 'RESET' }
   | { type: 'LOAD'; settings: AtlasSettings };
 
@@ -225,14 +258,26 @@ function settingsReducer(state: AtlasSettings, action: SettingsAction): AtlasSet
       return { ...state, [action.key]: action.value };
     case 'SET_MULTIPLE':
       return { ...state, ...action.settings };
-    case 'ADD_OVERRIDE': {
-      if (state._manualOverrides.includes(action.key)) {
-        return state;
-      }
-      return { ...state, _manualOverrides: [...state._manualOverrides, action.key] };
+    case 'SET_STATE_CUSTOMIZATION': {
+      const currentOverrides = state.stateCustomizations[action.state] || {};
+      return {
+        ...state,
+        stateCustomizations: {
+          ...state.stateCustomizations,
+          [action.state]: {
+            ...currentOverrides,
+            [action.key]: action.value,
+          },
+        },
+      };
     }
-    case 'CLEAR_OVERRIDES':
-      return { ...state, _manualOverrides: [] };
+    case 'RESET_STATE_CUSTOMIZATIONS': {
+      const newCustomizations = { ...state.stateCustomizations };
+      delete newCustomizations[action.state];
+      return { ...state, stateCustomizations: newCustomizations };
+    }
+    case 'RESET_ALL_CUSTOMIZATIONS':
+      return { ...state, stateCustomizations: {} };
     case 'RESET':
       return { ...defaultAtlasSettings };
     case 'LOAD':
@@ -289,35 +334,77 @@ export interface UseAtlasSettingsReturn {
   setSetting: <K extends keyof AtlasSettings>(key: K, value: AtlasSettings[K]) => void;
   setMultiple: (settings: Partial<AtlasSettings>) => void;
   reset: () => void;
-  clearOverrides: () => void;
+  resetCurrentState: () => void;
+  resetAllCustomizations: () => void;
   exportSettings: () => void;
   importSettings: () => void;
 }
 
 export function useAtlasSettings(): UseAtlasSettingsReturn {
   const [settings, dispatch] = useReducer(settingsReducer, defaultAtlasSettings, loadSettings);
+  const prevStateRef = useRef(settings.state);
 
   // Auto-save to localStorage when settings change
   useEffect(() => {
     saveSettings(settings);
   }, [settings]);
 
+  // When state changes, update UI sliders to show that state's config (merged with customizations)
+  useEffect(() => {
+    if (prevStateRef.current !== settings.state) {
+      prevStateRef.current = settings.state;
+      
+      // Get merged config for the new state
+      const mergedConfig = getMergedStateConfig(settings.state, settings.stateCustomizations);
+      
+      // Update display values without triggering customizations
+      dispatch({
+        type: 'SET_MULTIPLE',
+        settings: {
+          nebulaFlowStrength: mergedConfig.flowStrength,
+          nebulaFlowSpeed: mergedConfig.flowSpeed,
+          nebulaRimIntensity: mergedConfig.rimIntensity,
+          nebulaHotSpotIntensity: mergedConfig.hotSpotIntensity,
+          nebulaBreathingSpeed: mergedConfig.breathingSpeed,
+          nebulaBreathingAmount: mergedConfig.breathingAmount,
+          nebulaRadiusNoise: mergedConfig.radiusNoise,
+          nebulaGlowIntensity: mergedConfig.glowIntensity,
+          nebulaColorStart: mergedConfig.colorStart,
+          nebulaColorMid: mergedConfig.colorMid,
+          nebulaColorEnd: mergedConfig.colorEnd,
+        },
+      });
+    }
+  }, [settings.state, settings.stateCustomizations]);
+
   const setSetting = useCallback(<K extends keyof AtlasSettings>(key: K, value: AtlasSettings[K]) => {
-    // Automatically track manual overrides for nebula properties
+    // For nebula customizable properties, save to per-state customization
     const keyStr = key as string;
-    if ((NEBULA_OVERRIDE_KEYS as readonly string[]).includes(keyStr)) {
-      dispatch({ type: 'ADD_OVERRIDE', key: keyStr });
+    if ((NEBULA_CUSTOMIZABLE_KEYS as readonly string[]).includes(keyStr)) {
+      const configKey = SETTING_TO_CONFIG_KEY[keyStr as NebulaCustomizableKey];
+      if (configKey) {
+        // Get current state from latest settings (we need to use a ref or pass it)
+        // For now, dispatch both - the SET_SETTING updates UI, and we'll handle customization separately
+        dispatch({ type: 'SET_SETTING', key, value });
+        return;
+      }
+    }
+    dispatch({ type: 'SET_SETTING', key, value });
+  }, []);
+
+  // Enhanced setSetting that also stores per-state customization
+  const setSettingWithCustomization = useCallback(<K extends keyof AtlasSettings>(key: K, value: AtlasSettings[K], currentState: WakeWordState) => {
+    const keyStr = key as string;
+    if ((NEBULA_CUSTOMIZABLE_KEYS as readonly string[]).includes(keyStr)) {
+      const configKey = SETTING_TO_CONFIG_KEY[keyStr as NebulaCustomizableKey];
+      if (configKey) {
+        dispatch({ type: 'SET_STATE_CUSTOMIZATION', state: currentState, key: configKey, value: value as string | number | boolean });
+      }
     }
     dispatch({ type: 'SET_SETTING', key, value });
   }, []);
 
   const setMultiple = useCallback((newSettings: Partial<AtlasSettings>) => {
-    // Track overrides for any nebula properties being set
-    Object.keys(newSettings).forEach(key => {
-      if ((NEBULA_OVERRIDE_KEYS as readonly string[]).includes(key)) {
-        dispatch({ type: 'ADD_OVERRIDE', key });
-      }
-    });
     dispatch({ type: 'SET_MULTIPLE', settings: newSettings });
   }, []);
 
@@ -326,9 +413,49 @@ export function useAtlasSettings(): UseAtlasSettingsReturn {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  const clearOverrides = useCallback(() => {
-    dispatch({ type: 'CLEAR_OVERRIDES' });
-  }, []);
+  const resetCurrentState = useCallback(() => {
+    dispatch({ type: 'RESET_STATE_CUSTOMIZATIONS', state: settings.state });
+    // Also update display to show default values
+    const baseConfig = NEBULA_STATE_CONFIGS[settings.state];
+    dispatch({
+      type: 'SET_MULTIPLE',
+      settings: {
+        nebulaFlowStrength: baseConfig.flowStrength,
+        nebulaFlowSpeed: baseConfig.flowSpeed,
+        nebulaRimIntensity: baseConfig.rimIntensity,
+        nebulaHotSpotIntensity: baseConfig.hotSpotIntensity,
+        nebulaBreathingSpeed: baseConfig.breathingSpeed,
+        nebulaBreathingAmount: baseConfig.breathingAmount,
+        nebulaRadiusNoise: baseConfig.radiusNoise,
+        nebulaGlowIntensity: baseConfig.glowIntensity,
+        nebulaColorStart: baseConfig.colorStart,
+        nebulaColorMid: baseConfig.colorMid,
+        nebulaColorEnd: baseConfig.colorEnd,
+      },
+    });
+  }, [settings.state]);
+
+  const resetAllCustomizations = useCallback(() => {
+    dispatch({ type: 'RESET_ALL_CUSTOMIZATIONS' });
+    // Update display to show current state's default values
+    const baseConfig = NEBULA_STATE_CONFIGS[settings.state];
+    dispatch({
+      type: 'SET_MULTIPLE',
+      settings: {
+        nebulaFlowStrength: baseConfig.flowStrength,
+        nebulaFlowSpeed: baseConfig.flowSpeed,
+        nebulaRimIntensity: baseConfig.rimIntensity,
+        nebulaHotSpotIntensity: baseConfig.hotSpotIntensity,
+        nebulaBreathingSpeed: baseConfig.breathingSpeed,
+        nebulaBreathingAmount: baseConfig.breathingAmount,
+        nebulaRadiusNoise: baseConfig.radiusNoise,
+        nebulaGlowIntensity: baseConfig.glowIntensity,
+        nebulaColorStart: baseConfig.colorStart,
+        nebulaColorMid: baseConfig.colorMid,
+        nebulaColorEnd: baseConfig.colorEnd,
+      },
+    });
+  }, [settings.state]);
 
   const exportSettings = useCallback(() => {
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -362,15 +489,21 @@ export function useAtlasSettings(): UseAtlasSettingsReturn {
     input.click();
   }, []);
 
+  // Wrap setSetting to include state customization
+  const setSettingWrapped = useCallback(<K extends keyof AtlasSettings>(key: K, value: AtlasSettings[K]) => {
+    setSettingWithCustomization(key, value, settings.state);
+  }, [setSettingWithCustomization, settings.state]);
+
   return useMemo(() => ({
     settings,
-    setSetting,
+    setSetting: setSettingWrapped,
     setMultiple,
     reset,
-    clearOverrides,
+    resetCurrentState,
+    resetAllCustomizations,
     exportSettings,
     importSettings,
-  }), [settings, setSetting, setMultiple, reset, clearOverrides, exportSettings, importSettings]);
+  }), [settings, setSettingWrapped, setMultiple, reset, resetCurrentState, resetAllCustomizations, exportSettings, importSettings]);
 }
 
 // Read-only hook for components that just need to display the sphere
