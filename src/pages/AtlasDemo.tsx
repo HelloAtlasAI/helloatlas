@@ -236,21 +236,28 @@ export default function AtlasDemo() {
             {/* Dashboard Preview Mode - shows exactly how it looks on dashboard */}
             {settings.dashboardPreview ? (
               <div className="relative">
-                {/* Dashboard preview container with exact dashboard sizing */}
+                {/* Dashboard preview container - exact match with AtlasInterface.tsx */}
                 <div className="w-[140px] h-[140px] flex-shrink-0 relative">
-                  <UnifiedAtlasSphere
-                    state={settings.state}
-                    audioLevel={displayAudioLevel}
-                    responsive={true}
-                    className="w-full h-full"
-                  />
-                  {/* Radial mask like dashboard */}
+                  {/* Extended canvas wrapper - 200% size, centered, for glow room - matches dashboard */}
                   <div 
-                    className="absolute inset-0 pointer-events-none"
+                    className="absolute"
                     style={{
-                      background: 'radial-gradient(circle at center, transparent 45%, hsl(var(--background)) 70%)',
+                      width: '200%',
+                      height: '200%',
+                      left: '-50%',
+                      top: '-50%',
+                      maskImage: 'radial-gradient(ellipse 60% 60% at center, black 30%, transparent 70%)',
+                      WebkitMaskImage: 'radial-gradient(ellipse 60% 60% at center, black 30%, transparent 70%)',
                     }}
-                  />
+                  >
+                    <UnifiedAtlasSphere
+                      state={settings.state}
+                      audioLevel={displayAudioLevel}
+                      overrideMorphProgress={1.0}
+                      responsive={true}
+                      className="w-full h-full"
+                    />
+                  </div>
                 </div>
                 {/* Dashboard preview indicator */}
                 <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40">
