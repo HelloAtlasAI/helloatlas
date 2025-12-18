@@ -400,7 +400,7 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
       onPointerLeave={handlePointerLeave}
     >
       <Canvas
-        camera={{ position: [0, 0, 6], fov: 45 }}
+        camera={{ position: [0, 0, 7.5], fov: 45 }}
         gl={{ antialias: false, alpha: true, powerPreference: 'default', failIfMajorPerformanceCaveat: false }}
         style={{ background: 'transparent' }}
         dpr={[1, 1.5]}

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 // Canonical render size - the WebGL canvas renders at this size and we scale it via CSS.
 // This avoids WebGL sizing issues when parent containers animate using CSS transforms
 // (e.g., Framer Motion scale animations).
-const CANONICAL_SIZE = 420;
+const CANONICAL_SIZE = 520;
 
 export interface ScaledAtlasSphereProps {
   state: WakeWordState;
