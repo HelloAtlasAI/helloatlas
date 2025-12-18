@@ -66,7 +66,7 @@ const ScaledAtlasSphereComponent = ({
   return (
     <div 
       ref={containerRef} 
-      className={cn("relative w-full h-full overflow-hidden", className)}
+      className={cn("relative w-full h-full", className)}
     >
       {/* Centered, scaled sphere (centering independent of scale) */}
       <div
