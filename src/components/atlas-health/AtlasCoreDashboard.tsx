@@ -92,10 +92,11 @@ const AtlasCoreDashboard = () => {
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row items-center gap-8">
             {/* Sphere Visualization */}
+            {/* Sphere container - no parent scale transforms to avoid measurement issues */}
             <motion.div 
               className="relative w-[200px] h-[200px] flex-shrink-0"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
             >
               <ScaledAtlasSphere

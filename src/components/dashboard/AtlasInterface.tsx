@@ -1,5 +1,4 @@
 import { memo, useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { ScaledAtlasSphere } from '@/components/atlas/ScaledAtlasSphere';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
@@ -39,19 +38,17 @@ const AtlasInterfaceComponent = ({
 
   return (
     <div className="relative w-full h-full flex items-center justify-center">
-      {/* Atlas Core Sphere - CSS scaled to fit container */}
-      <motion.div 
+      {/* Atlas Core Sphere - no parent scale transforms to avoid measurement issues */}
+      <div 
         className={`relative flex-shrink-0 w-[140px] h-[140px] z-10 ${canActivate ? 'cursor-pointer' : ''}`}
         onClick={handleClick}
-        whileHover={canActivate ? { scale: 1.05 } : {}}
-        whileTap={canActivate ? { scale: 0.95 } : {}}
       >
         <ScaledAtlasSphere 
           state={state}
           audioLevel={audioLevel}
           className="w-full h-full"
         />
-      </motion.div>
+      </div>
     </div>
   );
 };
