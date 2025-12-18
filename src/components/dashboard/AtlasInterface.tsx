@@ -1,6 +1,5 @@
 import { memo, useState, useEffect, useCallback } from 'react';
 import { AtlasSphere } from '@/components/atlas';
-import { Mic } from 'lucide-react';
 import type { WakeWordState } from '@/types';
 
 interface AtlasInterfaceProps {
@@ -59,16 +58,6 @@ const AtlasInterfaceComponent = ({
         />
       </div>
       
-      {/* Enable Voice Prompt */}
-      {!voiceEnabled && (
-        <div 
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2 flex items-center gap-2 px-3 py-1.5 bg-primary/10 backdrop-blur-sm rounded-full border border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors"
-          onClick={onEnableVoice}
-        >
-          <Mic className="w-3.5 h-3.5 text-primary" />
-          <span className="text-xs text-primary font-medium">Click to enable voice</span>
-        </div>
-      )}
     </div>
   );
 };

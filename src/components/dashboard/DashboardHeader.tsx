@@ -1,12 +1,14 @@
-import { Settings, LogOut, Bell, Search, Menu, ChevronDown } from 'lucide-react';
+import { Settings, LogOut, Bell, Search, Menu, ChevronDown, Mic, MicOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface DashboardHeaderProps {
   userName?: string;
   onLogoutClick?: () => void;
+  voiceEnabled?: boolean;
+  onEnableVoice?: () => void;
 }
 
-export const DashboardHeader = ({ userName, onLogoutClick }: DashboardHeaderProps) => {
+export const DashboardHeader = ({ userName, onLogoutClick, voiceEnabled, onEnableVoice }: DashboardHeaderProps) => {
   return (
     <motion.header
       className="relative overflow-hidden border-b border-border"
@@ -59,6 +61,28 @@ export const DashboardHeader = ({ userName, onLogoutClick }: DashboardHeaderProp
         
         {/* Right side */}
         <div className="flex items-center gap-2">
+          {/* Voice Toggle */}
+          <motion.button
+            onClick={onEnableVoice}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={`relative p-2.5 rounded-xl transition-colors ${
+              voiceEnabled 
+                ? 'bg-primary/20 text-primary border border-primary/30' 
+                : 'bg-secondary hover:bg-accent text-muted-foreground'
+            }`}
+            title={voiceEnabled ? 'Voice enabled' : 'Click to enable voice'}
+          >
+            {voiceEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+            {voiceEnabled && (
+              <motion.span 
+                className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-primary rounded-full"
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+            )}
+          </motion.button>
+          
           {/* Notifications */}
           <motion.button
             whileHover={{ scale: 1.05 }}
