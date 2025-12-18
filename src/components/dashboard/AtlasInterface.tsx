@@ -1,5 +1,6 @@
 import { memo, useState, useEffect, useCallback } from 'react';
 import { AtlasSphere } from '@/components/atlas';
+import { Mic } from 'lucide-react';
 import type { WakeWordState } from '@/types';
 
 interface AtlasInterfaceProps {
@@ -10,14 +11,18 @@ interface AtlasInterfaceProps {
   lastMessage?: string;
   lastResponse?: string;
   isSupported?: boolean;
+  voiceEnabled?: boolean;
   onManualActivate?: () => void;
+  onEnableVoice?: () => void;
 }
 
 const AtlasInterfaceComponent = ({
   state,
   audioLevel,
   isSupported = true,
+  voiceEnabled = false,
   onManualActivate,
+  onEnableVoice,
 }: AtlasInterfaceProps) => {
   const [showHint, setShowHint] = useState(true);
 
@@ -31,16 +36,19 @@ const AtlasInterfaceComponent = ({
   const canActivate = state === 'dormant' || state === 'passive';
 
   const handleClick = useCallback(() => {
-    if (canActivate && onManualActivate) {
+    if (!voiceEnabled && onEnableVoice) {
+      // First click enables voice
+      onEnableVoice();
+    } else if (canActivate && onManualActivate) {
       onManualActivate();
     }
-  }, [canActivate, onManualActivate]);
+  }, [voiceEnabled, canActivate, onManualActivate, onEnableVoice]);
 
   return (
     <div className="relative w-full h-full flex items-center justify-center">
       {/* Atlas Core Sphere - no parent scale transforms to avoid measurement issues */}
       <div 
-        className={`relative flex-shrink-0 w-[140px] h-[140px] z-10 ${canActivate ? 'cursor-pointer' : ''}`}
+        className={`relative flex-shrink-0 w-[140px] h-[140px] z-10 ${canActivate || !voiceEnabled ? 'cursor-pointer' : ''}`}
         onClick={handleClick}
       >
         <AtlasSphere 
@@ -50,6 +58,17 @@ const AtlasInterfaceComponent = ({
           className="w-full h-full"
         />
       </div>
+      
+      {/* Enable Voice Prompt */}
+      {!voiceEnabled && (
+        <div 
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2 flex items-center gap-2 px-3 py-1.5 bg-primary/10 backdrop-blur-sm rounded-full border border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors"
+          onClick={onEnableVoice}
+        >
+          <Mic className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs text-primary font-medium">Click to enable voice</span>
+        </div>
+      )}
     </div>
   );
 };
