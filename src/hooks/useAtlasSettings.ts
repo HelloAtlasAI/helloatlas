@@ -1,5 +1,5 @@
 import { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
-import { WakeWordState } from '@/hooks/useWakeWordFixed';
+import { WakeWordState } from '@/types';
 
 const STORAGE_KEY = 'atlas-demo-settings';
 const SETTINGS_VERSION = 8; // Bump this to force reset of corrupted settings
