@@ -233,8 +233,68 @@ export default function AtlasDemo() {
         {/* Main visualization area */}
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center">
-            {/* Dashboard Preview Mode - shows exactly how it looks on dashboard */}
-            {settings.dashboardPreview ? (
+            {/* Side-by-side comparison mode */}
+            {settings.comparisonView ? (
+              <div className="flex items-center gap-8 lg:gap-16">
+                {/* Dashboard Size (140px) */}
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-[140px] h-[140px] flex-shrink-0 relative">
+                    <div 
+                      className="absolute"
+                      style={{
+                        width: '200%',
+                        height: '200%',
+                        left: '-50%',
+                        top: '-50%',
+                        maskImage: 'radial-gradient(ellipse 60% 60% at center, black 30%, transparent 70%)',
+                        WebkitMaskImage: 'radial-gradient(ellipse 60% 60% at center, black 30%, transparent 70%)',
+                      }}
+                    >
+                      <UnifiedAtlasSphere
+                        state={settings.state}
+                        audioLevel={displayAudioLevel}
+                        overrideMorphProgress={1.0}
+                        responsive={true}
+                        className="w-full h-full"
+                      />
+                    </div>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40">
+                    <span className="text-xs text-emerald-300 font-medium">Dashboard (140px)</span>
+                  </div>
+                </div>
+
+                {/* Tablet Size (280px) */}
+                <div className="flex flex-col items-center gap-4 hidden md:flex">
+                  <div className="w-[280px] h-[280px] flex-shrink-0">
+                    <UnifiedAtlasSphere
+                      state={settings.state}
+                      audioLevel={displayAudioLevel}
+                      responsive={true}
+                      className="w-full h-full"
+                    />
+                  </div>
+                  <div className="px-3 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-500/40">
+                    <span className="text-xs text-cyan-300 font-medium">Tablet (280px)</span>
+                  </div>
+                </div>
+
+                {/* Full Size (420px) */}
+                <div className="flex flex-col items-center gap-4 hidden lg:flex">
+                  <div className="w-[420px] h-[420px] flex-shrink-0">
+                    <UnifiedAtlasSphere
+                      state={settings.state}
+                      audioLevel={displayAudioLevel}
+                      responsive={false}
+                      className="w-full h-full"
+                    />
+                  </div>
+                  <div className="px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/40">
+                    <span className="text-xs text-amber-300 font-medium">Desktop (420px)</span>
+                  </div>
+                </div>
+              </div>
+            ) : settings.dashboardPreview ? (
               <div className="relative">
                 {/* Dashboard preview container - exact match with AtlasInterface.tsx */}
                 <div className="w-[140px] h-[140px] flex-shrink-0 relative">
@@ -331,21 +391,40 @@ export default function AtlasDemo() {
                 </button>
               </div>
               
-              {/* Dashboard Preview Toggle */}
-              <button
-                onClick={() => setSetting('dashboardPreview', !settings.dashboardPreview)}
-                className={`w-full flex items-center justify-between p-3 rounded-lg transition-all ${
-                  settings.dashboardPreview
-                    ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300'
-                    : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${settings.dashboardPreview ? 'bg-emerald-400 animate-pulse' : 'bg-muted-foreground'}`} />
-                  <span className="text-xs font-medium">Dashboard Preview</span>
-                </div>
-                <span className="text-[10px] opacity-70">140px + mask</span>
-              </button>
+              {/* View Mode Toggles */}
+              <div className="grid grid-cols-2 gap-2">
+                {/* Dashboard Preview Toggle */}
+                <button
+                  onClick={() => {
+                    setSetting('dashboardPreview', !settings.dashboardPreview);
+                    if (!settings.dashboardPreview) setSetting('comparisonView', false);
+                  }}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-lg transition-all ${
+                    settings.dashboardPreview && !settings.comparisonView
+                      ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300'
+                      : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground'
+                  }`}
+                >
+                  <span className="text-xs font-medium">📱 Dashboard</span>
+                  <span className="text-[10px] opacity-70">140px</span>
+                </button>
+                
+                {/* Comparison View Toggle */}
+                <button
+                  onClick={() => {
+                    setSetting('comparisonView', !settings.comparisonView);
+                    if (!settings.comparisonView) setSetting('dashboardPreview', false);
+                  }}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-lg transition-all ${
+                    settings.comparisonView
+                      ? 'bg-violet-500/20 border border-violet-500/50 text-violet-300'
+                      : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground'
+                  }`}
+                >
+                  <span className="text-xs font-medium">📊 Compare</span>
+                  <span className="text-[10px] opacity-70">Side-by-side</span>
+                </button>
+              </div>
               
               {/* Dashboard indicator */}
               <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/30">

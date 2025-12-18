@@ -2,7 +2,7 @@ import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { WakeWordState } from '@/hooks/useWakeWordFixed';
 
 const STORAGE_KEY = 'atlas-demo-settings';
-const SETTINGS_VERSION = 7; // Bump this to force reset of corrupted settings
+const SETTINGS_VERSION = 8; // Bump this to force reset of corrupted settings
 
 // Complete settings interface for Atlas visualization
 export interface AtlasSettings {
@@ -11,6 +11,9 @@ export interface AtlasSettings {
   
   // Dashboard preview mode
   dashboardPreview: boolean;
+  
+  // Side-by-side comparison view
+  comparisonView: boolean;
   
   // Core state
   state: WakeWordState;
@@ -110,6 +113,7 @@ export interface AtlasSettings {
 export const defaultAtlasSettings: AtlasSettings = {
   visualizationMode: 'classic',
   dashboardPreview: false,
+  comparisonView: false,
   state: 'dormant',
   // Default to a formed sphere so the demo never looks "broken" on load/reset
   morphProgress: 1.0,
