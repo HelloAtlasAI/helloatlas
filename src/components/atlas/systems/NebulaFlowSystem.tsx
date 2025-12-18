@@ -213,15 +213,18 @@ export const NebulaFlowSystem = memo(({
     const audioLevel = audioLevelRef?.current ?? 0;
     const stateConfig = NEBULA_STATE_CONFIGS[state];
     
-    // Exponential easing for smoother transitions
-    const baseLerpSpeed = transitionSpeed;
-    const smoothLerpSpeed = 1 - Math.pow(1 - Math.min(baseLerpSpeed * delta, 0.99), 2);
+    // Frame-rate independent smoothing using exponential decay
+    // lambda controls the speed: higher = faster transitions
+    const lambda = transitionSpeed * 2;
+    
+    // Clamp delta to prevent huge jumps on frame drops
+    const clampedDelta = Math.min(delta, 0.1);
 
     // Update time
     u.uTime.value += delta;
     
-    // Update morph progress
-    u.uMorphProgress.value = THREE.MathUtils.lerp(u.uMorphProgress.value, morphProgress, delta * 3);
+    // Update morph progress with damp
+    u.uMorphProgress.value = THREE.MathUtils.damp(u.uMorphProgress.value, morphProgress, 4, clampedDelta);
     u.uAudioLevel.value = audioLevel;
     
     // State-reactive interpolation
@@ -234,34 +237,29 @@ export const NebulaFlowSystem = memo(({
       targets.mid.set(stateConfig.colorMid);
       targets.end.set(stateConfig.colorEnd);
       
-      // Interpolate colors toward cached targets
-      current.colorStart.lerp(targets.start, smoothLerpSpeed);
-      current.colorMid.lerp(targets.mid, smoothLerpSpeed);
-      current.colorEnd.lerp(targets.end, smoothLerpSpeed);
+      // Color interpolation using exponential decay factor
+      const colorDecay = 1 - Math.exp(-lambda * clampedDelta);
+      current.colorStart.lerp(targets.start, colorDecay);
+      current.colorMid.lerp(targets.mid, colorDecay);
+      current.colorEnd.lerp(targets.end, colorDecay);
       
       u.uColorStart.value.copy(current.colorStart);
       u.uColorMid.value.copy(current.colorMid);
       u.uColorEnd.value.copy(current.colorEnd);
       
-      // Interpolate other state values with damping for large changes
-      const lerpValue = (currentVal: number, targetVal: number) => {
-        const diff = Math.abs(targetVal - currentVal);
-        const dampedSpeed = diff > 0.5 ? smoothLerpSpeed * 0.5 : smoothLerpSpeed;
-        return THREE.MathUtils.lerp(currentVal, targetVal, dampedSpeed);
-      };
-      
-      current.flowSpeed = lerpValue(current.flowSpeed, stateConfig.flowSpeed);
-      current.flowStrength = lerpValue(current.flowStrength, stateConfig.flowStrength);
-      current.rimIntensity = lerpValue(current.rimIntensity, stateConfig.rimIntensity);
-      current.hotSpotIntensity = lerpValue(current.hotSpotIntensity, stateConfig.hotSpotIntensity);
-      current.breathingSpeed = lerpValue(current.breathingSpeed, stateConfig.breathingSpeed);
-      current.breathingAmount = lerpValue(current.breathingAmount, stateConfig.breathingAmount);
-      current.radiusNoise = lerpValue(current.radiusNoise, stateConfig.radiusNoise);
-      current.glowIntensity = lerpValue(current.glowIntensity, stateConfig.glowIntensity);
+      // Smooth interpolation using damp for all numeric values
+      current.flowSpeed = THREE.MathUtils.damp(current.flowSpeed, stateConfig.flowSpeed, lambda, clampedDelta);
+      current.flowStrength = THREE.MathUtils.damp(current.flowStrength, stateConfig.flowStrength, lambda, clampedDelta);
+      current.rimIntensity = THREE.MathUtils.damp(current.rimIntensity, stateConfig.rimIntensity, lambda, clampedDelta);
+      current.hotSpotIntensity = THREE.MathUtils.damp(current.hotSpotIntensity, stateConfig.hotSpotIntensity, lambda, clampedDelta);
+      current.breathingSpeed = THREE.MathUtils.damp(current.breathingSpeed, stateConfig.breathingSpeed, lambda, clampedDelta);
+      current.breathingAmount = THREE.MathUtils.damp(current.breathingAmount, stateConfig.breathingAmount, lambda, clampedDelta);
+      current.radiusNoise = THREE.MathUtils.damp(current.radiusNoise, stateConfig.radiusNoise, lambda, clampedDelta);
+      current.glowIntensity = THREE.MathUtils.damp(current.glowIntensity, stateConfig.glowIntensity, lambda, clampedDelta);
       
       // Core retraction for thinking state
-      const targetRetraction = stateConfig.coreRetraction * thinkingRetraction / 0.25; // Scale by user setting
-      current.coreRetraction = lerpValue(current.coreRetraction, targetRetraction);
+      const targetRetraction = stateConfig.coreRetraction * thinkingRetraction / 0.25;
+      current.coreRetraction = THREE.MathUtils.damp(current.coreRetraction, targetRetraction, lambda, clampedDelta);
       
       u.uFlowSpeed.value = current.flowSpeed;
       u.uFlowStrength.value = current.flowStrength;
@@ -273,15 +271,15 @@ export const NebulaFlowSystem = memo(({
       u.uGlowIntensity.value = current.glowIntensity;
       u.uCoreRetraction.value = current.coreRetraction;
       
-      // Audio reactive mode - instant switch based on state config
-      u.uAudioReactive.value = stateConfig.audioReactive ? 1.0 : 0.0;
+      // Audio reactive mode - smooth transition instead of instant
+      const targetAudioReactive = stateConfig.audioReactive ? 1.0 : 0.0;
+      u.uAudioReactive.value = THREE.MathUtils.damp(u.uAudioReactive.value, targetAudioReactive, lambda * 2, clampedDelta);
       
-      // Enhanced audio breathing during speaking state
-      if (stateConfig.audioReactive) {
-        u.uAudioBreathing.value = audioBreathingIntensity + audioLevel * 0.12;
-      } else {
-        u.uAudioBreathing.value = audioBreathingIntensity;
-      }
+      // Enhanced audio breathing during speaking state (smooth)
+      const targetBreathing = stateConfig.audioReactive 
+        ? audioBreathingIntensity + audioLevel * 0.12 
+        : audioBreathingIntensity;
+      u.uAudioBreathing.value = THREE.MathUtils.damp(u.uAudioBreathing.value, targetBreathing, lambda * 3, clampedDelta);
     } else {
       // Manual mode - use prop values directly
       u.uFlowStrength.value = flowStrength;

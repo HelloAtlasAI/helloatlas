@@ -52,14 +52,14 @@ export const NEBULA_STATE_CONFIGS: Record<WakeWordState, NebulaStateConfig> = {
     colorStart: '#2a1550',
     colorMid: '#a855f7',
     colorEnd: '#22d3ee',
-    flowSpeed: 1.2,
-    flowStrength: 0.8,
-    rimIntensity: 2.0,
-    hotSpotIntensity: 1.5,
-    breathingSpeed: 1.0,
-    breathingAmount: 0.12,
-    radiusNoise: 0.2,
-    glowIntensity: 1.5,
+    flowSpeed: 0.8,         // Reduced from 1.2 - less dramatic
+    flowStrength: 0.6,      // Reduced from 0.8
+    rimIntensity: 1.4,      // Reduced from 2.0 - less harsh
+    hotSpotIntensity: 1.0,  // Reduced from 1.5
+    breathingSpeed: 0.8,    // Reduced from 1.0
+    breathingAmount: 0.08,  // Reduced from 0.12
+    radiusNoise: 0.15,      // Reduced from 0.2
+    glowIntensity: 1.3,     // Reduced from 1.5
     coreRetraction: 0,
     audioReactive: false,
   },
