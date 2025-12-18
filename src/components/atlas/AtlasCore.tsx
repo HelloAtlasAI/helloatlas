@@ -11,30 +11,42 @@ export interface AtlasCoreProps {
   audioLevel?: number;
   audioLevelRef?: MutableRefObject<number>;
   morphProgress?: number;
+  // Pixel-stable rendering props
+  containerWidth?: number;
+  containerHeight?: number;
+  pixelRatio?: number;
+  dynamicParticleCount?: number;
+  // Trail settings
   enableTrails?: boolean;
   trailLength?: number;
   trailOpacity?: number;
   trailColorGradient?: boolean;
   trailStartColor?: string;
   trailEndColor?: string;
+  // Particle settings
   particleCount?: number;
   particleSize?: number;
   density?: number;
   rotationSpeed?: number;
+  // Effects
   enableBloom?: boolean;
   bloomIntensity?: number;
   morphSpeed?: number;
+  // Ripple settings
   enableRipples?: boolean;
   rippleSpeed?: number;
   rippleCount?: number;
+  // Turbulence settings
   enableTurbulence?: boolean;
   turbulenceFrequency?: number;
   turbulenceAmplitude?: number;
   turbulenceSpeed?: number;
+  // Mouse interaction
   enableMouseInteraction?: boolean;
   mouseMode?: 'attract' | 'repulse';
   mouseStrength?: number;
   mouseInfluenceRadius?: number;
+  // Core system
   enableCore?: boolean;
   coreParticleCount?: number;
   coreDensity?: number;
@@ -42,13 +54,13 @@ export interface AtlasCoreProps {
   coreIntensity?: number;
   corePulseSpeed?: number;
   coreRotationOffset?: number;
+  // Fluid dynamics
   fluidCohesion?: number;
   surfaceTension?: number;
   fluidFlow?: number;
   audioReactivitySpeed?: number;
   /**
    * Camera Z distance.
-   * Useful for small embedded spheres (e.g. dashboard) to avoid bloom clipping and canvas edge artifacts.
    */
   cameraZ?: number;
   // Visualization mode
@@ -135,6 +147,12 @@ const ParticleSystem = memo(({
   state,
   audioLevelRef,
   morphProgress = 1,
+  // Pixel-stable props
+  pixelRatio = 1,
+  containerWidth = 200,
+  containerHeight = 200,
+  dynamicParticleCount,
+  // Trail settings
   enableTrails = false,
   trailLength = 4,
   trailOpacity = 0.4,
@@ -200,6 +218,9 @@ const ParticleSystem = memo(({
 }) => {
   const trailGeometryRef = useRef<THREE.BufferGeometry | null>(null);
   const config = STATE_CONFIGS[state];
+  
+  // Use dynamic particle count if provided, otherwise use settings
+  const effectiveParticleCount = dynamicParticleCount ?? nebulaParticleCount;
 
   // Nebula Flow mode
   if (visualizationMode === 'nebulaFlow') {
@@ -209,7 +230,7 @@ const ParticleSystem = memo(({
           state={state}
           audioLevelRef={audioLevelRef}
           morphProgress={morphProgress}
-          particleCount={nebulaParticleCount}
+          particleCount={effectiveParticleCount}
           particleSize={nebulaParticleSize}
           density={nebulaDensity}
           rotationSpeed={nebulaRotationSpeed}
@@ -235,6 +256,10 @@ const ParticleSystem = memo(({
           thinkingRetraction={nebulaThinkingRetraction}
           audioBreathingIntensity={nebulaAudioBreathingIntensity}
           transitionSpeed={nebulaTransitionSpeed}
+          // Pixel-stable rendering props
+          pixelRatio={pixelRatio}
+          containerWidth={containerWidth}
+          containerHeight={containerHeight}
         />
       </group>
     );
@@ -315,6 +340,12 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   audioLevel = 0,
   audioLevelRef: externalAudioLevelRef,
   morphProgress = 1.0,
+  // Pixel-stable rendering props
+  containerWidth,
+  containerHeight,
+  pixelRatio = 1,
+  dynamicParticleCount,
+  // Trail settings
   enableTrails = false,
   trailLength = 4,
   trailOpacity = 0.4,
@@ -350,7 +381,7 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   surfaceTension = 0.5,
   fluidFlow = 0.3,
   audioReactivitySpeed = 1.0,
-  cameraZ = 7.5,
+  cameraZ = 4.5,
   visualizationMode = 'classic',
   nebulaFlowStrength = 0.5,
   nebulaFlowSpeed = 0.5,
@@ -409,7 +440,7 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
         camera={{ position: [0, 0, cameraZ], fov: 45 }}
         gl={{ antialias: false, alpha: true, powerPreference: 'default', failIfMajorPerformanceCaveat: false }}
         style={{ background: 'transparent' }}
-        dpr={[1, 1.5]}
+        dpr={pixelRatio}
         onCreated={({ gl }) => { gl.setClearColor(0x000000, 0); }}
         fallback={<CSSFallbackOrb state={state} audioLevel={audioLevelRefToUse.current} />}
       >
@@ -417,6 +448,10 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
           state={state} 
           audioLevelRef={audioLevelRefToUse}
           morphProgress={morphProgress}
+          pixelRatio={pixelRatio}
+          containerWidth={containerWidth}
+          containerHeight={containerHeight}
+          dynamicParticleCount={dynamicParticleCount}
           enableTrails={enableTrails}
           trailLength={trailLength}
           trailOpacity={trailOpacity}

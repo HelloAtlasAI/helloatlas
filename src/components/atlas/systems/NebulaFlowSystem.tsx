@@ -13,6 +13,10 @@ interface NebulaFlowSystemProps {
   particleSize?: number;
   density?: number;
   rotationSpeed?: number;
+  // Pixel-stable rendering props
+  pixelRatio?: number;
+  containerWidth?: number;
+  containerHeight?: number;
   // Nebula-specific props
   flowStrength?: number;
   flowSpeed?: number;
@@ -49,6 +53,11 @@ export const NebulaFlowSystem = memo(({
   particleSize = 0.05,
   density = 1.0,
   rotationSpeed = 0.2,
+  // Pixel-stable props
+  pixelRatio = 1,
+  containerWidth = 200,
+  containerHeight = 200,
+  // Nebula props
   flowStrength = 0.5,
   flowSpeed = 0.5,
   bandCount = 8,
@@ -192,6 +201,10 @@ export const NebulaFlowSystem = memo(({
       uGlowIntensity: { value: glowIntensity },
       uDepthFade: { value: depthFade },
       uCoreGlow: { value: coreGlow },
+      // Pixel-stable rendering uniforms
+      uPixelRatio: { value: pixelRatio },
+      uResolution: { value: new THREE.Vector2(containerWidth, containerHeight) },
+      uPointSizePx: { value: 2.8 }, // Base point size in CSS pixels
       // Solid Surface uniforms
       uSolidSurface: { value: solidSurface ? 1.0 : 0.0 },
       uSurfaceBlend: { value: surfaceBlend },
@@ -303,6 +316,10 @@ export const NebulaFlowSystem = memo(({
     u.uParticleSize.value = particleSize;
     u.uDepthFade.value = depthFade;
     u.uCoreGlow.value = coreGlow;
+    
+    // Pixel-stable rendering - update every frame
+    u.uPixelRatio.value = pixelRatio;
+    u.uResolution.value.set(containerWidth, containerHeight);
     
     // Solid surface values
     u.uSolidSurface.value = solidSurface ? 1.0 : 0.0;
