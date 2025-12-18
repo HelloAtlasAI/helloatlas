@@ -1,5 +1,6 @@
-import { Settings, LogOut, Bell, Search, Menu, ChevronDown, Mic, MicOff } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Mic, MicOff, Wifi } from 'lucide-react';
+import { UserMenu } from './UserMenu';
 
 interface DashboardHeaderProps {
   userName?: string;
@@ -8,130 +9,157 @@ interface DashboardHeaderProps {
   onEnableVoice?: () => void;
 }
 
-export const DashboardHeader = ({ userName, onLogoutClick, voiceEnabled, onEnableVoice }: DashboardHeaderProps) => {
+export const DashboardHeader = ({ 
+  userName = 'User', 
+  onLogoutClick = () => {},
+  voiceEnabled = false,
+  onEnableVoice
+}: DashboardHeaderProps) => {
   return (
     <motion.header
-      className="relative overflow-hidden border-b border-border"
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
+      className="relative z-50"
     >
-      {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-r from-background via-card to-background" />
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
-      
-      <div className="relative z-10 flex items-center justify-between px-6 py-4">
-        {/* Left side */}
-        <div className="flex items-center gap-4">
-          <button className="lg:hidden p-2 rounded-xl bg-secondary hover:bg-accent transition-colors">
-            <Menu className="w-5 h-5 text-muted-foreground" />
-          </button>
-          
-          {/* Logo */}
+      {/* Glass container */}
+      <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden">
+        {/* Background with blur */}
+        <div className="absolute inset-0 bg-card/40 backdrop-blur-xl" />
+        
+        {/* Animated gradient border */}
+        <div className="absolute inset-0 rounded-2xl border border-primary/20" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+        
+        {/* HUD corner accents */}
+        <div className="absolute top-0 left-0 w-6 h-6 border-l-2 border-t-2 border-primary/40 rounded-tl-2xl" />
+        <div className="absolute top-0 right-0 w-6 h-6 border-r-2 border-t-2 border-primary/40 rounded-tr-2xl" />
+        <div className="absolute bottom-0 left-0 w-6 h-6 border-l-2 border-b-2 border-primary/40 rounded-bl-2xl" />
+        <div className="absolute bottom-0 right-0 w-6 h-6 border-r-2 border-b-2 border-primary/40 rounded-br-2xl" />
+
+        {/* Content */}
+        <div className="relative px-4 py-3 flex items-center justify-between">
+          {/* Left - Atlas Brand */}
           <div className="flex items-center gap-3">
+            {/* Animated logo orb */}
             <motion.div
-              className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center"
+              className="relative"
               animate={{ 
-                boxShadow: ['0 0 20px hsl(var(--primary) / 0.3)', '0 0 30px hsl(var(--primary) / 0.5)', '0 0 20px hsl(var(--primary) / 0.3)']
+                scale: [1, 1.05, 1],
               }}
-              transition={{ duration: 2, repeat: Infinity }}
+              transition={{ 
+                duration: 4, 
+                repeat: Infinity,
+                ease: 'easeInOut'
+              }}
             >
-              <span className="text-primary-foreground font-bold text-lg">A</span>
+              {/* Outer glow */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary to-accent blur-lg opacity-50" />
+              
+              {/* Inner orb */}
+              <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-primary/80 via-accent/60 to-primary/80 flex items-center justify-center border border-primary/30 shadow-lg shadow-primary/20">
+                {/* Core */}
+                <motion.div
+                  className="w-4 h-4 rounded-full bg-gradient-to-br from-white/90 to-primary/50"
+                  animate={{ 
+                    opacity: [0.8, 1, 0.8],
+                    scale: [0.9, 1, 0.9]
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity,
+                    ease: 'easeInOut'
+                  }}
+                />
+              </div>
             </motion.div>
-            <div>
-              <h1 className="text-xl font-semibold text-foreground">Atlas</h1>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">AI Dashboard</p>
+
+            {/* Brand text */}
+            <div className="hidden sm:block">
+              <motion.h1 
+                className="text-xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto]"
+                animate={{ backgroundPosition: ['0%', '100%', '0%'] }}
+                transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+              >
+                Atlas
+              </motion.h1>
+              <p className="text-[10px] text-muted-foreground/60 tracking-widest uppercase">
+                AI Assistant
+              </p>
             </div>
           </div>
-        </div>
-        
-        {/* Center - Search */}
-        <div className="hidden md:flex flex-1 max-w-xl mx-8">
-          <div className="relative w-full group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-            <input
-              type="text"
-              placeholder="Search anything..."
-              className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 focus:bg-accent transition-all"
+
+          {/* Center - Status indicator (desktop only) */}
+          <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-background/30 border border-border/30">
+            <motion.div
+              className="w-2 h-2 rounded-full bg-green-500"
+              animate={{ 
+                opacity: [1, 0.5, 1],
+                scale: [1, 0.9, 1]
+              }}
+              transition={{ 
+                duration: 2, 
+                repeat: Infinity,
+                ease: 'easeInOut'
+              }}
             />
-            <kbd className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-muted text-[10px] text-muted-foreground font-mono hidden lg:block">
-              ⌘K
-            </kbd>
+            <span className="text-xs text-muted-foreground">System Online</span>
+            <Wifi className="w-3 h-3 text-green-500" />
           </div>
-        </div>
-        
-        {/* Right side */}
-        <div className="flex items-center gap-2">
-          {/* Voice Toggle */}
-          <motion.button
-            onClick={onEnableVoice}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={`relative p-2.5 rounded-xl transition-colors ${
-              voiceEnabled 
-                ? 'bg-primary/20 text-primary border border-primary/30' 
-                : 'bg-secondary hover:bg-accent text-muted-foreground'
-            }`}
-            title={voiceEnabled ? 'Voice enabled' : 'Click to enable voice'}
-          >
-            {voiceEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-            {voiceEnabled && (
-              <motion.span 
-                className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-primary rounded-full"
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            )}
-          </motion.button>
-          
-          {/* Notifications */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="relative p-2.5 rounded-xl bg-secondary hover:bg-accent transition-colors"
-          >
-            <Bell className="w-5 h-5 text-muted-foreground" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
-          </motion.button>
-          
-          {/* Settings */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="p-2.5 rounded-xl bg-secondary hover:bg-accent transition-colors"
-          >
-            <Settings className="w-5 h-5 text-muted-foreground" />
-          </motion.button>
-          
-          {/* Divider */}
-          <div className="w-px h-8 bg-border mx-2" />
-          
-          {/* User menu */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-3 px-3 py-1.5 rounded-xl hover:bg-secondary transition-colors"
-          >
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-semibold text-sm">
-                {userName?.charAt(0)?.toUpperCase() || 'U'}
-              </span>
-            </div>
-            <div className="hidden lg:block text-left">
-              <p className="text-sm font-medium text-foreground">{userName || 'User'}</p>
-              <p className="text-[10px] text-muted-foreground">Premium Plan</p>
-            </div>
-            <ChevronDown className="w-4 h-4 text-muted-foreground hidden lg:block" />
-          </motion.button>
-          
-          {/* Logout */}
-          <motion.button
-            onClick={onLogoutClick}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="p-2.5 rounded-xl bg-secondary hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-          </motion.button>
+
+          {/* Right - Actions */}
+          <div className="flex items-center gap-3">
+            {/* Voice Toggle */}
+            <motion.button
+              onClick={onEnableVoice}
+              className="relative group"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {/* Pulsing glow ring when active */}
+              {voiceEnabled && (
+                <motion.div
+                  className="absolute inset-0 rounded-full bg-primary/40 blur-md"
+                  animate={{ 
+                    scale: [1, 1.3, 1],
+                    opacity: [0.5, 0.2, 0.5]
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity,
+                    ease: 'easeInOut'
+                  }}
+                />
+              )}
+              
+              {/* Button */}
+              <div className={`
+                relative w-9 h-9 rounded-full flex items-center justify-center
+                transition-all duration-300 border
+                ${voiceEnabled 
+                  ? 'bg-primary/20 border-primary/50 text-primary' 
+                  : 'bg-background/30 border-border/50 text-muted-foreground hover:border-primary/30 hover:text-primary'
+                }
+              `}>
+                {voiceEnabled ? (
+                  <Mic className="w-4 h-4" />
+                ) : (
+                  <MicOff className="w-4 h-4" />
+                )}
+              </div>
+
+              {/* Tooltip */}
+              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-card/90 border border-border/50 text-[10px] text-muted-foreground whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                {voiceEnabled ? 'Voice Active' : 'Enable Voice'}
+              </div>
+            </motion.button>
+
+            {/* Separator */}
+            <div className="w-px h-6 bg-border/50" />
+
+            {/* User Menu */}
+            <UserMenu userName={userName} onLogoutClick={onLogoutClick} />
+          </div>
         </div>
       </div>
     </motion.header>
