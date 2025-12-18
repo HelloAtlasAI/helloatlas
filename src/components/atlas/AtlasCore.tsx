@@ -46,6 +46,11 @@ export interface AtlasCoreProps {
   surfaceTension?: number;
   fluidFlow?: number;
   audioReactivitySpeed?: number;
+  /**
+   * Camera Z distance.
+   * Useful for small embedded spheres (e.g. dashboard) to avoid bloom clipping and canvas edge artifacts.
+   */
+  cameraZ?: number;
   // Visualization mode
   visualizationMode?: 'classic' | 'nebulaFlow';
   // Nebula Flow settings
@@ -345,6 +350,7 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
   surfaceTension = 0.5,
   fluidFlow = 0.3,
   audioReactivitySpeed = 1.0,
+  cameraZ = 7.5,
   visualizationMode = 'classic',
   nebulaFlowStrength = 0.5,
   nebulaFlowSpeed = 0.5,
@@ -400,7 +406,7 @@ export const AtlasCore = memo(forwardRef<HTMLDivElement, AtlasCoreProps>(({
       onPointerLeave={handlePointerLeave}
     >
       <Canvas
-        camera={{ position: [0, 0, 7.5], fov: 45 }}
+        camera={{ position: [0, 0, cameraZ], fov: 45 }}
         gl={{ antialias: false, alpha: true, powerPreference: 'default', failIfMajorPerformanceCaveat: false }}
         style={{ background: 'transparent' }}
         dpr={[1, 1.5]}

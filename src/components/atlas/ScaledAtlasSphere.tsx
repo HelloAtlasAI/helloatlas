@@ -42,6 +42,10 @@ const ScaledAtlasSphereComponent = ({
   const effectiveState = overrideState ?? state;
   const effectiveMorphProgress = overrideMorphProgress ?? settings.morphProgress;
 
+  // For very small containers (e.g. 140px dashboard), move camera back to avoid
+  // bloom hitting canvas edges (which shows up as a visible square).
+  const cameraZ = scale < 0.3 ? 10.0 : scale < 0.4 ? 9.0 : 7.5;
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -78,6 +82,7 @@ const ScaledAtlasSphereComponent = ({
         <AtlasCore
           state={effectiveState}
           audioLevel={audioLevel}
+          cameraZ={cameraZ}
           morphProgress={effectiveMorphProgress}
           enableTrails={settings.enableTrails}
           trailLength={settings.trailLength}
