@@ -1,7 +1,7 @@
 import { useRef, useMemo, memo, MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { WakeWordState } from '@/hooks/useWakeWord';
+import { WakeWordState } from '@/types';
 import { nebulaFlowVertexShader, nebulaFlowFragmentShader } from '../shaders/nebulaFlowShaders';
 import { NEBULA_STATE_CONFIGS } from '../utils/nebulaStateConfigs';
 

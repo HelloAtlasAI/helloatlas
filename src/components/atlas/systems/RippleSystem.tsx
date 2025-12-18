@@ -1,7 +1,7 @@
 import { useRef, memo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { WakeWordState } from '@/hooks/useWakeWord';
+import { WakeWordState } from '@/types';
 import { STATE_CONFIGS } from '../utils/stateConfigs';
 
 interface Ripple {

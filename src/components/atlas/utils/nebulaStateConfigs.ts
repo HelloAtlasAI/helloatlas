@@ -1,4 +1,4 @@
-import { WakeWordState } from '@/hooks/useWakeWord';
+import { WakeWordState } from '@/types';
 
 export interface NebulaStateConfig {
   colorStart: string;
