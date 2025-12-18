@@ -30,6 +30,9 @@ verify_jwt = false
 [functions.atlas-research]
 verify_jwt = false
 
+[functions.atlas-knowledge-validator]
+verify_jwt = false
+
 [functions.tool-gateway]
 verify_jwt = false
 

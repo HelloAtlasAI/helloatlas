@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 const LegacyIndex = lazy(() => import("./pages/Index"));
 const AtlasDemo = lazy(() => import("./pages/AtlasDemo"));
 const AtlasCore = lazy(() => import("./pages/AtlasCore"));
+const AtlasTeach = lazy(() => import("./pages/AtlasTeach"));
 
 const queryClient = new QueryClient();
 
@@ -40,8 +41,16 @@ const App = () => (
             element={
               <Suspense fallback={<PageLoader />}>
                 <AtlasCore />
-              </Suspense>
+            </Suspense>
             } 
+          />
+          <Route 
+            path="/atlas-teach" 
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <AtlasTeach />
+              </Suspense>
+            }
           />
           
           {/* Legacy routes with lazy loading */}

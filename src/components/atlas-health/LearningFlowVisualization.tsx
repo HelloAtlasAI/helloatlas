@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Brain, Database, ArrowRight, Play, Pause } from 'lucide-react';
+import { Zap, Brain, Database, ArrowRight, Play, Pause, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -19,9 +19,10 @@ interface LearningSession {
 
 interface DataFlow {
   id: string;
-  type: 'knowledge' | 'research' | 'conversation';
+  type: 'knowledge' | 'research' | 'conversation' | 'flagged';
   content: string;
   timestamp: Date;
+  validationStatus?: string;
 }
 
 interface LearningFlowVisualizationProps {
@@ -33,6 +34,7 @@ export const LearningFlowVisualization = ({ compact = false }: LearningFlowVisua
   const [dataFlows, setDataFlows] = useState<DataFlow[]>([]);
   const [isLearning, setIsLearning] = useState(false);
   const [learningTopic, setLearningTopic] = useState('');
+  const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -59,13 +61,15 @@ export const LearningFlowVisualization = ({ compact = false }: LearningFlowVisua
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'atlas_knowledge_entries' },
         (payload) => {
+          const validationStatus = payload.new.validation_status as string;
           const newFlow: DataFlow = {
             id: payload.new.id as string,
-            type: 'knowledge',
+            type: validationStatus === 'flagged' ? 'flagged' : 'knowledge',
             content: payload.new.topic as string,
             timestamp: new Date(),
+            validationStatus,
           };
-          setDataFlows(prev => [newFlow, ...prev].slice(0, 10));
+          setDataFlows(prev => [newFlow, ...prev].slice(0, 15));
         }
       )
       .subscribe();
@@ -80,11 +84,23 @@ export const LearningFlowVisualization = ({ compact = false }: LearningFlowVisua
             const newFlow: DataFlow = {
               id: payload.new.id as string,
               type: 'research',
-              content: payload.new.topic as string,
+              content: `${payload.new.status}: ${payload.new.topic}`,
               timestamp: new Date(),
             };
-            setDataFlows(prev => [newFlow, ...prev].slice(0, 10));
+            setDataFlows(prev => [newFlow, ...prev].slice(0, 15));
           }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to learning session updates
+    const sessionChannel = supabase
+      .channel('learning_sessions')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'atlas_learning_sessions' },
+        () => {
+          fetchSessions();
         }
       )
       .subscribe();
@@ -92,38 +108,70 @@ export const LearningFlowVisualization = ({ compact = false }: LearningFlowVisua
     return () => {
       supabase.removeChannel(knowledgeChannel);
       supabase.removeChannel(researchChannel);
+      supabase.removeChannel(sessionChannel);
     };
   }, []);
 
   const startLearningMode = async () => {
     if (!learningTopic.trim()) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    setIsStarting(true);
     
-    const { error } = await supabase
-      .from('atlas_learning_sessions')
-      .insert({
-        user_id: user?.id,
-        topic: learningTopic,
-        mode: 'explore',
-        status: 'active',
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Create the learning session
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('atlas_learning_sessions')
+        .insert({
+          user_id: user?.id,
+          topic: learningTopic,
+          mode: 'explore',
+          status: 'active',
+        })
+        .select()
+        .single();
+
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      // Trigger research with the learning session ID
+      const { data: researchResult, error: researchError } = await supabase.functions.invoke('atlas-research', {
+        body: {
+          action: 'create',
+          topic: learningTopic,
+          description: `Learning session exploration: ${learningTopic}`,
+          userId: user?.id,
+          learningSessionId: sessionData.id,
+          autoDeepen: true,
+          maxDepth: 3,
+        },
       });
 
-    if (error) {
+      if (researchError) {
+        console.error('Research trigger error:', researchError);
+        // Session is still created, research will just be manual
+      } else {
+        console.log('Research started:', researchResult);
+      }
+
+      setIsLearning(true);
+      setLearningTopic('');
+      toast({
+        title: 'Learning Mode Activated',
+        description: `Atlas is now researching: ${learningTopic}`,
+      });
+    } catch (error) {
+      console.error('Failed to start learning:', error);
       toast({
         title: 'Error',
         description: 'Failed to start learning session',
         variant: 'destructive',
       });
-      return;
+    } finally {
+      setIsStarting(false);
     }
-
-    setIsLearning(true);
-    setLearningTopic('');
-    toast({
-      title: 'Learning Mode Activated',
-      description: `Atlas is now exploring: ${learningTopic}`,
-    });
   };
 
   const stopLearningMode = async () => {
@@ -146,12 +194,14 @@ export const LearningFlowVisualization = ({ compact = false }: LearningFlowVisua
     knowledge: 'bg-primary/20 text-primary border-primary/30',
     research: 'bg-secondary/20 text-secondary border-secondary/30',
     conversation: 'bg-accent/20 text-accent border-accent/30',
+    flagged: 'bg-destructive/20 text-destructive border-destructive/30',
   };
 
   const flowTypeIcons: Record<string, typeof Brain> = {
-    knowledge: Brain,
+    knowledge: CheckCircle,
     research: Database,
     conversation: Zap,
+    flagged: AlertCircle,
   };
 
   return (
@@ -179,7 +229,8 @@ export const LearningFlowVisualization = ({ compact = false }: LearningFlowVisua
               value={learningTopic}
               onChange={(e) => setLearningTopic(e.target.value)}
               className="bg-background/50"
-              disabled={isLearning}
+              disabled={isLearning || isStarting}
+              onKeyDown={(e) => e.key === 'Enter' && startLearningMode()}
             />
             
             {isLearning ? (
@@ -188,9 +239,16 @@ export const LearningFlowVisualization = ({ compact = false }: LearningFlowVisua
                 Stop
               </Button>
             ) : (
-              <Button onClick={startLearningMode} disabled={!learningTopic.trim()}>
-                <Play className="w-4 h-4 mr-2" />
-                Start
+              <Button 
+                onClick={startLearningMode} 
+                disabled={!learningTopic.trim() || isStarting}
+              >
+                {isStarting ? (
+                  <div className="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4 mr-2" />
+                )}
+                {isStarting ? 'Starting...' : 'Start'}
               </Button>
             )}
           </div>
@@ -209,6 +267,9 @@ export const LearningFlowVisualization = ({ compact = false }: LearningFlowVisua
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
               <span className="flex-1">{session.topic}</span>
               <Badge variant="outline">{session.mode}</Badge>
+              {Array.isArray(session.discoveries) && session.discoveries.length > 0 && (
+                <Badge variant="secondary">{session.discoveries.length} discoveries</Badge>
+              )}
             </div>
           ))}
         </div>
@@ -231,14 +292,15 @@ export const LearningFlowVisualization = ({ compact = false }: LearningFlowVisua
               >
                 <ArrowRight className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">Waiting for data...</p>
+                <p className="text-xs mt-1 opacity-60">Start a learning session to see live data flow</p>
               </motion.div>
             ) : (
               dataFlows.map((flow, index) => {
-                const Icon = flowTypeIcons[flow.type];
+                const Icon = flowTypeIcons[flow.type] || Brain;
                 
                 return (
                   <motion.div
-                    key={flow.id}
+                    key={`${flow.id}-${flow.timestamp.getTime()}`}
                     initial={{ opacity: 0, x: -20, scale: 0.95 }}
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, x: 20, scale: 0.95 }}
@@ -247,6 +309,14 @@ export const LearningFlowVisualization = ({ compact = false }: LearningFlowVisua
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     <span className="flex-1 text-sm truncate">{flow.content}</span>
+                    {flow.validationStatus && (
+                      <Badge 
+                        variant={flow.validationStatus === 'validated' ? 'default' : 'destructive'}
+                        className="text-xs"
+                      >
+                        {flow.validationStatus}
+                      </Badge>
+                    )}
                     <span className="text-xs opacity-60">
                       {flow.timestamp.toLocaleTimeString()}
                     </span>
