@@ -383,7 +383,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, userId, source = "text_chat", enableTools = true } = await req.json();
+    const { messages, userId, source = "text_chat", enableTools = true, teachingMode = false, systemPromptOverride } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -442,10 +442,13 @@ serve(async (req) => {
     console.log("[chat-with-memory] Profile:", profile?.first_name);
     console.log("[chat-with-memory] Memories count:", memories.length);
     console.log("[chat-with-memory] Tools enabled:", enableTools);
+    console.log("[chat-with-memory] Teaching mode:", teachingMode);
     console.log("[chat-with-memory] Perplexity available:", !!PERPLEXITY_API_KEY);
 
-    const hasTools = enableTools && (!!PERPLEXITY_API_KEY || true); // Always enable tools, some work without Perplexity
-    const systemPrompt = buildPersonalizedPrompt(profile, memories, upcomingEvents, recentEvents, knowledgeBank, hasTools);
+    const hasTools = enableTools && !teachingMode && (!!PERPLEXITY_API_KEY || true); // Disable tools in teaching mode for speed
+    
+    // Use override prompt if provided (for teaching mode), otherwise build personalized prompt
+    const systemPrompt = systemPromptOverride || buildPersonalizedPrompt(profile, memories, upcomingEvents, recentEvents, knowledgeBank, hasTools);
 
     // Build conversation with system prompt
     const conversationMessages = [
@@ -455,8 +458,101 @@ serve(async (req) => {
 
     // Tool execution loop - make non-streaming request first to check for tool calls
     let allToolResults: Array<{ name: string; result: unknown; citations?: string[] }> = [];
-    let maxToolIterations = 3;
+    let maxToolIterations = teachingMode ? 0 : 3; // Skip tool loop entirely in teaching mode
     let currentMessages = [...conversationMessages];
+
+    // TEACHING MODE: Fast path - skip tool checking, go directly to streaming
+    // The model will handle memory_store via its response which we'll process later
+    if (teachingMode) {
+      console.log("[chat-with-memory] Teaching mode: using fast path (no tool loop)");
+      
+      // Make a simple non-streaming request for teaching mode to get faster response
+      const teachResponse = await fetch(PROVIDERS.lovable.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: PROVIDERS.lovable.model,
+          messages: currentMessages,
+          tools: [{
+            type: "function",
+            function: {
+              name: "memory_store",
+              description: "Store an important fact about the user",
+              parameters: {
+                type: "object",
+                properties: {
+                  key: { type: "string" },
+                  value: { type: "string" },
+                  category: { type: "string", enum: ["preference", "fact", "relationship", "event", "work", "health", "personal", "values"] }
+                },
+                required: ["key", "value", "category"]
+              }
+            }
+          }],
+          tool_choice: "auto",
+          stream: false,
+        }),
+      });
+
+      if (!teachResponse.ok) {
+        const status = teachResponse.status;
+        if (status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limits exceeded" }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required" }), {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw new Error(`AI gateway error: ${status}`);
+      }
+
+      const teachData = await teachResponse.json();
+      const choice = teachData.choices?.[0];
+      let responseText = choice?.message?.content || "I understand. Tell me more.";
+      
+      // Process any memory_store tool calls
+      const toolCalls = choice?.message?.tool_calls;
+      if (toolCalls && toolCalls.length > 0) {
+        for (const tc of toolCalls) {
+          if (tc.function?.name === "memory_store") {
+            try {
+              const args = JSON.parse(tc.function.arguments);
+              console.log("[chat-with-memory] Teaching mode: storing memory", args);
+              
+              if (userId) {
+                await supabase.from("ai_memory").upsert({
+                  user_id: userId,
+                  key: args.key,
+                  value: args.value,
+                  category: args.category,
+                  memory_type: "fact",
+                  importance: 7,
+                  updated_at: new Date().toISOString(),
+                }, { onConflict: "user_id,key" });
+              }
+            } catch (e) {
+              console.error("[chat-with-memory] Memory store error:", e);
+            }
+          }
+        }
+      }
+
+      console.log("[chat-with-memory] Teaching mode response ready");
+      return new Response(
+        JSON.stringify({ response: responseText, message: responseText }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     while (maxToolIterations > 0) {
       console.log("[chat-with-memory] Making AI request, iteration:", 4 - maxToolIterations);

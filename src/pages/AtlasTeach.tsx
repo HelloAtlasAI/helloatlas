@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, Volume2, VolumeX, ChevronRight, ChevronLeft, Brain, Heart, User, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useVoice } from '@/hooks/useVoice';
+import { useRealtimeScribe } from '@/hooks/useRealtimeScribe';
+import { useStreamingTTS } from '@/hooks/useStreamingTTS';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { UnifiedAtlasSphere } from '@/components/atlas/UnifiedAtlasSphere';
@@ -21,6 +22,27 @@ interface Message {
   content: string;
 }
 
+const TEACHING_SYSTEM_PROMPT = `You are Atlas, a personal AI assistant in TEACHING MODE. The user wants to teach you about themselves, their values, ethics, and human nature in general.
+
+YOUR ROLE:
+- Be curious and engaged - ask follow-up questions
+- Actively use memory_store to remember everything the user teaches you
+- Confirm when you've learned something: "I'll remember that..." or "Got it, I've noted that..."
+- Show genuine interest in understanding the user as a person
+- Be conversational and warm, like a friend who genuinely wants to know you better
+- Keep responses CONCISE for faster voice interaction - 1-3 sentences max unless asked for detail
+
+THINGS TO LEARN AND REMEMBER:
+- Personal details (name, birthday, family members, pets)
+- Preferences (favorite foods, music, activities)
+- Values and ethics (what matters to them, moral principles)
+- Life philosophy (outlook on life, beliefs)
+- Important events (milestones, challenges, achievements)
+- Relationships (friends, family dynamics)
+- Goals and dreams (aspirations, plans)
+
+Always be warm, curious, and show that you're genuinely learning.`;
+
 const AtlasTeach = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -28,18 +50,123 @@ const AtlasTeach = () => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [atlasState, setAtlasState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
   const [isMuted, setIsMuted] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const {
-    isRecording,
-    isPlaying,
-    audioLevel,
-    startRecording,
-    stopRecording,
-    speakText,
-    stopCurrentAudio,
-  } = useVoice();
+  // Streaming TTS
+  const { isPlaying, audioLevel, speak, stopPlayback } = useStreamingTTS({
+    onPlaybackStart: () => setAtlasState('speaking'),
+    onPlaybackEnd: () => setAtlasState('idle'),
+    onError: (error) => {
+      console.error('TTS error:', error);
+      setAtlasState('idle');
+    },
+  });
+
+  // Send message to Atlas
+  const sendToAtlas = useCallback(async (userMessage: string) => {
+    setIsProcessing(true);
+    setAtlasState('thinking');
+    
+    const newUserMessage: Message = { role: 'user', content: userMessage };
+    setMessages(prev => [...prev, newUserMessage]);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Use non-streaming for faster tool execution in teaching mode
+      const { data, error } = await supabase.functions.invoke('chat-with-memory', {
+        body: {
+          messages: [...messages, newUserMessage].map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
+          userId: user?.id,
+          teachingMode: true, // Optimized path
+          systemPromptOverride: TEACHING_SYSTEM_PROMPT,
+        },
+      });
+
+      if (error) throw error;
+
+      const responseText = data.response || data.message || 'I understand. Tell me more.';
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: responseText,
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+      setIsProcessing(false);
+
+      // Speak the response immediately using streaming TTS
+      if (!isMuted && responseText) {
+        await speak(responseText);
+      } else {
+        setAtlasState('idle');
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to process your message',
+        variant: 'destructive',
+      });
+      setIsProcessing(false);
+      setAtlasState('idle');
+    }
+  }, [messages, isMuted, speak, toast]);
+
+  // Realtime STT with VAD
+  const { isConnected, isListening, partialTranscript, connect, disconnect } = useRealtimeScribe({
+    onPartialTranscript: (text) => {
+      setLiveTranscript(text);
+    },
+    onFinalTranscript: async (text) => {
+      console.log('[Teach] Final transcript:', text);
+      setLiveTranscript("");
+      if (text.trim()) {
+        await sendToAtlas(text);
+      }
+    },
+    onSpeechStart: () => {
+      // Stop Atlas if they're speaking
+      if (isPlaying) {
+        stopPlayback();
+      }
+    },
+    onSpeechEnd: () => {
+      console.log('[Teach] Speech ended, waiting for transcript...');
+    },
+    onError: (error) => {
+      console.error('STT error:', error);
+      toast({
+        title: 'Voice Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Update live transcript display
+  useEffect(() => {
+    if (partialTranscript) {
+      setLiveTranscript(partialTranscript);
+    }
+  }, [partialTranscript]);
+
+  // Update Atlas state based on activity
+  useEffect(() => {
+    if (isListening) {
+      setAtlasState('listening');
+    } else if (isProcessing) {
+      setAtlasState('thinking');
+    } else if (isPlaying) {
+      setAtlasState('speaking');
+    } else if (!isConnected) {
+      setAtlasState('idle');
+    }
+  }, [isListening, isProcessing, isPlaying, isConnected]);
 
   // Fetch existing memories
   useEffect(() => {
@@ -78,115 +205,37 @@ const AtlasTeach = () => {
     };
   }, []);
 
-  // Update Atlas state based on voice activity
-  useEffect(() => {
-    if (isRecording) {
-      setAtlasState('listening');
-    } else if (isProcessing) {
-      setAtlasState('thinking');
-    } else if (isPlaying) {
-      setAtlasState('speaking');
-    } else {
-      setAtlasState('idle');
-    }
-  }, [isRecording, isProcessing, isPlaying]);
-
   // Auto-scroll messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const sendToAtlas = useCallback(async (userMessage: string) => {
-    setIsProcessing(true);
-    
-    const newUserMessage: Message = { role: 'user', content: userMessage };
-    setMessages(prev => [...prev, newUserMessage]);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const { data, error } = await supabase.functions.invoke('chat-with-memory', {
-        body: {
-          messages: [...messages, newUserMessage].map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
-          userId: user?.id,
-          teachingMode: true,
-          systemPromptOverride: `You are Atlas, a personal AI assistant in TEACHING MODE. The user wants to teach you about themselves, their values, ethics, and human nature in general.
-
-YOUR ROLE:
-- Be curious and engaged - ask follow-up questions
-- Actively use memory_store to remember everything the user teaches you
-- Confirm when you've learned something: "I'll remember that..." or "Got it, I've noted that..."
-- Show genuine interest in understanding the user as a person
-- Be conversational and warm, like a friend who genuinely wants to know you better
-
-THINGS TO LEARN AND REMEMBER:
-- Personal details (name, birthday, family members, pets)
-- Preferences (favorite foods, music, activities)
-- Values and ethics (what matters to them, moral principles)
-- Life philosophy (outlook on life, beliefs)
-- Important events (milestones, challenges, achievements)
-- Relationships (friends, family dynamics)
-- Goals and dreams (aspirations, plans)
-
-EXAMPLE INTERACTIONS:
-User: "My name is Sarah"
-Atlas: "Nice to meet you, Sarah! I'll remember that. Is there a story behind your name, or what would you like me to call you?"
-
-User: "I believe everyone deserves a second chance"
-Atlas: "That's a compassionate perspective - I'll remember that forgiveness and redemption are important to you. Has this belief been shaped by any particular experiences in your life?"
-
-Always be warm, curious, and show that you're genuinely learning.`,
-        },
-      });
-
-      if (error) throw error;
-
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: data.response || data.message || 'I understand. Tell me more.',
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
-
-      // Speak the response if not muted
-      if (!isMuted && assistantMessage.content) {
-        await speakText(assistantMessage.content);
-      }
-    } catch (error) {
-      console.error('Chat error:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to process your message',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [messages, isMuted, speakText, toast]);
-
+  // Handle mic button click
   const handleMicClick = useCallback(async () => {
-    if (isRecording) {
-      const transcript = await stopRecording();
-      if (transcript) {
-        await sendToAtlas(transcript);
-      }
+    if (isConnected) {
+      disconnect();
+      setLiveTranscript("");
     } else {
       if (isPlaying) {
-        stopCurrentAudio();
+        stopPlayback();
       }
-      await startRecording();
+      const success = await connect();
+      if (!success) {
+        toast({
+          title: 'Connection Failed',
+          description: 'Could not start voice recognition',
+          variant: 'destructive',
+        });
+      }
     }
-  }, [isRecording, isPlaying, startRecording, stopRecording, stopCurrentAudio, sendToAtlas]);
+  }, [isConnected, isPlaying, connect, disconnect, stopPlayback, toast]);
 
   const toggleMute = useCallback(() => {
     if (isPlaying) {
-      stopCurrentAudio();
+      stopPlayback();
     }
     setIsMuted(prev => !prev);
-  }, [isPlaying, stopCurrentAudio]);
+  }, [isPlaying, stopPlayback]);
 
   // Group memories by category
   const memoriesByCategory = memories.reduce((acc, memory) => {
@@ -223,26 +272,43 @@ Always be warm, curious, and show that you're genuinely learning.`,
         {/* State indicator */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={atlasState}
+            key={atlasState + (isConnected ? '-connected' : '')}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             className="mb-8 text-center"
           >
             <p className="text-lg text-muted-foreground capitalize">
-              {atlasState === 'idle' && 'Ready to learn'}
-              {atlasState === 'listening' && 'Listening...'}
+              {!isConnected && 'Tap to start'}
+              {isConnected && atlasState === 'idle' && 'Listening for speech...'}
+              {atlasState === 'listening' && 'Hearing you...'}
               {atlasState === 'thinking' && 'Processing...'}
               {atlasState === 'speaking' && 'Speaking...'}
             </p>
+            {isConnected && (
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Voice recognition active
+              </p>
+            )}
           </motion.div>
         </AnimatePresence>
+
+        {/* Live transcript */}
+        {liveTranscript && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 px-6 py-3 bg-primary/10 rounded-full max-w-md"
+          >
+            <p className="text-sm text-center">{liveTranscript}</p>
+          </motion.div>
+        )}
 
         {/* Atlas Sphere */}
         <div className="relative w-[400px] h-[400px] mb-8">
           <UnifiedAtlasSphere
             state="listening"
-            audioLevel={audioLevel}
+            audioLevel={isPlaying ? audioLevel : (isListening ? 0.3 : 0)}
             responsive={false}
             overrideMorphProgress={
               atlasState === 'listening' ? 0.3 :
@@ -253,7 +319,7 @@ Always be warm, curious, and show that you're genuinely learning.`,
         </div>
 
         {/* Audio level visualization ring */}
-        {(isRecording || isPlaying) && (
+        {(isListening || isPlaying) && (
           <motion.div
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
             initial={{ opacity: 0 }}
@@ -263,7 +329,7 @@ Always be warm, curious, and show that you're genuinely learning.`,
             <div 
               className="w-[420px] h-[420px] rounded-full border-2 border-primary/30"
               style={{
-                transform: `scale(${1 + audioLevel * 0.1})`,
+                transform: `scale(${1 + (isPlaying ? audioLevel : 0.1) * 0.15})`,
                 transition: 'transform 0.1s ease-out',
               }}
             />
@@ -274,12 +340,12 @@ Always be warm, curious, and show that you're genuinely learning.`,
         <div className="flex items-center gap-4">
           <Button
             size="lg"
-            variant={isRecording ? 'destructive' : 'default'}
+            variant={isConnected ? 'destructive' : 'default'}
             onClick={handleMicClick}
             className="w-16 h-16 rounded-full"
             disabled={isProcessing}
           >
-            {isRecording ? (
+            {isConnected ? (
               <MicOff className="w-8 h-8" />
             ) : (
               <Mic className="w-8 h-8" />
@@ -328,7 +394,7 @@ Always be warm, curious, and show that you're genuinely learning.`,
         )}
 
         {/* Hint for new users */}
-        {messages.length === 0 && (
+        {messages.length === 0 && !isConnected && (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
