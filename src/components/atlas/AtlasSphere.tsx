@@ -175,7 +175,7 @@ const AtlasSphereComponent = ({
           nebulaThinkingRetraction={settings.nebulaThinkingRetraction}
           nebulaAudioBreathingIntensity={settings.nebulaAudioBreathingIntensity}
           nebulaTransitionSpeed={settings.nebulaTransitionSpeed}
-          nebulaManualOverrides={settings._manualOverrides}
+          nebulaStateCustomizations={settings.stateCustomizations}
         />
       )}
     </div>
