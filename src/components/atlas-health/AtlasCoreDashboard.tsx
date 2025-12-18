@@ -21,6 +21,7 @@ import { AtlasStatsCard } from './AtlasStatsCard';
 import { KnowledgeBankPanel } from './KnowledgeBankPanel';
 import { ErrorLogStream } from './ErrorLogStream';
 import { ResearchExplorer } from './ResearchExplorer';
+import { ResearchQueueVisualization } from './ResearchQueueVisualization';
 import { LearningFlowVisualization } from './LearningFlowVisualization';
 import { AgentRunsPanel } from './AgentRunsPanel';
 import { ToolCallsPanel } from './ToolCallsPanel';
@@ -301,19 +302,30 @@ const AtlasCoreDashboard = () => {
                 </motion.div>
               </motion.div>
 
-              {/* Error Stream */}
-              <motion.div 
-                variants={itemVariants}
-                initial="hidden"
-                animate="visible"
-                className="backdrop-blur-xl bg-background/30 border border-border/30 p-6 rounded-2xl hover:border-accent/30 transition-colors"
-              >
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-accent" />
-                  Recent Errors
-                </h3>
-                <ErrorLogStream compact limit={5} />
-              </motion.div>
+              {/* Research Queue + Error Stream */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <motion.div 
+                  variants={itemVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="backdrop-blur-xl bg-background/30 border border-border/30 p-6 rounded-2xl hover:border-cyan-500/30 transition-colors"
+                >
+                  <ResearchQueueVisualization topics={topics} compact />
+                </motion.div>
+
+                <motion.div 
+                  variants={itemVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="backdrop-blur-xl bg-background/30 border border-border/30 p-6 rounded-2xl hover:border-accent/30 transition-colors"
+                >
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-accent" />
+                    Recent Errors
+                  </h3>
+                  <ErrorLogStream compact limit={5} />
+                </motion.div>
+              </div>
             </TabsContent>
 
             <TabsContent value="agent" className="space-y-6 mt-0">
@@ -378,12 +390,23 @@ const AtlasCoreDashboard = () => {
               </motion.div>
             </TabsContent>
 
-            <TabsContent value="research" className="mt-0">
+            <TabsContent value="research" className="space-y-6 mt-0">
+              {/* Queue Visualization */}
               <motion.div 
                 className="backdrop-blur-xl bg-background/30 border border-border/30 p-6 rounded-2xl"
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3 }}
+              >
+                <ResearchQueueVisualization topics={topics} />
+              </motion.div>
+
+              {/* Research Explorer */}
+              <motion.div 
+                className="backdrop-blur-xl bg-background/30 border border-border/30 p-6 rounded-2xl"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
               >
                 <ResearchExplorer 
                   topics={topics} 
