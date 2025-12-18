@@ -4,7 +4,6 @@ import { Mic, MicOff, Volume2, VolumeX, ChevronRight, ChevronLeft, Brain, Heart,
 import { Button } from '@/components/ui/button';
 import { useRealtimeScribe } from '@/hooks/useRealtimeScribe';
 import { useStreamingTTS } from '@/hooks/useStreamingTTS';
-import { useWakeWordFixed, WakeWordState } from '@/hooks/useWakeWordFixed';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AtlasSphere } from '@/components/atlas';
@@ -64,37 +63,43 @@ ALWAYS use memory_store to capture insights. Confirm learning naturally: "I'll r
 
 Be a friend who truly wants to know them, not an interviewer checking boxes.`;
 
+// Listening modes for wake word detection via Scribe
+type ListeningMode = 'passive' | 'active';
+
 const AtlasTeach = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [atlasState, setAtlasState] = useState<WakeWordState>('dormant');
+  const [atlasState, setAtlasState] = useState<'dormant' | 'listening' | 'thinking' | 'speaking'>('dormant');
   const [isMuted, setIsMuted] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
   const [recentlyLearned, setRecentlyLearned] = useState<LearnedItem[]>([]);
+  const [listeningMode, setListeningMode] = useState<ListeningMode>('passive');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scribeConnectedRef = useRef(false);
   const { toast } = useToast();
+  
+  // Track pending message after wake word detection
+  const pendingMessageRef = useRef<string>("");
+  const isAwakeRef = useRef(false);
 
   // Streaming TTS
   const { isPlaying, audioLevel, speak, stopPlayback } = useStreamingTTS({
     onPlaybackStart: () => setAtlasState('speaking'),
     onPlaybackEnd: () => {
       setAtlasState('dormant');
-      // Resume wake word after speaking
-      resumeWakeWordRef.current?.();
+      // Return to passive listening after speaking
+      setListeningMode('passive');
+      isAwakeRef.current = false;
+      console.log('[Teach] Atlas done speaking, returning to passive listening');
     },
     onError: (error) => {
       console.error('TTS error:', error);
       setAtlasState('dormant');
-      resumeWakeWordRef.current?.();
+      setListeningMode('passive');
+      isAwakeRef.current = false;
     },
   });
-
-  // Refs to store wake word functions (resolved after hook init)
-  const pauseWakeWordRef = useRef<() => void>();
-  const resumeWakeWordRef = useRef<() => void>();
 
   // Send message to Atlas
   const sendToAtlas = useCallback(async (userMessage: string) => {
@@ -107,7 +112,6 @@ const AtlasTeach = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Use non-streaming for faster tool execution in teaching mode
       const { data, error } = await supabase.functions.invoke('chat-with-memory', {
         body: {
           messages: [...messages, newUserMessage].map(m => ({
@@ -115,7 +119,7 @@ const AtlasTeach = () => {
             content: m.content,
           })),
           userId: user?.id,
-          teachingMode: true, // Optimized path
+          teachingMode: true,
           systemPromptOverride: TEACHING_SYSTEM_PROMPT,
         },
       });
@@ -131,13 +135,13 @@ const AtlasTeach = () => {
       setMessages(prev => [...prev, assistantMessage]);
       setIsProcessing(false);
 
-      // Speak the response immediately using streaming TTS
+      // Speak the response
       if (!isMuted && responseText) {
-        pauseWakeWordRef.current?.();
         await speak(responseText);
       } else {
         setAtlasState('dormant');
-        resumeWakeWordRef.current?.();
+        setListeningMode('passive');
+        isAwakeRef.current = false;
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -148,30 +152,97 @@ const AtlasTeach = () => {
       });
       setIsProcessing(false);
       setAtlasState('dormant');
-      resumeWakeWordRef.current?.();
+      setListeningMode('passive');
+      isAwakeRef.current = false;
     }
   }, [messages, isMuted, speak, toast]);
 
-  // Realtime STT with VAD
+  // Check if text contains wake word "atlas"
+  const containsWakeWord = useCallback((text: string): boolean => {
+    const normalized = text.toLowerCase().trim();
+    return normalized.includes('atlas') || 
+           normalized.includes('at las') || 
+           normalized.includes('at-las');
+  }, []);
+
+  // Extract message after wake word
+  const extractMessageAfterWakeWord = useCallback((text: string): string => {
+    const normalized = text.toLowerCase();
+    const patterns = ['atlas', 'at las', 'at-las'];
+    
+    for (const pattern of patterns) {
+      const index = normalized.indexOf(pattern);
+      if (index !== -1) {
+        return text.substring(index + pattern.length).trim();
+      }
+    }
+    return text;
+  }, []);
+
+  // Realtime STT with VAD - always on, detects wake word
   const { isConnected, isListening, partialTranscript, connect, disconnect } = useRealtimeScribe({
     onPartialTranscript: (text) => {
       setLiveTranscript(text);
-    },
-    onFinalTranscript: async (text) => {
-      console.log('[Teach] Final transcript:', text);
-      setLiveTranscript("");
-      if (text.trim()) {
-        await sendToAtlas(text);
+      
+      // In passive mode, check for wake word
+      if (listeningMode === 'passive' && !isAwakeRef.current) {
+        if (containsWakeWord(text)) {
+          console.log('[Teach] Wake word detected in partial:', text);
+          isAwakeRef.current = true;
+          setListeningMode('active');
+          pendingMessageRef.current = extractMessageAfterWakeWord(text);
+          
+          // Stop Atlas if speaking
+          if (isPlaying) {
+            stopPlayback();
+          }
+        }
+      } else if (listeningMode === 'active') {
+        // In active mode, accumulate the message
+        pendingMessageRef.current = text;
       }
     },
+    onFinalTranscript: async (text) => {
+      console.log('[Teach] Final transcript:', text, 'Mode:', listeningMode, 'isAwake:', isAwakeRef.current);
+      setLiveTranscript("");
+      
+      if (!text.trim()) return;
+
+      // If we're in active mode, send the message
+      if (isAwakeRef.current || listeningMode === 'active') {
+        // Extract the actual message (remove wake word if present)
+        const message = containsWakeWord(text) 
+          ? extractMessageAfterWakeWord(text)
+          : text;
+        
+        if (message.trim()) {
+          console.log('[Teach] Sending to Atlas:', message);
+          await sendToAtlas(message);
+        } else {
+          // Wake word only, wait for next utterance
+          console.log('[Teach] Wake word only, waiting for command...');
+        }
+      } else if (containsWakeWord(text)) {
+        // Wake word detected in final transcript
+        console.log('[Teach] Wake word in final transcript');
+        isAwakeRef.current = true;
+        setListeningMode('active');
+        
+        const message = extractMessageAfterWakeWord(text);
+        if (message.trim()) {
+          await sendToAtlas(message);
+        }
+      }
+      // If passive and no wake word, ignore the transcript
+    },
     onSpeechStart: () => {
-      // Stop Atlas if they're speaking
+      // Stop Atlas if speaking and user starts talking
       if (isPlaying) {
         stopPlayback();
       }
     },
     onSpeechEnd: () => {
-      console.log('[Teach] Speech ended, waiting for transcript...');
+      console.log('[Teach] Speech ended');
     },
     onError: (error) => {
       console.error('STT error:', error);
@@ -192,25 +263,47 @@ const AtlasTeach = () => {
 
   // Update Atlas state based on activity
   useEffect(() => {
-    if (isListening) {
-      setAtlasState('listening');
+    if (isPlaying) {
+      setAtlasState('speaking');
     } else if (isProcessing) {
       setAtlasState('thinking');
-    } else if (isPlaying) {
-      setAtlasState('speaking');
-    } else if (!isConnected) {
+    } else if (isListening && listeningMode === 'active') {
+      setAtlasState('listening');
+    } else {
       setAtlasState('dormant');
     }
-  }, [isListening, isProcessing, isPlaying, isConnected]);
+  }, [isListening, isProcessing, isPlaying, listeningMode]);
 
-  // Fetch existing memories and subscribe to changes with learning notifications
+  // Auto-connect Scribe on mount for always-on listening
   useEffect(() => {
-    let userId: string | undefined;
+    let mounted = true;
     
+    const autoConnect = async () => {
+      // Small delay to ensure component is ready
+      await new Promise(r => setTimeout(r, 500));
+      if (!mounted) return;
+      
+      console.log('[Teach] Auto-connecting Scribe for wake word detection...');
+      const success = await connect();
+      if (success) {
+        console.log('[Teach] Scribe connected - listening for "Atlas"');
+      } else {
+        console.log('[Teach] Scribe auto-connect failed - user can tap mic');
+      }
+    };
+    
+    autoConnect();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [connect]);
+
+  // Fetch existing memories and subscribe to changes
+  useEffect(() => {
     const fetchMemories = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      userId = user.id;
 
       const { data, error } = await supabase
         .from('ai_memory')
@@ -226,7 +319,7 @@ const AtlasTeach = () => {
 
     fetchMemories();
 
-    // Subscribe to memory changes - detect new learnings
+    // Subscribe to memory changes
     const channel = supabase
       .channel('teach_memories')
       .on(
@@ -234,13 +327,12 @@ const AtlasTeach = () => {
         { event: 'INSERT', schema: 'public', table: 'ai_memory' },
         (payload) => {
           const newMemory = payload.new as Memory;
-          // Add to recently learned for notification
           setRecentlyLearned(prev => [{
             id: newMemory.id,
             key: newMemory.key,
             category: newMemory.category,
             timestamp: Date.now()
-          }, ...prev.slice(0, 4)]); // Keep last 5
+          }, ...prev.slice(0, 4)]);
           
           fetchMemories();
         }
@@ -248,9 +340,7 @@ const AtlasTeach = () => {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'ai_memory' },
-        () => {
-          fetchMemories();
-        }
+        () => fetchMemories()
       )
       .subscribe();
 
@@ -259,7 +349,7 @@ const AtlasTeach = () => {
     };
   }, []);
 
-  // Auto-dismiss learning notifications after 5 seconds
+  // Auto-dismiss learning notifications
   useEffect(() => {
     if (recentlyLearned.length === 0) return;
     
@@ -277,50 +367,19 @@ const AtlasTeach = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Wake word detection - auto-start and trigger mic on "Atlas"
-  const { 
-    state: wakeWordState, 
-    isSupported: wakeWordSupported,
-    pauseListening: pauseWakeWord,
-    resumeListening: resumeWakeWord,
-  } = useWakeWordFixed({
-    keyword: 'atlas',
-    autoStart: true,
-    onWakeWordDetected: () => {
-      console.log('[Teach] Wake word detected! Activating voice input...');
-      if (!isConnected && !isProcessing) {
-        // Trigger mic click
-        pauseWakeWord();
-        connect().then(success => {
-          if (!success) {
-            resumeWakeWord();
-          }
-        });
-      }
-    },
-    timeoutDuration: 15000,
-  });
-
-  // Store wake word functions in refs for use in callbacks
-  useEffect(() => {
-    pauseWakeWordRef.current = pauseWakeWord;
-    resumeWakeWordRef.current = resumeWakeWord;
-  }, [pauseWakeWord, resumeWakeWord]);
-
-  // Handle mic button click
+  // Handle mic button click - toggle connection
   const handleMicClick = useCallback(async () => {
     if (isConnected) {
       disconnect();
       setLiveTranscript("");
-      resumeWakeWord();
+      setListeningMode('passive');
+      isAwakeRef.current = false;
     } else {
       if (isPlaying) {
         stopPlayback();
       }
-      pauseWakeWord();
       const success = await connect();
       if (!success) {
-        resumeWakeWord();
         toast({
           title: 'Connection Failed',
           description: 'Could not start voice recognition',
@@ -328,7 +387,7 @@ const AtlasTeach = () => {
         });
       }
     }
-  }, [isConnected, isPlaying, connect, disconnect, stopPlayback, toast, pauseWakeWord, resumeWakeWord]);
+  }, [isConnected, isPlaying, connect, disconnect, stopPlayback, toast]);
 
   const toggleMute = useCallback(() => {
     if (isPlaying) {
@@ -345,36 +404,24 @@ const AtlasTeach = () => {
     return acc;
   }, {} as Record<string, Memory[]>);
 
-  // Expanded category icons for emotional depth
   const categoryIcons: Record<string, LucideIcon> = {
-    // Personal Identity
     identity: User,
     personality: Sparkles,
     values: Star,
     beliefs: Brain,
-    
-    // Emotional Landscape
     feelings: Heart,
     fears: Shield,
     dreams: Rocket,
     joys: Smile,
-    
-    // Relationships & Social
     relationships: Users,
     social: Users,
-    
-    // Life Context
     work: Briefcase,
     health: Activity,
     habits: Clock,
     preferences: Heart,
-    
-    // Experiences
     memories: Brain,
     events: Clock,
     achievements: Trophy,
-    
-    // Legacy categories (for existing data)
     personal: User,
     general: Brain,
     fact: Brain,
@@ -397,7 +444,7 @@ const AtlasTeach = () => {
         }}
       />
 
-      {/* Learning Notifications - floating in top left */}
+      {/* Learning Notifications */}
       <div className="fixed top-20 left-4 z-30 space-y-2 max-w-xs">
         <AnimatePresence>
           {recentlyLearned.map((item) => {
@@ -427,34 +474,34 @@ const AtlasTeach = () => {
         </AnimatePresence>
       </div>
 
-      {/* Main content - centered Atlas */}
+      {/* Main content */}
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-4">
         
         {/* State indicator */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={atlasState + (isConnected ? '-connected' : '') + (wakeWordState)}
+            key={`${atlasState}-${isConnected}-${listeningMode}`}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             className="mb-8 text-center"
           >
-            <p className="text-lg text-muted-foreground capitalize">
-              {!isConnected && wakeWordSupported && wakeWordState === 'passive' && (
+            <p className="text-lg text-muted-foreground">
+              {!isConnected && 'Tap to start'}
+              {isConnected && listeningMode === 'passive' && (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                   Say "Atlas" to start
                 </span>
               )}
-              {!isConnected && (!wakeWordSupported || wakeWordState === 'dormant') && 'Tap to start'}
-              {isConnected && atlasState === 'dormant' && 'Listening for speech...'}
+              {isConnected && listeningMode === 'active' && atlasState === 'dormant' && 'Listening...'}
               {atlasState === 'listening' && 'Hearing you...'}
               {atlasState === 'thinking' && 'Processing...'}
               {atlasState === 'speaking' && 'Speaking...'}
             </p>
             {isConnected && (
               <p className="text-xs text-muted-foreground/60 mt-1">
-                Voice recognition active
+                {listeningMode === 'passive' ? 'Waiting for wake word' : 'Voice active'}
               </p>
             )}
           </motion.div>
@@ -467,21 +514,26 @@ const AtlasTeach = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-4 px-6 py-3 bg-primary/10 rounded-full max-w-md"
           >
-            <p className="text-sm text-center">{liveTranscript}</p>
+            <p className="text-sm text-center">
+              {listeningMode === 'passive' && !isAwakeRef.current && (
+                <span className="text-muted-foreground/60">(waiting for "Atlas") </span>
+              )}
+              {liveTranscript}
+            </p>
           </motion.div>
         )}
 
-        {/* Atlas Sphere - CSS scaled, uses global settings */}
+        {/* Atlas Sphere */}
         <div className="relative w-[400px] h-[400px] mb-8">
           <AtlasSphere
             state={atlasState}
-            audioLevel={isPlaying ? audioLevel : (isListening ? 0.3 : 0)}
+            audioLevel={isPlaying ? audioLevel : (isListening && listeningMode === 'active' ? 0.3 : 0)}
             context="teach"
           />
         </div>
 
-        {/* Audio level visualization ring */}
-        {(isListening || isPlaying) && (
+        {/* Audio level ring */}
+        {(isListening || isPlaying) && listeningMode === 'active' && (
           <motion.div
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
             initial={{ opacity: 0 }}
@@ -502,7 +554,7 @@ const AtlasTeach = () => {
         <div className="flex items-center gap-4">
           <Button
             size="lg"
-            variant={isConnected ? 'destructive' : 'default'}
+            variant={isConnected ? (listeningMode === 'active' ? 'destructive' : 'secondary') : 'default'}
             onClick={handleMicClick}
             className="w-16 h-16 rounded-full"
             disabled={isProcessing}
@@ -528,7 +580,7 @@ const AtlasTeach = () => {
           </Button>
         </div>
 
-        {/* Recent messages floating */}
+        {/* Recent messages */}
         {messages.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -563,14 +615,24 @@ const AtlasTeach = () => {
             transition={{ delay: 1 }}
             className="mt-8 text-muted-foreground text-center max-w-md"
           >
-            {wakeWordSupported ? (
-              <>Just say <span className="font-semibold text-primary">"Atlas"</span> to start, or tap the microphone.</>
-            ) : (
-              <>Press the microphone to start teaching Atlas about yourself.</>
-            )}
+            Tap the microphone to enable voice, then say <span className="font-semibold text-primary">"Atlas"</span> to start.
             <br />
             <span className="text-sm opacity-70">
               Share your name, interests, values, or anything you'd like me to remember.
+            </span>
+          </motion.p>
+        )}
+
+        {messages.length === 0 && isConnected && listeningMode === 'passive' && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-8 text-muted-foreground text-center max-w-md"
+          >
+            Just say <span className="font-semibold text-primary">"Atlas"</span> followed by what you want to tell me.
+            <br />
+            <span className="text-sm opacity-70">
+              For example: "Atlas, my name is..." or "Atlas, I love..."
             </span>
           </motion.p>
         )}
