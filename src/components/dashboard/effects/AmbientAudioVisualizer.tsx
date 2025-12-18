@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { WakeWordState } from '@/hooks/useWakeWord';
+import { WakeWordState } from '@/types';
 
 interface AmbientAudioVisualizerProps {
   audioLevel: number;

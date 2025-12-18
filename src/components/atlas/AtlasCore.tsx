@@ -2,7 +2,7 @@ import { useRef, memo, forwardRef, MutableRefObject } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
-import { WakeWordState } from '@/hooks/useWakeWord';
+import { WakeWordState } from '@/types';
 import { GPUParticleSystem, GPUCoreSystem, TrailSystem, RippleSystem, NebulaFlowSystem } from './systems';
 import { STATE_CONFIGS } from './utils/stateConfigs';
 

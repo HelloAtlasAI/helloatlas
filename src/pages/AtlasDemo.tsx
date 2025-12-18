@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc, Droplets, Orbit, Plus, Trash2, X } from 'lucide-react';
 import { AtlasSphere } from '@/components/atlas';
-import { WakeWordState } from '@/hooks/useWakeWord';
+import { WakeWordState } from '@/types';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { useAtlasSettings, defaultAtlasSettings, AtlasSettings } from '@/hooks/useAtlasSettings';
