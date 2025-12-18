@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc, Droplets, Orbit, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Play, Pause, RotateCcw, Sparkles, Zap, Settings2, Layers, Waves, Wind, MousePointer, Save, Download, Upload, Disc, Droplets, Orbit, Plus, Trash2, X, ChevronDown } from 'lucide-react';
 import { AtlasSphere } from '@/components/atlas';
 import { WakeWordState } from '@/types';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
-import { useAtlasSettings, defaultAtlasSettings, AtlasSettings } from '@/hooks/useAtlasSettings';
+import { useAtlasSettings, defaultAtlasSettings, getMergedStateConfig, hasStateCustomizations } from '@/hooks/useAtlasSettings';
 import { useAtlasPresets, AtlasPreset } from '@/hooks/useAtlasPresets';
+import { CollapsibleSection, StateConfigSection, SliderControl } from '@/components/atlas-demo';
 
 // Performance presets
 type PerformanceMode = 'performance' | 'balanced' | 'quality';
@@ -53,7 +54,18 @@ const presets: Preset[] = [
 
 export default function AtlasDemo() {
   // Use the unified settings hook - single source of truth
-  const { settings, setSetting, setMultiple, reset, resetCurrentState, resetAllCustomizations, exportSettings, importSettings } = useAtlasSettings();
+  const { 
+    settings, 
+    setSetting, 
+    setMultiple, 
+    setStateCustomization,
+    resetStateCustomizations,
+    reset, 
+    resetCurrentState, 
+    resetAllCustomizations, 
+    exportSettings, 
+    importSettings 
+  } = useAtlasSettings();
   
   // Custom presets
   const { allPresets, customPresets, savePreset, deletePreset, isBuiltIn } = useAtlasPresets();
@@ -192,6 +204,8 @@ export default function AtlasDemo() {
 
   const presetIcons = ['💾', '🌟', '🎨', '🔥', '💎', '🌈', '⚡', '🌙', '🎯', '🚀'];
 
+  const customizedStatesCount = Object.keys(settings.stateCustomizations).length;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-foreground">
       {/* Header */}
@@ -209,7 +223,7 @@ export default function AtlasDemo() {
           </div>
           <div className="flex items-center gap-2">
             {/* State customization indicator */}
-            {Object.keys(settings.stateCustomizations).length > 0 && (
+            {customizedStatesCount > 0 && (
               <button
                 onClick={() => {
                   resetAllCustomizations();
@@ -218,7 +232,7 @@ export default function AtlasDemo() {
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 hover:border-amber-500/60 text-amber-300 transition-all"
                 title="Click to reset all customizations"
               >
-                <span className="text-xs font-medium">{Object.keys(settings.stateCustomizations).length} customized</span>
+                <span className="text-xs font-medium">{customizedStatesCount} customized</span>
                 <X className="w-3 h-3" />
               </button>
             )}
@@ -347,51 +361,55 @@ export default function AtlasDemo() {
           animate={{ opacity: 1, x: 0 }}
           className="w-80 lg:w-96 backdrop-blur-xl bg-background/20 border-l border-border/20 p-6 overflow-y-auto max-h-screen"
         >
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Header */}
             <div>
               <h2 className="text-xl font-semibold text-foreground mb-2">Visual Controls</h2>
               <p className="text-sm text-muted-foreground">Adjust parameters to see how Atlas Core responds to different states and inputs.</p>
             </div>
 
-            {/* Visualization Mode Toggle */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
-                <Orbit className="w-4 h-4 text-violet-400" />
-                Visualization Mode
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setSetting('visualizationMode', 'classic')}
-                  className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                    settings.visualizationMode === 'classic'
-                      ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-amber-300'
-                      : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground'
-                  }`}
-                >
-                  🔥 Classic
-                </button>
-                <button
-                  onClick={() => setSetting('visualizationMode', 'nebulaFlow')}
-                  className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                    settings.visualizationMode === 'nebulaFlow'
-                      ? 'bg-gradient-to-r from-violet-500/20 to-cyan-500/20 border border-violet-500/50 text-violet-300'
-                      : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground'
-                  }`}
-                >
-                  🌌 Nebula Flow
-                </button>
+            {/* ==================== GLOBAL SETTINGS ==================== */}
+            <CollapsibleSection
+              title="Global Settings"
+              icon={<Settings2 className="w-4 h-4 text-violet-400" />}
+              color="violet"
+              defaultOpen={true}
+            >
+              {/* Visualization Mode Toggle */}
+              <div className="space-y-2">
+                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Visualization Mode</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setSetting('visualizationMode', 'classic')}
+                    className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      settings.visualizationMode === 'classic'
+                        ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-amber-300'
+                        : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground'
+                    }`}
+                  >
+                    🔥 Classic
+                  </button>
+                  <button
+                    onClick={() => setSetting('visualizationMode', 'nebulaFlow')}
+                    className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      settings.visualizationMode === 'nebulaFlow'
+                        ? 'bg-gradient-to-r from-violet-500/20 to-cyan-500/20 border border-violet-500/50 text-violet-300'
+                        : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground'
+                    }`}
+                  >
+                    🌌 Nebula Flow
+                  </button>
+                </div>
               </div>
               
               {/* View Mode Toggles */}
               <div className="grid grid-cols-2 gap-2">
-                {/* Dashboard Preview Toggle */}
                 <button
                   onClick={() => {
                     setSetting('dashboardPreview', !settings.dashboardPreview);
                     if (!settings.dashboardPreview) setSetting('comparisonView', false);
                   }}
-                  className={`flex flex-col items-center gap-1 p-3 rounded-lg transition-all ${
+                  className={`flex flex-col items-center gap-1 p-2.5 rounded-lg transition-all ${
                     settings.dashboardPreview && !settings.comparisonView
                       ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300'
                       : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground'
@@ -401,13 +419,12 @@ export default function AtlasDemo() {
                   <span className="text-[10px] opacity-70">140px</span>
                 </button>
                 
-                {/* Comparison View Toggle */}
                 <button
                   onClick={() => {
                     setSetting('comparisonView', !settings.comparisonView);
                     if (!settings.comparisonView) setSetting('dashboardPreview', false);
                   }}
-                  className={`flex flex-col items-center gap-1 p-3 rounded-lg transition-all ${
+                  className={`flex flex-col items-center gap-1 p-2.5 rounded-lg transition-all ${
                     settings.comparisonView
                       ? 'bg-violet-500/20 border border-violet-500/50 text-violet-300'
                       : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground'
@@ -417,63 +434,110 @@ export default function AtlasDemo() {
                   <span className="text-[10px] opacity-70">Side-by-side</span>
                 </button>
               </div>
-              
-              {/* Dashboard indicator */}
-              <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/30">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  <span className="text-xs text-primary">Synced with Dashboard</span>
-                </div>
-                <span className="text-xs text-primary/70 font-medium">
-                  {settings.visualizationMode === 'classic' ? '🔥 Classic' : '🌌 Nebula'}
-                </span>
-              </div>
-            </div>
 
-            {/* Nebula Flow Controls - only show when in nebulaFlow mode */}
+              {/* Quick Actions */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={startStateAnimation}
+                  disabled={isAnimating}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    isAnimating
+                      ? 'bg-amber-500/20 border border-amber-500/50 text-amber-300'
+                      : 'bg-muted/20 border border-border/30 hover:border-border/50'
+                  }`}
+                >
+                  {isAnimating ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                  {isAnimating ? 'Animating...' : 'Cycle States'}
+                </button>
+                <button
+                  onClick={resetToDefaults}
+                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-muted/20 border border-border/30 hover:border-border/50 text-xs transition-all"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Reset
+                </button>
+              </div>
+            </CollapsibleSection>
+
+            {/* ==================== AI STATE SELECTOR ==================== */}
+            <CollapsibleSection
+              title="AI State"
+              icon={<Zap className="w-4 h-4 text-amber-400" />}
+              color="amber"
+              defaultOpen={true}
+            >
+              <div className="grid grid-cols-3 gap-1.5">
+                {states.map((state) => (
+                  <button
+                    key={state}
+                    onClick={() => setSetting('state', state)}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${
+                      settings.state === state
+                        ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/50 ring-1 ring-amber-500/30'
+                        : 'bg-muted/20 border border-border/30 hover:border-border/50'
+                    }`}
+                  >
+                    <div className={`w-2 h-2 rounded-full ${stateDescriptions[state].color}`} />
+                    <span className="text-[10px] font-medium">{stateDescriptions[state].label}</span>
+                  </button>
+                ))}
+              </div>
+            </CollapsibleSection>
+
+            {/* ==================== PER-STATE CONFIGURATIONS ==================== */}
             {settings.visualizationMode === 'nebulaFlow' && (
-              <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-violet-500/10 to-cyan-500/10 border border-violet-500/20">
-                <h3 className="text-sm font-medium text-violet-300 uppercase tracking-wider flex items-center gap-2">
-                  🌌 Nebula Flow Settings
-                </h3>
-                
-                {/* Presets - Dynamic from useAtlasPresets */}
-                <div className="space-y-2 pb-3 border-b border-violet-500/20">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-violet-300 font-medium">Quick Presets</span>
+              <CollapsibleSection
+                title="Per-State Configs"
+                icon={<Sparkles className="w-4 h-4 text-violet-400" />}
+                color="violet"
+                isCustomized={customizedStatesCount > 0}
+                defaultOpen={true}
+                headerAction={
+                  customizedStatesCount > 0 ? (
                     <button
-                      onClick={() => setShowSavePresetModal(true)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-500/20 border border-violet-500/30 hover:border-violet-500/50 text-violet-300 text-[10px] transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        resetAllCustomizations();
+                        toast.success('Reset all state customizations');
+                      }}
+                      className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-colors"
                     >
-                      <Plus className="w-3 h-3" />
-                      Save Current
+                      Reset All
                     </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1">
-                    {allPresets.filter(p => p.settings.visualizationMode === 'nebulaFlow' || !p.settings.visualizationMode).map((preset) => (
-                      <div key={preset.id} className="group relative">
-                        <button
-                          onClick={() => handleApplyPreset(preset)}
-                          className="w-full px-3 py-2 rounded-lg bg-violet-500/10 border border-violet-500/20 hover:border-violet-500/40 text-violet-200 text-xs transition-all text-left"
-                        >
-                          <span className="mr-1">{preset.icon}</span>
-                          <span className="truncate">{preset.name}</span>
-                        </button>
-                        {!isBuiltIn(preset.id) && (
-                          <button
-                            onClick={() => handleDeletePreset(preset)}
-                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                  ) : undefined
+                }
+              >
+                <p className="text-[10px] text-muted-foreground mb-3">
+                  Customize each AI state's visual appearance independently. Changes to one state won't affect others.
+                </p>
+                <div className="space-y-2">
+                  {states.map((stateName) => (
+                    <StateConfigSection
+                      key={stateName}
+                      stateName={stateName}
+                      stateCustomizations={settings.stateCustomizations}
+                      isActive={settings.state === stateName}
+                      onSetCustomization={(key, value) => setStateCustomization(stateName, key, value)}
+                      onResetCustomizations={() => {
+                        resetStateCustomizations(stateName);
+                        toast.success(`Reset ${stateDescriptions[stateName].label} to defaults`);
+                      }}
+                      onPreview={() => setSetting('state', stateName)}
+                    />
+                  ))}
                 </div>
-                
+              </CollapsibleSection>
+            )}
+
+            {/* ==================== NEBULA GLOBAL SETTINGS ==================== */}
+            {settings.visualizationMode === 'nebulaFlow' && (
+              <CollapsibleSection
+                title="Nebula Global"
+                icon={<Orbit className="w-4 h-4 text-cyan-400" />}
+                color="cyan"
+              >
                 {/* State Reactive Toggle */}
-                <div className="flex items-center justify-between pb-3 border-b border-violet-500/20">
+                <div className="flex items-center justify-between py-1">
                   <div>
                     <span className="text-xs text-foreground">AI State Colors</span>
                     <p className="text-[10px] text-muted-foreground">Auto-adjust colors per AI state</p>
@@ -489,47 +553,29 @@ export default function AtlasDemo() {
                     {settings.nebulaStateReactive ? 'AUTO' : 'MANUAL'}
                   </button>
                 </div>
-                
+
                 {/* Particle Configuration */}
-                <div className="space-y-3">
-                  <span className="text-xs text-violet-300 font-medium">Particle Configuration</span>
-                  <SliderControl label="Particle Count" value={settings.nebulaParticleCount} onChange={(v) => setSetting('nebulaParticleCount', v)} min={3000} max={50000} step={1000} color="violet" hint={['Light', '50K']} />
-                  <SliderControl label="Particle Size" value={settings.nebulaParticleSize} onChange={(v) => setSetting('nebulaParticleSize', v)} min={0.02} max={0.12} step={0.005} color="violet" decimals={3} />
-                  <SliderControl label="Density" value={settings.nebulaDensity} onChange={(v) => setSetting('nebulaDensity', v)} min={0.5} max={2} step={0.05} color="violet" decimals={2} />
-                  <SliderControl label="Rotation Speed" value={settings.nebulaRotationSpeed} onChange={(v) => setSetting('nebulaRotationSpeed', v)} min={0} max={1} step={0.05} color="violet" decimals={2} />
+                <div className="space-y-2 pt-2 border-t border-border/20">
+                  <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Particles</span>
+                  <SliderControl label="Particle Count" value={settings.nebulaParticleCount} onChange={(v) => setSetting('nebulaParticleCount', v)} min={3000} max={50000} step={1000} color="cyan" hint={['Light', '50K']} />
+                  <SliderControl label="Particle Size" value={settings.nebulaParticleSize} onChange={(v) => setSetting('nebulaParticleSize', v)} min={0.02} max={0.12} step={0.005} color="cyan" decimals={3} />
+                  <SliderControl label="Density" value={settings.nebulaDensity} onChange={(v) => setSetting('nebulaDensity', v)} min={0.5} max={2} step={0.05} color="cyan" decimals={2} />
+                  <SliderControl label="Rotation Speed" value={settings.nebulaRotationSpeed} onChange={(v) => setSetting('nebulaRotationSpeed', v)} min={0} max={1} step={0.05} color="cyan" decimals={2} />
                 </div>
-                
-                {/* Flow Settings */}
-                <div className="space-y-3 pt-2 border-t border-violet-500/20">
-                  <span className="text-xs text-violet-300 font-medium">Flow Dynamics</span>
-                  <SliderControl label="Flow Strength" value={settings.nebulaFlowStrength} onChange={(v) => setSetting('nebulaFlowStrength', v)} min={0} max={1} step={0.05} color="violet" decimals={2} hint={['Subtle', 'Strong']} />
-                  <SliderControl label="Flow Speed" value={settings.nebulaFlowSpeed} onChange={(v) => setSetting('nebulaFlowSpeed', v)} min={0.1} max={2} step={0.1} color="violet" decimals={1} />
-                  <SliderControl label="Band Count" value={settings.nebulaBandCount} onChange={(v) => setSetting('nebulaBandCount', v)} min={3} max={16} step={1} color="violet" />
-                </div>
-                
-                {/* Quality & Effects */}
-                <div className="space-y-3 pt-2 border-t border-violet-500/20">
-                  <span className="text-xs text-cyan-300 font-medium">Quality & Effects</span>
-                  <SliderControl label="Glow Intensity" value={settings.nebulaGlowIntensity} onChange={(v) => setSetting('nebulaGlowIntensity', v)} min={0.3} max={2} step={0.1} color="cyan" decimals={1} hint={['Subtle', 'Bright']} />
-                  <SliderControl label="Core Glow" value={settings.nebulaCoreGlow} onChange={(v) => setSetting('nebulaCoreGlow', v)} min={0} max={2} step={0.1} color="cyan" decimals={1} />
-                  <SliderControl label="Rim Intensity" value={settings.nebulaRimIntensity} onChange={(v) => setSetting('nebulaRimIntensity', v)} min={0} max={3} step={0.1} color="cyan" decimals={1} />
-                  <SliderControl label="Hot Spot Intensity" value={settings.nebulaHotSpotIntensity} onChange={(v) => setSetting('nebulaHotSpotIntensity', v)} min={0} max={2} step={0.1} color="cyan" decimals={1} />
+
+                {/* Band Count & Depth */}
+                <div className="space-y-2 pt-2 border-t border-border/20">
+                  <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Structure</span>
+                  <SliderControl label="Band Count" value={settings.nebulaBandCount} onChange={(v) => setSetting('nebulaBandCount', v)} min={3} max={16} step={1} color="cyan" />
                   <SliderControl label="Depth Fade" value={settings.nebulaDepthFade} onChange={(v) => setSetting('nebulaDepthFade', v)} min={0} max={1} step={0.05} color="cyan" decimals={2} />
+                  <SliderControl label="Core Glow" value={settings.nebulaCoreGlow} onChange={(v) => setSetting('nebulaCoreGlow', v)} min={0} max={2} step={0.1} color="cyan" decimals={1} />
                 </div>
-                
-                {/* Breathing */}
-                <div className="space-y-3 pt-2 border-t border-violet-500/20">
-                  <span className="text-xs text-indigo-300 font-medium">Breathing Animation</span>
-                  <SliderControl label="Breathing Speed" value={settings.nebulaBreathingSpeed} onChange={(v) => setSetting('nebulaBreathingSpeed', v)} min={0.1} max={2} step={0.1} color="indigo" decimals={1} />
-                  <SliderControl label="Breathing Amount" value={settings.nebulaBreathingAmount} onChange={(v) => setSetting('nebulaBreathingAmount', v)} min={0} max={0.2} step={0.01} color="indigo" decimals={2} />
-                  <SliderControl label="Radius Noise" value={settings.nebulaRadiusNoise} onChange={(v) => setSetting('nebulaRadiusNoise', v)} min={0} max={0.4} step={0.02} color="indigo" decimals={2} hint={['Smooth', 'Organic']} />
-                </div>
-                
+
                 {/* Solid Surface Mode */}
-                <div className="space-y-3 pt-2 border-t border-emerald-500/20">
+                <div className="space-y-2 pt-2 border-t border-border/20">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-xs text-emerald-300 font-medium">Solid Surface Mode</span>
+                      <span className="text-xs text-foreground">Solid Surface Mode</span>
                       <p className="text-[10px] text-muted-foreground">Particles form continuous surface</p>
                     </div>
                     <button
@@ -546,82 +592,41 @@ export default function AtlasDemo() {
                   
                   {settings.nebulaSolidSurface && (
                     <>
-                      <SliderControl label="Surface Blend" value={settings.nebulaSurfaceBlend} onChange={(v) => setSetting('nebulaSurfaceBlend', v)} min={0.5} max={3} step={0.1} color="emerald" decimals={1} hint={['Sharp', 'Smooth']} />
-                      <SliderControl label="Uniform Size" value={settings.nebulaUniformSize} onChange={(v) => setSetting('nebulaUniformSize', v)} min={1} max={3} step={0.1} color="emerald" decimals={1} hint={['Small', 'Large']} />
-                      <SliderControl label="Coherence" value={settings.nebulaCoherence} onChange={(v) => setSetting('nebulaCoherence', v)} min={0} max={1} step={0.05} color="emerald" decimals={2} hint={['Varied', 'Unified']} />
+                      <SliderControl label="Surface Blend" value={settings.nebulaSurfaceBlend} onChange={(v) => setSetting('nebulaSurfaceBlend', v)} min={0.5} max={3} step={0.1} color="emerald" decimals={1} />
+                      <SliderControl label="Uniform Size" value={settings.nebulaUniformSize} onChange={(v) => setSetting('nebulaUniformSize', v)} min={1} max={3} step={0.1} color="emerald" decimals={1} />
+                      <SliderControl label="Coherence" value={settings.nebulaCoherence} onChange={(v) => setSetting('nebulaCoherence', v)} min={0} max={1} step={0.05} color="emerald" decimals={2} />
                     </>
                   )}
                 </div>
-                
+
                 {/* State Behaviors */}
-                <div className="space-y-3 pt-2 border-t border-amber-500/20">
-                  <span className="text-xs text-amber-300 font-medium">State Behaviors</span>
-                  <div className="text-[10px] text-muted-foreground space-y-1 mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-amber-400" />
-                      <span>Speaking: Audio-reactive pulse</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-purple-400" />
-                      <span>Thinking: Core retraction</span>
-                    </div>
-                  </div>
-                  <SliderControl label="Transition Speed" value={settings.nebulaTransitionSpeed} onChange={(v) => setSetting('nebulaTransitionSpeed', v)} min={0.5} max={3} step={0.1} color="cyan" decimals={1} hint={['Slow', 'Fast']} />
-                  <SliderControl label="Thinking Retraction" value={settings.nebulaThinkingRetraction} onChange={(v) => setSetting('nebulaThinkingRetraction', v)} min={0} max={0.5} step={0.05} color="violet" decimals={2} hint={['None', 'Deep']} />
-                  <SliderControl label="Audio Breathing" value={settings.nebulaAudioBreathingIntensity} onChange={(v) => setSetting('nebulaAudioBreathingIntensity', v)} min={0} max={0.4} step={0.02} color="amber" decimals={2} hint={['Subtle', 'Strong']} />
+                <div className="space-y-2 pt-2 border-t border-border/20">
+                  <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Behavior</span>
+                  <SliderControl label="Transition Speed" value={settings.nebulaTransitionSpeed} onChange={(v) => setSetting('nebulaTransitionSpeed', v)} min={0.5} max={3} step={0.1} color="cyan" decimals={1} />
+                  <SliderControl label="Thinking Retraction" value={settings.nebulaThinkingRetraction} onChange={(v) => setSetting('nebulaThinkingRetraction', v)} min={0} max={0.5} step={0.05} color="violet" decimals={2} />
+                  <SliderControl label="Audio Breathing" value={settings.nebulaAudioBreathingIntensity} onChange={(v) => setSetting('nebulaAudioBreathingIntensity', v)} min={0} max={0.4} step={0.02} color="amber" decimals={2} />
                 </div>
-                
-                {/* Color Pickers - only show in manual mode */}
-                {!settings.nebulaStateReactive && (
-                  <div className="space-y-3 pt-2 border-t border-violet-500/20">
-                    <span className="text-xs text-muted-foreground">Manual Gradient Colors</span>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-muted-foreground">Start</label>
-                        <input
-                          type="color"
-                          value={settings.nebulaColorStart}
-                          onChange={(e) => setSetting('nebulaColorStart', e.target.value)}
-                          className="w-full h-8 rounded cursor-pointer border border-border/30"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-muted-foreground">Mid</label>
-                        <input
-                          type="color"
-                          value={settings.nebulaColorMid}
-                          onChange={(e) => setSetting('nebulaColorMid', e.target.value)}
-                          className="w-full h-8 rounded cursor-pointer border border-border/30"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-muted-foreground">End</label>
-                        <input
-                          type="color"
-                          value={settings.nebulaColorEnd}
-                          onChange={(e) => setSetting('nebulaColorEnd', e.target.value)}
-                          className="w-full h-8 rounded cursor-pointer border border-border/30"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              </CollapsibleSection>
             )}
 
-            {/* Preset Configurations */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  Presets
-                </h3>
-                {activePreset && (
-                  <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                    {activePreset}
-                  </span>
-                )}
-              </div>
+            {/* ==================== PRESETS ==================== */}
+            <CollapsibleSection
+              title="Quick Presets"
+              icon={<Zap className="w-4 h-4 text-amber-400" />}
+              color="amber"
+              headerAction={
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowSavePresetModal(true);
+                  }}
+                  className="text-[10px] px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 hover:bg-violet-500/30 transition-colors flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  Save
+                </button>
+              }
+            >
               <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
                 {presets.map((preset) => (
                   <motion.button
@@ -629,306 +634,355 @@ export default function AtlasDemo() {
                     onClick={() => applyPreset(preset)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`p-2.5 rounded-xl text-left transition-all ${
+                    className={`p-2 rounded-xl text-left transition-all ${
                       activePreset === preset.name
                         ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 ring-1 ring-amber-500/30'
                         : `bg-gradient-to-r ${preset.gradient} border border-border/30 hover:border-border/50`
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-0.5">
+                    <div className="flex items-center gap-1.5 mb-0.5">
                       <span className="text-sm">{preset.icon}</span>
-                      <span className="text-xs font-medium text-foreground truncate">{preset.name}</span>
+                      <span className="text-[10px] font-medium text-foreground truncate">{preset.name}</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground line-clamp-1">{preset.description}</p>
+                    <p className="text-[9px] text-muted-foreground line-clamp-1">{preset.description}</p>
                   </motion.button>
                 ))}
               </div>
-            </div>
 
-            {/* Quick Actions */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">Quick Actions</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={startStateAnimation}
-                  disabled={isAnimating}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 hover:border-amber-500/50 transition-all disabled:opacity-50"
-                >
-                  {isAnimating ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                  <span className="text-sm">{isAnimating ? 'Playing...' : 'Cycle States'}</span>
-                </button>
-                <button
-                  onClick={resetToDefaults}
-                  className="px-4 py-2.5 rounded-xl bg-muted/30 border border-border/30 hover:border-border/50 transition-all"
-                  title="Reset to defaults"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </button>
-              </div>
-              <button
-                onClick={clearCacheAndReload}
-                className="w-full mt-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500/50 text-red-400 text-xs transition-all"
-              >
-                Clear Saved Settings & Reload
-              </button>
-            </div>
+              {/* Custom Presets */}
+              {customPresets.length > 0 && (
+                <div className="pt-2 border-t border-border/20">
+                  <span className="text-[10px] text-muted-foreground font-medium">Custom Presets</span>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {customPresets.map((preset) => (
+                      <div key={preset.id} className="group relative">
+                        <button
+                          onClick={() => handleApplyPreset(preset)}
+                          className="w-full px-2 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 hover:border-violet-500/40 text-violet-200 text-[10px] transition-all text-left"
+                        >
+                          <span className="mr-1">{preset.icon}</span>
+                          <span className="truncate">{preset.name}</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeletePreset(preset)}
+                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CollapsibleSection>
 
-            {/* Performance Mode */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
-                <Zap className="w-4 h-4 text-green-400" />
-                Performance Mode
-              </h3>
+            {/* ==================== PERFORMANCE ==================== */}
+            <CollapsibleSection
+              title="Performance"
+              icon={<Layers className="w-4 h-4 text-emerald-400" />}
+              color="emerald"
+            >
               <div className="grid grid-cols-3 gap-2">
-                {(Object.keys(performancePresets) as PerformanceMode[]).map((mode) => (
+                {(['performance', 'balanced', 'quality'] as PerformanceMode[]).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => applyPerformanceMode(mode)}
-                    className={`px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                    className={`px-3 py-2 rounded-lg text-xs font-medium capitalize transition-all ${
                       performanceMode === mode
-                        ? 'bg-green-500/20 border border-green-500/50 text-green-400'
-                        : 'bg-muted/30 border border-border/30 hover:border-border/50 text-muted-foreground'
+                        ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300'
+                        : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground'
                     }`}
                   >
-                    {performancePresets[mode].label}
+                    {mode}
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {performanceMode === 'performance' && '~2K particles, no trails/bloom for smooth 60fps'}
-                {performanceMode === 'balanced' && '~5K particles, shorter trails, bloom enabled'}
-                {performanceMode === 'quality' && '~12K particles, full trails, all effects enabled'}
-              </p>
-            </div>
+            </CollapsibleSection>
 
-            {/* AI State Selection */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">AI State</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {states.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => {
-                      setSetting('state', s);
-                      setActivePreset(null);
-                    }}
-                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-                      settings.state === s
-                        ? 'bg-gradient-to-r from-amber-500/30 to-orange-500/30 border border-amber-500/50 text-amber-300'
-                        : 'bg-muted/20 border border-border/30 hover:border-border/50 text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${stateDescriptions[s].color}`} />
-                      {stateDescriptions[s].label}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Core Controls */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
-                  <Disc className="w-4 h-4 text-orange-400" />
-                  Core Particles
-                </h3>
+            {/* ==================== AUDIO ==================== */}
+            <CollapsibleSection
+              title="Audio Level"
+              icon={<Waves className="w-4 h-4 text-cyan-400" />}
+              color="cyan"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Level</span>
+                  <span className="text-sm font-mono text-cyan-400">{displayAudioLevel.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[settings.audioLevel]}
+                  onValueChange={([v]) => {
+                    setSetting('audioLevel', v);
+                    setSetting('autoAudio', false);
+                  }}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  className="w-full"
+                />
                 <button
-                  onClick={() => setSetting('enableCore', !settings.enableCore)}
-                  className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                    settings.enableCore
-                      ? 'bg-orange-500/20 border border-orange-500/50 text-orange-300'
-                      : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                  onClick={() => setSetting('autoAudio', !settings.autoAudio)}
+                  className={`w-full px-4 py-2 rounded-xl text-sm transition-all ${
+                    settings.autoAudio
+                      ? 'bg-cyan-500/20 border border-cyan-500/50 text-cyan-300'
+                      : 'bg-muted/20 border border-border/30 hover:border-border/50'
                   }`}
                 >
-                  {settings.enableCore ? 'ON' : 'OFF'}
+                  {settings.autoAudio ? '🔊 Simulating Audio...' : '🔇 Simulate Audio'}
                 </button>
+                <SliderControl label="Reactivity Speed" value={settings.audioReactivitySpeed} onChange={(v) => setSetting('audioReactivitySpeed', v)} min={0.2} max={3.0} step={0.1} color="cyan" decimals={1} suffix="x" />
               </div>
-              
-              {settings.enableCore && (
-                <>
-                  <SliderControl label="Core Particle Count" value={settings.coreParticleCount} onChange={(v) => setSetting('coreParticleCount', v)} min={100} max={1000} step={50} color="orange" />
-                  <SliderControl label="Core Density" value={settings.coreDensity} onChange={(v) => setSetting('coreDensity', v)} min={0.1} max={0.6} step={0.02} color="orange" decimals={2} hint={['Tight', 'Spread']} />
-                  <SliderControl label="Core Particle Size" value={settings.coreParticleSize} onChange={(v) => setSetting('coreParticleSize', v)} min={0.02} max={0.1} step={0.005} color="orange" decimals={2} />
-                  <SliderControl label="Core Intensity" value={settings.coreIntensity} onChange={(v) => setSetting('coreIntensity', v)} min={0.5} max={2.0} step={0.1} color="orange" decimals={1} />
-                  <SliderControl label="Core Pulse Speed" value={settings.corePulseSpeed} onChange={(v) => setSetting('corePulseSpeed', v)} min={0.5} max={3.0} step={0.1} color="orange" decimals={1} />
-                  <SliderControl label="Core Rotation" value={settings.coreRotationOffset} onChange={(v) => setSetting('coreRotationOffset', v)} min={-2} max={2} step={0.1} color="orange" decimals={1} hint={['Counter', 'Same']} />
-                </>
-              )}
-            </div>
+            </CollapsibleSection>
 
-            {/* Ring Ripples Controls */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
-                  <Waves className="w-4 h-4 text-teal-400" />
-                  Ring Ripples
-                </h3>
-                <button
-                  onClick={() => setSetting('enableRipples', !settings.enableRipples)}
-                  className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                    settings.enableRipples
-                      ? 'bg-teal-500/20 border border-teal-500/50 text-teal-300'
-                      : 'bg-muted/20 border border-border/30 text-muted-foreground'
-                  }`}
+            {/* ==================== CLASSIC MODE SETTINGS ==================== */}
+            {settings.visualizationMode === 'classic' && (
+              <>
+                {/* Core Particles */}
+                <CollapsibleSection
+                  title="Core Particles"
+                  icon={<Disc className="w-4 h-4 text-orange-400" />}
+                  color="orange"
                 >
-                  {settings.enableRipples ? 'ON' : 'OFF'}
-                </button>
-              </div>
-              
-              {settings.enableRipples && (
-                <>
-                  <SliderControl label="Ripple Speed" value={settings.rippleSpeed} onChange={(v) => setSetting('rippleSpeed', v)} min={0.5} max={3} step={0.1} color="teal" decimals={1} />
-                  <SliderControl label="Ripples per Change" value={settings.rippleCount} onChange={(v) => setSetting('rippleCount', v)} min={1} max={5} step={1} color="teal" />
-                </>
-              )}
-            </div>
-
-            {/* Turbulence Controls */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
-                  <Wind className="w-4 h-4 text-emerald-400" />
-                  Turbulence
-                </h3>
-                <button
-                  onClick={() => setSetting('enableTurbulence', !settings.enableTurbulence)}
-                  className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                    settings.enableTurbulence
-                      ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300'
-                      : 'bg-muted/20 border border-border/30 text-muted-foreground'
-                  }`}
-                >
-                  {settings.enableTurbulence ? 'ON' : 'OFF'}
-                </button>
-              </div>
-              
-              {settings.enableTurbulence && (
-                <>
-                  <SliderControl label="Frequency" value={settings.turbulenceFrequency} onChange={(v) => setSetting('turbulenceFrequency', v)} min={0.1} max={2} step={0.05} color="emerald" decimals={2} hint={['Smooth', 'Chunky']} />
-                  <SliderControl label="Amplitude" value={settings.turbulenceAmplitude} onChange={(v) => setSetting('turbulenceAmplitude', v)} min={0.01} max={0.3} step={0.01} color="emerald" decimals={2} hint={['Subtle', 'Strong']} />
-                  <SliderControl label="Speed" value={settings.turbulenceSpeed} onChange={(v) => setSetting('turbulenceSpeed', v)} min={0.1} max={1} step={0.05} color="emerald" decimals={2} />
-                </>
-              )}
-            </div>
-
-            {/* Fluid Dynamics Controls */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
-                <Droplets className="w-4 h-4 text-sky-400" />
-                Fluid Dynamics
-              </h3>
-              <SliderControl label="Cohesion" value={settings.fluidCohesion} onChange={(v) => setSetting('fluidCohesion', v)} min={0} max={1} step={0.01} color="sky" decimals={2} hint={['Scattered', 'Solid']} />
-              <SliderControl label="Surface Tension" value={settings.surfaceTension} onChange={(v) => setSetting('surfaceTension', v)} min={0} max={1} step={0.05} color="sky" decimals={2} />
-              <SliderControl label="Flow Speed" value={settings.fluidFlow} onChange={(v) => setSetting('fluidFlow', v)} min={0} max={1} step={0.05} color="sky" decimals={2} />
-            </div>
-
-            {/* Mouse Interaction Controls */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
-                  <MousePointer className="w-4 h-4 text-rose-400" />
-                  Mouse Interaction
-                </h3>
-                <button
-                  onClick={() => setSetting('enableMouseInteraction', !settings.enableMouseInteraction)}
-                  className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                    settings.enableMouseInteraction
-                      ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
-                      : 'bg-muted/20 border border-border/30 text-muted-foreground'
-                  }`}
-                >
-                  {settings.enableMouseInteraction ? 'ON' : 'OFF'}
-                </button>
-              </div>
-              
-              {settings.enableMouseInteraction && (
-                <>
-                  <div className="flex gap-2">
+                  <div className="flex items-center justify-between pb-2">
+                    <span className="text-xs text-foreground">Enable Core</span>
                     <button
-                      onClick={() => setSetting('mouseMode', 'attract')}
-                      className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                        settings.mouseMode === 'attract'
-                          ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
-                          : 'bg-muted/20 border border-border/30 text-muted-foreground hover:text-foreground'
+                      onClick={() => setSetting('enableCore', !settings.enableCore)}
+                      className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                        settings.enableCore
+                          ? 'bg-orange-500/20 border border-orange-500/50 text-orange-300'
+                          : 'bg-muted/20 border border-border/30 text-muted-foreground'
                       }`}
                     >
-                      🧲 Attract
-                    </button>
-                    <button
-                      onClick={() => setSetting('mouseMode', 'repulse')}
-                      className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                        settings.mouseMode === 'repulse'
-                          ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
-                          : 'bg-muted/20 border border-border/30 text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      💨 Repulse
+                      {settings.enableCore ? 'ON' : 'OFF'}
                     </button>
                   </div>
-                  <SliderControl label="Strength" value={settings.mouseStrength} onChange={(v) => setSetting('mouseStrength', v)} min={0.1} max={2} step={0.05} color="rose" decimals={2} />
-                  <SliderControl label="Influence Radius" value={settings.mouseInfluenceRadius} onChange={(v) => setSetting('mouseInfluenceRadius', v)} min={1} max={5} step={0.1} color="rose" decimals={1} />
-                </>
-              )}
-            </div>
+                  {settings.enableCore && (
+                    <>
+                      <SliderControl label="Particle Count" value={settings.coreParticleCount} onChange={(v) => setSetting('coreParticleCount', v)} min={50} max={500} step={10} color="orange" />
+                      <SliderControl label="Density" value={settings.coreDensity} onChange={(v) => setSetting('coreDensity', v)} min={0.1} max={1} step={0.05} color="orange" decimals={2} />
+                      <SliderControl label="Particle Size" value={settings.coreParticleSize} onChange={(v) => setSetting('coreParticleSize', v)} min={0.01} max={0.1} step={0.005} color="orange" decimals={3} />
+                      <SliderControl label="Intensity" value={settings.coreIntensity} onChange={(v) => setSetting('coreIntensity', v)} min={0.3} max={2} step={0.1} color="orange" decimals={1} />
+                      <SliderControl label="Pulse Speed" value={settings.corePulseSpeed} onChange={(v) => setSetting('corePulseSpeed', v)} min={0.5} max={5} step={0.1} color="orange" decimals={1} />
+                      <SliderControl label="Rotation Offset" value={settings.coreRotationOffset} onChange={(v) => setSetting('coreRotationOffset', v)} min={-2} max={2} step={0.1} color="orange" decimals={1} />
+                    </>
+                  )}
+                </CollapsibleSection>
 
-            {/* Animation Controls */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-cyan-400" />
-                Animation
-              </h3>
+                {/* Ripples */}
+                <CollapsibleSection
+                  title="Ripples"
+                  icon={<Droplets className="w-4 h-4 text-teal-400" />}
+                  color="cyan"
+                >
+                  <div className="flex items-center justify-between pb-2">
+                    <span className="text-xs text-foreground">Enable Ripples</span>
+                    <button
+                      onClick={() => setSetting('enableRipples', !settings.enableRipples)}
+                      className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                        settings.enableRipples
+                          ? 'bg-teal-500/20 border border-teal-500/50 text-teal-300'
+                          : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                      }`}
+                    >
+                      {settings.enableRipples ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                  {settings.enableRipples && (
+                    <>
+                      <SliderControl label="Speed" value={settings.rippleSpeed} onChange={(v) => setSetting('rippleSpeed', v)} min={0.5} max={4} step={0.1} color="cyan" decimals={1} />
+                      <SliderControl label="Count" value={settings.rippleCount} onChange={(v) => setSetting('rippleCount', v)} min={1} max={5} step={1} color="cyan" />
+                    </>
+                  )}
+                </CollapsibleSection>
+
+                {/* Turbulence */}
+                <CollapsibleSection
+                  title="Turbulence"
+                  icon={<Wind className="w-4 h-4 text-emerald-400" />}
+                  color="emerald"
+                >
+                  <div className="flex items-center justify-between pb-2">
+                    <span className="text-xs text-foreground">Enable Turbulence</span>
+                    <button
+                      onClick={() => setSetting('enableTurbulence', !settings.enableTurbulence)}
+                      className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                        settings.enableTurbulence
+                          ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300'
+                          : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                      }`}
+                    >
+                      {settings.enableTurbulence ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                  {settings.enableTurbulence && (
+                    <>
+                      <SliderControl label="Frequency" value={settings.turbulenceFrequency} onChange={(v) => setSetting('turbulenceFrequency', v)} min={0.1} max={2} step={0.05} color="emerald" decimals={2} />
+                      <SliderControl label="Amplitude" value={settings.turbulenceAmplitude} onChange={(v) => setSetting('turbulenceAmplitude', v)} min={0.01} max={0.3} step={0.01} color="emerald" decimals={2} />
+                      <SliderControl label="Speed" value={settings.turbulenceSpeed} onChange={(v) => setSetting('turbulenceSpeed', v)} min={0.1} max={1} step={0.05} color="emerald" decimals={2} />
+                    </>
+                  )}
+                </CollapsibleSection>
+
+                {/* Trails */}
+                <CollapsibleSection
+                  title="Particle Trails"
+                  icon={<Waves className="w-4 h-4 text-amber-400" />}
+                  color="amber"
+                >
+                  <div className="flex items-center justify-between pb-2">
+                    <span className="text-xs text-foreground">Enable Trails</span>
+                    <button
+                      onClick={() => setSetting('enableTrails', !settings.enableTrails)}
+                      className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                        settings.enableTrails
+                          ? 'bg-amber-500/20 border border-amber-500/50 text-amber-300'
+                          : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                      }`}
+                    >
+                      {settings.enableTrails ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                  {settings.enableTrails && (
+                    <>
+                      <SliderControl label="Trail Length" value={settings.trailLength} onChange={(v) => setSetting('trailLength', v)} min={1} max={12} step={1} color="amber" />
+                      <SliderControl label="Trail Opacity" value={settings.trailOpacity} onChange={(v) => setSetting('trailOpacity', v)} min={0.1} max={1} step={0.05} color="amber" decimals={2} />
+                      
+                      <div className="flex items-center justify-between pt-2 border-t border-border/20">
+                        <span className="text-xs text-muted-foreground">Color Gradient</span>
+                        <button
+                          onClick={() => setSetting('trailColorGradient', !settings.trailColorGradient)}
+                          className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                            settings.trailColorGradient
+                              ? 'bg-gradient-to-r from-orange-500/30 to-purple-500/30 border border-orange-500/50 text-orange-300'
+                              : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                          }`}
+                        >
+                          {settings.trailColorGradient ? 'ON' : 'OFF'}
+                        </button>
+                      </div>
+
+                      {settings.trailColorGradient && (
+                        <div className="space-y-2 pt-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Start Color</span>
+                            <input
+                              type="color"
+                              value={settings.trailStartColor}
+                              onChange={(e) => setSetting('trailStartColor', e.target.value)}
+                              className="w-8 h-6 rounded cursor-pointer border border-border/30"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">End Color</span>
+                            <input
+                              type="color"
+                              value={settings.trailEndColor}
+                              onChange={(e) => setSetting('trailEndColor', e.target.value)}
+                              className="w-8 h-6 rounded cursor-pointer border border-border/30"
+                            />
+                          </div>
+                          <div className="h-2 rounded-full w-full" style={{
+                            background: `linear-gradient(to right, ${settings.trailStartColor}, ${settings.trailEndColor})`
+                          }} />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CollapsibleSection>
+
+                {/* Mouse Interaction */}
+                <CollapsibleSection
+                  title="Mouse Interaction"
+                  icon={<MousePointer className="w-4 h-4 text-rose-400" />}
+                  color="rose"
+                >
+                  <div className="flex items-center justify-between pb-2">
+                    <span className="text-xs text-foreground">Enable Mouse</span>
+                    <button
+                      onClick={() => setSetting('enableMouseInteraction', !settings.enableMouseInteraction)}
+                      className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                        settings.enableMouseInteraction
+                          ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
+                          : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                      }`}
+                    >
+                      {settings.enableMouseInteraction ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                  {settings.enableMouseInteraction && (
+                    <>
+                      <div className="flex gap-2 pb-2">
+                        <button
+                          onClick={() => setSetting('mouseMode', 'attract')}
+                          className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                            settings.mouseMode === 'attract'
+                              ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
+                              : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                          }`}
+                        >
+                          🧲 Attract
+                        </button>
+                        <button
+                          onClick={() => setSetting('mouseMode', 'repulse')}
+                          className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                            settings.mouseMode === 'repulse'
+                              ? 'bg-rose-500/20 border border-rose-500/50 text-rose-300'
+                              : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                          }`}
+                        >
+                          💨 Repulse
+                        </button>
+                      </div>
+                      <SliderControl label="Strength" value={settings.mouseStrength} onChange={(v) => setSetting('mouseStrength', v)} min={0.1} max={2} step={0.05} color="rose" decimals={2} />
+                      <SliderControl label="Influence Radius" value={settings.mouseInfluenceRadius} onChange={(v) => setSetting('mouseInfluenceRadius', v)} min={1} max={5} step={0.1} color="rose" decimals={1} />
+                    </>
+                  )}
+                </CollapsibleSection>
+
+                {/* Particles */}
+                <CollapsibleSection
+                  title="Particles"
+                  icon={<Layers className="w-4 h-4 text-purple-400" />}
+                  color="purple"
+                >
+                  <SliderControl label="Particle Count" value={settings.particleCount} onChange={(v) => setSetting('particleCount', v)} min={500} max={20000} step={500} color="purple" />
+                  <SliderControl label="Particle Size" value={settings.particleSize} onChange={(v) => setSetting('particleSize', v)} min={0.02} max={0.2} step={0.01} color="purple" decimals={2} />
+                  <SliderControl label="Density" value={settings.density} onChange={(v) => setSetting('density', v)} min={0.3} max={2} step={0.05} color="purple" decimals={2} />
+                </CollapsibleSection>
+
+                {/* Fluid Dynamics */}
+                <CollapsibleSection
+                  title="Fluid Dynamics"
+                  icon={<Droplets className="w-4 h-4 text-sky-400" />}
+                  color="sky"
+                >
+                  <SliderControl label="Cohesion" value={settings.fluidCohesion} onChange={(v) => setSetting('fluidCohesion', v)} min={0} max={1} step={0.01} color="sky" decimals={2} />
+                  <SliderControl label="Surface Tension" value={settings.surfaceTension} onChange={(v) => setSetting('surfaceTension', v)} min={0} max={1} step={0.05} color="sky" decimals={2} />
+                  <SliderControl label="Flow Speed" value={settings.fluidFlow} onChange={(v) => setSetting('fluidFlow', v)} min={0} max={1} step={0.05} color="sky" decimals={2} />
+                </CollapsibleSection>
+              </>
+            )}
+
+            {/* ==================== ANIMATION ==================== */}
+            <CollapsibleSection
+              title="Animation"
+              icon={<Settings2 className="w-4 h-4 text-cyan-400" />}
+              color="cyan"
+            >
               <SliderControl label="Morph Progress" value={settings.morphProgress} onChange={(v) => setSetting('morphProgress', v)} min={0} max={1} step={0.01} color="amber" decimals={2} hint={['Scattered', 'Sphere']} />
               <SliderControl label="Morph Speed" value={settings.morphSpeed} onChange={(v) => setSetting('morphSpeed', v)} min={0.5} max={5} step={0.1} color="amber" decimals={1} />
               <SliderControl label="Rotation Speed" value={settings.rotationSpeed} onChange={(v) => setSetting('rotationSpeed', v)} min={0} max={2} step={0.05} color="cyan" decimals={2} />
-            </div>
+            </CollapsibleSection>
 
-            {/* Particle Controls */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider flex items-center gap-2">
-                <Layers className="w-4 h-4 text-purple-400" />
-                Particles
-              </h3>
-              <SliderControl label="Particle Count" value={settings.particleCount} onChange={(v) => setSetting('particleCount', v)} min={500} max={20000} step={500} color="purple" />
-              <SliderControl label="Particle Size" value={settings.particleSize} onChange={(v) => setSetting('particleSize', v)} min={0.02} max={0.2} step={0.01} color="purple" decimals={2} />
-              <SliderControl label="Density" value={settings.density} onChange={(v) => setSetting('density', v)} min={0.3} max={2} step={0.05} color="purple" decimals={2} hint={['Tight', 'Spread']} />
-            </div>
-
-            {/* Audio Level */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">Audio Level</h3>
-                <span className="text-sm font-mono text-cyan-400">{settings.audioLevel.toFixed(2)}</span>
-              </div>
-              <Slider
-                value={[settings.audioLevel]}
-                onValueChange={([v]) => {
-                  setSetting('audioLevel', v);
-                  setSetting('autoAudio', false);
-                }}
-                min={0}
-                max={1}
-                step={0.01}
-                className="w-full"
-              />
-              <button
-                onClick={() => setSetting('autoAudio', !settings.autoAudio)}
-                className={`w-full px-4 py-2 rounded-xl text-sm transition-all ${
-                  settings.autoAudio
-                    ? 'bg-cyan-500/20 border border-cyan-500/50 text-cyan-300'
-                    : 'bg-muted/20 border border-border/30 hover:border-border/50'
-                }`}
-              >
-                {settings.autoAudio ? '🔊 Simulating Audio...' : '🔇 Simulate Audio'}
-              </button>
-              <SliderControl label="Reactivity Speed" value={settings.audioReactivitySpeed} onChange={(v) => setSetting('audioReactivitySpeed', v)} min={0.2} max={3.0} step={0.1} color="cyan" decimals={1} hint={['Slow', 'Fast']} suffix="x" />
-            </div>
-
-            {/* Effects Controls */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">Bloom Effect</h3>
+            {/* ==================== EFFECTS ==================== */}
+            <CollapsibleSection
+              title="Effects"
+              icon={<Sparkles className="w-4 h-4 text-pink-400" />}
+              color="pink"
+            >
+              <div className="flex items-center justify-between pb-2">
+                <span className="text-xs text-foreground">Bloom Effect</span>
                 <button
                   onClick={() => setSetting('enableBloom', !settings.enableBloom)}
                   className={`px-3 py-1 rounded-lg text-xs transition-all ${
@@ -940,120 +994,10 @@ export default function AtlasDemo() {
                   {settings.enableBloom ? 'ON' : 'OFF'}
                 </button>
               </div>
-              
               {settings.enableBloom && (
                 <SliderControl label="Bloom Intensity" value={settings.bloomIntensity} onChange={(v) => setSetting('bloomIntensity', v)} min={0} max={2} step={0.05} color="pink" decimals={2} />
               )}
-            </div>
-
-            {/* Trail Controls */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider">Particle Trails</h3>
-                <button
-                  onClick={() => setSetting('enableTrails', !settings.enableTrails)}
-                  className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                    settings.enableTrails
-                      ? 'bg-amber-500/20 border border-amber-500/50 text-amber-300'
-                      : 'bg-muted/20 border border-border/30 text-muted-foreground'
-                  }`}
-                >
-                  {settings.enableTrails ? 'ON' : 'OFF'}
-                </button>
-              </div>
-              
-              {settings.enableTrails && (
-                <>
-                  <SliderControl label="Trail Length" value={settings.trailLength} onChange={(v) => setSetting('trailLength', v)} min={1} max={12} step={1} color="amber" />
-                  <SliderControl label="Trail Opacity" value={settings.trailOpacity} onChange={(v) => setSetting('trailOpacity', v)} min={0.1} max={1} step={0.05} color="amber" decimals={2} />
-
-                  {/* Color Gradient Toggle */}
-                  <div className="flex items-center justify-between pt-2 border-t border-border/20">
-                    <span className="text-xs text-muted-foreground">Color Gradient</span>
-                    <button
-                      onClick={() => setSetting('trailColorGradient', !settings.trailColorGradient)}
-                      className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                        settings.trailColorGradient
-                          ? 'bg-gradient-to-r from-orange-500/30 to-purple-500/30 border border-orange-500/50 text-orange-300'
-                          : 'bg-muted/20 border border-border/30 text-muted-foreground'
-                      }`}
-                    >
-                      {settings.trailColorGradient ? 'ON' : 'OFF'}
-                    </button>
-                  </div>
-
-                  {settings.trailColorGradient && (
-                    <div className="space-y-3 pt-2">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Start Color (Bright)</span>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="color"
-                              value={settings.trailStartColor}
-                              onChange={(e) => setSetting('trailStartColor', e.target.value)}
-                              className="w-6 h-6 rounded cursor-pointer border border-border/30"
-                            />
-                            <span className="text-xs font-mono text-amber-400">{settings.trailStartColor}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">End Color (Dark)</span>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="color"
-                              value={settings.trailEndColor}
-                              onChange={(e) => setSetting('trailEndColor', e.target.value)}
-                              className="w-6 h-6 rounded cursor-pointer border border-border/30"
-                            />
-                            <span className="text-xs font-mono text-purple-400">{settings.trailEndColor}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Gradient Preview */}
-                      <div className="h-3 rounded-full w-full" style={{
-                        background: `linear-gradient(to right, ${settings.trailStartColor}, ${settings.trailEndColor})`
-                      }} />
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Info Panel */}
-            <div className="p-4 rounded-xl bg-muted/10 border border-border/20 space-y-3">
-              <h3 className="text-sm font-medium text-foreground/80">About Atlas Core</h3>
-              <ul className="text-xs text-muted-foreground space-y-2">
-                <li className="flex items-start gap-2">
-                  <span className="text-orange-400">•</span>
-                  <span>Particle-based core with independent rotation</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-teal-400">•</span>
-                  <span>Ring ripples expand on state changes</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400">•</span>
-                  <span>Perlin noise turbulence for organic movement</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-rose-400">•</span>
-                  <span>Mouse interaction with attract/repulse modes</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-400">•</span>
-                  <span>Morphing particle trails that follow the animation</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-cyan-400">•</span>
-                  <span>Settings auto-save to localStorage</span>
-                </li>
-              </ul>
-            </div>
+            </CollapsibleSection>
           </div>
         </motion.aside>
       </div>
@@ -1146,49 +1090,6 @@ export default function AtlasDemo() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
-  );
-}
-
-// Reusable Slider Control Component
-interface SliderControlProps {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  min: number;
-  max: number;
-  step: number;
-  color: string;
-  decimals?: number;
-  hint?: [string, string];
-  suffix?: string;
-}
-
-function SliderControl({ label, value, onChange, min, max, step, color, decimals = 0, hint, suffix = '' }: SliderControlProps) {
-  // Safeguard against undefined values from old localStorage settings
-  const safeValue = typeof value === 'number' ? value : min;
-  const displayValue = decimals > 0 ? safeValue.toFixed(decimals) : safeValue;
-  
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span className={`text-xs font-mono text-${color}-400`}>{displayValue}{suffix}</span>
-      </div>
-      <Slider
-        value={[safeValue]}
-        onValueChange={([v]) => onChange(v)}
-        min={min}
-        max={max}
-        step={step}
-        className="w-full"
-      />
-      {hint && (
-        <div className="flex justify-between text-[10px] text-muted-foreground">
-          <span>{hint[0]}</span>
-          <span>{hint[1]}</span>
-        </div>
-      )}
     </div>
   );
 }

@@ -333,6 +333,8 @@ export interface UseAtlasSettingsReturn {
   settings: AtlasSettings;
   setSetting: <K extends keyof AtlasSettings>(key: K, value: AtlasSettings[K]) => void;
   setMultiple: (settings: Partial<AtlasSettings>) => void;
+  setStateCustomization: (stateName: WakeWordState, key: keyof NebulaStateConfig, value: string | number | boolean) => void;
+  resetStateCustomizations: (stateName: WakeWordState) => void;
   reset: () => void;
   resetCurrentState: () => void;
   resetAllCustomizations: () => void;
@@ -457,6 +459,20 @@ export function useAtlasSettings(): UseAtlasSettingsReturn {
     });
   }, [settings.state]);
 
+  // Set customization for a specific state (not necessarily the current state)
+  const setStateCustomization = useCallback((
+    stateName: WakeWordState,
+    key: keyof NebulaStateConfig,
+    value: string | number | boolean
+  ) => {
+    dispatch({ type: 'SET_STATE_CUSTOMIZATION', state: stateName, key, value });
+  }, []);
+
+  // Reset customizations for a specific state
+  const resetStateCustomizations = useCallback((stateName: WakeWordState) => {
+    dispatch({ type: 'RESET_STATE_CUSTOMIZATIONS', state: stateName });
+  }, []);
+
   const exportSettings = useCallback(() => {
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -498,12 +514,14 @@ export function useAtlasSettings(): UseAtlasSettingsReturn {
     settings,
     setSetting: setSettingWrapped,
     setMultiple,
+    setStateCustomization,
+    resetStateCustomizations,
     reset,
     resetCurrentState,
     resetAllCustomizations,
     exportSettings,
     importSettings,
-  }), [settings, setSettingWrapped, setMultiple, reset, resetCurrentState, resetAllCustomizations, exportSettings, importSettings]);
+  }), [settings, setSettingWrapped, setMultiple, setStateCustomization, resetStateCustomizations, reset, resetCurrentState, resetAllCustomizations, exportSettings, importSettings]);
 }
 
 // Read-only hook for components that just need to display the sphere
