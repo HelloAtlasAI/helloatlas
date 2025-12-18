@@ -43,6 +43,8 @@ interface NebulaFlowSystemProps {
   thinkingRetraction?: number;
   audioBreathingIntensity?: number;
   transitionSpeed?: number;
+  // Manual override tracking
+  manualOverrides?: string[];
 }
 
 export const NebulaFlowSystem = memo(({
@@ -80,6 +82,8 @@ export const NebulaFlowSystem = memo(({
   thinkingRetraction = 0.25,
   audioBreathingIntensity = 0.15,
   transitionSpeed = 1.5,
+  // Manual overrides - when a property is in this array, use prop value instead of state config
+  manualOverrides = [],
 }: NebulaFlowSystemProps) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
@@ -226,6 +230,12 @@ export const NebulaFlowSystem = memo(({
     const audioLevel = audioLevelRef?.current ?? 0;
     const stateConfig = NEBULA_STATE_CONFIGS[state];
     
+    // Create a Set for O(1) lookup of manual overrides
+    const overrideSet = new Set(manualOverrides);
+    
+    // Helper to check if a property is manually overridden
+    const isOverridden = (key: string) => overrideSet.has(key);
+    
     // Frame-rate independent smoothing using exponential decay
     // lambda controls the speed: higher = faster transitions
     const lambda = transitionSpeed * 2;
@@ -240,15 +250,30 @@ export const NebulaFlowSystem = memo(({
     u.uMorphProgress.value = THREE.MathUtils.damp(u.uMorphProgress.value, morphProgress, 4, clampedDelta);
     u.uAudioLevel.value = audioLevel;
     
-    // State-reactive interpolation
+    // Smart per-property blending: use prop value if overridden, otherwise use state config
     if (stateReactive && stateConfig) {
       const current = currentStateRef.current;
       const targets = targetColorsRef.current;
       
-      // Set target colors (reuse objects, no allocation)
-      targets.start.set(stateConfig.colorStart);
-      targets.mid.set(stateConfig.colorMid);
-      targets.end.set(stateConfig.colorEnd);
+      // Determine target values based on override status
+      // Colors - check each color individually
+      if (isOverridden('nebulaColorStart')) {
+        targets.start.set(colorStart);
+      } else {
+        targets.start.set(stateConfig.colorStart);
+      }
+      
+      if (isOverridden('nebulaColorMid')) {
+        targets.mid.set(colorMid);
+      } else {
+        targets.mid.set(stateConfig.colorMid);
+      }
+      
+      if (isOverridden('nebulaColorEnd')) {
+        targets.end.set(colorEnd);
+      } else {
+        targets.end.set(stateConfig.colorEnd);
+      }
       
       // Color interpolation using exponential decay factor
       const colorDecay = 1 - Math.exp(-lambda * clampedDelta);
@@ -260,17 +285,27 @@ export const NebulaFlowSystem = memo(({
       u.uColorMid.value.copy(current.colorMid);
       u.uColorEnd.value.copy(current.colorEnd);
       
-      // Smooth interpolation using damp for all numeric values
-      current.flowSpeed = THREE.MathUtils.damp(current.flowSpeed, stateConfig.flowSpeed, lambda, clampedDelta);
-      current.flowStrength = THREE.MathUtils.damp(current.flowStrength, stateConfig.flowStrength, lambda, clampedDelta);
-      current.rimIntensity = THREE.MathUtils.damp(current.rimIntensity, stateConfig.rimIntensity, lambda, clampedDelta);
-      current.hotSpotIntensity = THREE.MathUtils.damp(current.hotSpotIntensity, stateConfig.hotSpotIntensity, lambda, clampedDelta);
-      current.breathingSpeed = THREE.MathUtils.damp(current.breathingSpeed, stateConfig.breathingSpeed, lambda, clampedDelta);
-      current.breathingAmount = THREE.MathUtils.damp(current.breathingAmount, stateConfig.breathingAmount, lambda, clampedDelta);
-      current.radiusNoise = THREE.MathUtils.damp(current.radiusNoise, stateConfig.radiusNoise, lambda, clampedDelta);
-      current.glowIntensity = THREE.MathUtils.damp(current.glowIntensity, stateConfig.glowIntensity, lambda, clampedDelta);
+      // Numeric properties - use override or state config
+      const targetFlowSpeed = isOverridden('nebulaFlowSpeed') ? flowSpeed : stateConfig.flowSpeed;
+      const targetFlowStrength = isOverridden('nebulaFlowStrength') ? flowStrength : stateConfig.flowStrength;
+      const targetRimIntensity = isOverridden('nebulaRimIntensity') ? rimIntensity : stateConfig.rimIntensity;
+      const targetHotSpotIntensity = isOverridden('nebulaHotSpotIntensity') ? hotSpotIntensity : stateConfig.hotSpotIntensity;
+      const targetBreathingSpeed = isOverridden('nebulaBreathingSpeed') ? breathingSpeed : stateConfig.breathingSpeed;
+      const targetBreathingAmount = isOverridden('nebulaBreathingAmount') ? breathingAmount : stateConfig.breathingAmount;
+      const targetRadiusNoise = isOverridden('nebulaRadiusNoise') ? radiusNoise : stateConfig.radiusNoise;
+      const targetGlowIntensity = isOverridden('nebulaGlowIntensity') ? glowIntensity : stateConfig.glowIntensity;
       
-      // Core retraction for thinking state
+      // Smooth interpolation using damp for all numeric values
+      current.flowSpeed = THREE.MathUtils.damp(current.flowSpeed, targetFlowSpeed, lambda, clampedDelta);
+      current.flowStrength = THREE.MathUtils.damp(current.flowStrength, targetFlowStrength, lambda, clampedDelta);
+      current.rimIntensity = THREE.MathUtils.damp(current.rimIntensity, targetRimIntensity, lambda, clampedDelta);
+      current.hotSpotIntensity = THREE.MathUtils.damp(current.hotSpotIntensity, targetHotSpotIntensity, lambda, clampedDelta);
+      current.breathingSpeed = THREE.MathUtils.damp(current.breathingSpeed, targetBreathingSpeed, lambda, clampedDelta);
+      current.breathingAmount = THREE.MathUtils.damp(current.breathingAmount, targetBreathingAmount, lambda, clampedDelta);
+      current.radiusNoise = THREE.MathUtils.damp(current.radiusNoise, targetRadiusNoise, lambda, clampedDelta);
+      current.glowIntensity = THREE.MathUtils.damp(current.glowIntensity, targetGlowIntensity, lambda, clampedDelta);
+      
+      // Core retraction for thinking state (only if not overridden)
       const targetRetraction = stateConfig.coreRetraction * thinkingRetraction / 0.25;
       current.coreRetraction = THREE.MathUtils.damp(current.coreRetraction, targetRetraction, lambda, clampedDelta);
       
@@ -294,7 +329,7 @@ export const NebulaFlowSystem = memo(({
         : audioBreathingIntensity;
       u.uAudioBreathing.value = THREE.MathUtils.damp(u.uAudioBreathing.value, targetBreathing, lambda * 3, clampedDelta);
     } else {
-      // Manual mode - use prop values directly
+      // Manual mode - use prop values directly (no state config at all)
       u.uFlowStrength.value = flowStrength;
       u.uFlowSpeed.value = flowSpeed;
       u.uBreathingSpeed.value = breathingSpeed;

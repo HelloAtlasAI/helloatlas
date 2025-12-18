@@ -2,7 +2,25 @@ import { useReducer, useEffect, useCallback, useMemo, useState } from 'react';
 import { WakeWordState } from '@/types';
 
 const STORAGE_KEY = 'atlas-demo-settings';
-const SETTINGS_VERSION = 8; // Bump this to force reset of corrupted settings
+const SETTINGS_VERSION = 9; // Bump this to force reset of corrupted settings
+
+// Keys that can be manually overridden (nebula visual properties)
+export const NEBULA_OVERRIDE_KEYS = [
+  'nebulaFlowStrength',
+  'nebulaFlowSpeed',
+  'nebulaRimIntensity',
+  'nebulaHotSpotIntensity',
+  'nebulaBreathingSpeed',
+  'nebulaBreathingAmount',
+  'nebulaRadiusNoise',
+  'nebulaGlowIntensity',
+  'nebulaColorStart',
+  'nebulaColorMid',
+  'nebulaColorEnd',
+  'nebulaRotationSpeed',
+] as const;
+
+export type NebulaOverrideKey = typeof NEBULA_OVERRIDE_KEYS[number];
 
 // Complete settings interface for Atlas visualization
 export interface AtlasSettings {
@@ -107,6 +125,9 @@ export interface AtlasSettings {
   nebulaThinkingRetraction: number;       // 0-0.5, how much particles pull toward center in thinking state
   nebulaAudioBreathingIntensity: number;  // 0-0.4, audio breathing strength in speaking state
   nebulaTransitionSpeed: number;          // 0.5-3.0, how fast states blend together
+  
+  // Manual override tracking - which properties have been manually adjusted
+  _manualOverrides: string[];
 }
 
 // Default settings - optimized for performance
@@ -184,12 +205,16 @@ export const defaultAtlasSettings: AtlasSettings = {
   nebulaThinkingRetraction: 0.25,
   nebulaAudioBreathingIntensity: 0.15,
   nebulaTransitionSpeed: 1.5,
+  // Manual override tracking
+  _manualOverrides: [],
 };
 
 // Action types
 type SettingsAction =
   | { type: 'SET_SETTING'; key: keyof AtlasSettings; value: AtlasSettings[keyof AtlasSettings] }
   | { type: 'SET_MULTIPLE'; settings: Partial<AtlasSettings> }
+  | { type: 'ADD_OVERRIDE'; key: string }
+  | { type: 'CLEAR_OVERRIDES' }
   | { type: 'RESET' }
   | { type: 'LOAD'; settings: AtlasSettings };
 
@@ -200,6 +225,14 @@ function settingsReducer(state: AtlasSettings, action: SettingsAction): AtlasSet
       return { ...state, [action.key]: action.value };
     case 'SET_MULTIPLE':
       return { ...state, ...action.settings };
+    case 'ADD_OVERRIDE': {
+      if (state._manualOverrides.includes(action.key)) {
+        return state;
+      }
+      return { ...state, _manualOverrides: [...state._manualOverrides, action.key] };
+    }
+    case 'CLEAR_OVERRIDES':
+      return { ...state, _manualOverrides: [] };
     case 'RESET':
       return { ...defaultAtlasSettings };
     case 'LOAD':
@@ -256,6 +289,7 @@ export interface UseAtlasSettingsReturn {
   setSetting: <K extends keyof AtlasSettings>(key: K, value: AtlasSettings[K]) => void;
   setMultiple: (settings: Partial<AtlasSettings>) => void;
   reset: () => void;
+  clearOverrides: () => void;
   exportSettings: () => void;
   importSettings: () => void;
 }
@@ -269,16 +303,31 @@ export function useAtlasSettings(): UseAtlasSettingsReturn {
   }, [settings]);
 
   const setSetting = useCallback(<K extends keyof AtlasSettings>(key: K, value: AtlasSettings[K]) => {
+    // Automatically track manual overrides for nebula properties
+    const keyStr = key as string;
+    if ((NEBULA_OVERRIDE_KEYS as readonly string[]).includes(keyStr)) {
+      dispatch({ type: 'ADD_OVERRIDE', key: keyStr });
+    }
     dispatch({ type: 'SET_SETTING', key, value });
   }, []);
 
   const setMultiple = useCallback((newSettings: Partial<AtlasSettings>) => {
+    // Track overrides for any nebula properties being set
+    Object.keys(newSettings).forEach(key => {
+      if ((NEBULA_OVERRIDE_KEYS as readonly string[]).includes(key)) {
+        dispatch({ type: 'ADD_OVERRIDE', key });
+      }
+    });
     dispatch({ type: 'SET_MULTIPLE', settings: newSettings });
   }, []);
 
   const reset = useCallback(() => {
     dispatch({ type: 'RESET' });
     localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
+  const clearOverrides = useCallback(() => {
+    dispatch({ type: 'CLEAR_OVERRIDES' });
   }, []);
 
   const exportSettings = useCallback(() => {
@@ -318,9 +367,10 @@ export function useAtlasSettings(): UseAtlasSettingsReturn {
     setSetting,
     setMultiple,
     reset,
+    clearOverrides,
     exportSettings,
     importSettings,
-  }), [settings, setSetting, setMultiple, reset, exportSettings, importSettings]);
+  }), [settings, setSetting, setMultiple, reset, clearOverrides, exportSettings, importSettings]);
 }
 
 // Read-only hook for components that just need to display the sphere
