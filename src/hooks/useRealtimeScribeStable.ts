@@ -8,6 +8,7 @@ interface UseRealtimeScribeOptions {
   onSpeechStart?: () => void;
   onSpeechEnd?: () => void;
   onError?: (error: Error) => void;
+  languageCodes?: string[]; // e.g. ['en', 'da'] for English and Danish
 }
 
 // NOTE: This hook is intentionally in a new module to force a clean Fast Refresh boundary.
@@ -27,9 +28,11 @@ export const useRealtimeScribeStable = (options: UseRealtimeScribeOptions = {}) 
   const speechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Use ElevenLabs official useScribe hook with VAD for automatic speech-end detection
+  // Language codes: 'en' for English, 'da' for Danish
   const scribe = useScribe({
     modelId: "scribe_v2_realtime",
     commitStrategy: "vad" as CommitStrategy,
+    languageCode: optionsRef.current.languageCodes?.[0] || "en", // Primary language
     onPartialTranscript: (data) => {
       console.log("[Scribe] Partial:", data.text);
       optionsRef.current.onPartialTranscript?.(data.text || "");
