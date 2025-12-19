@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ChevronRight, ChevronLeft, Brain, Heart, User, Sparkles, Briefcase, Shield, Rocket, Smile, Users, Activity, Star, Clock, Trophy, LucideIcon, Zap, Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ChevronRight, ChevronLeft, Brain, Heart, User, Sparkles, Briefcase, Shield, Rocket, Smile, Users, Activity, Star, Clock, Trophy, LucideIcon, Zap, Wifi, WifiOff, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRealtimeScribeStable as useRealtimeScribe } from '@/hooks/useRealtimeScribeStable';
 import { useStreamingTTS } from '@/hooks/useStreamingTTS';
@@ -182,8 +182,20 @@ const AtlasTeach = () => {
   // Realtime STT with VAD - always on, detects wake word
   // Realtime STT with VAD - always on, detects wake word
   // Configured for English and Danish only
-  const { isConnected, isConnecting, isListening, partialTranscript, connect, disconnect } = useRealtimeScribe({
+  const { 
+    isConnected, 
+    isConnecting, 
+    isListening, 
+    partialTranscript, 
+    connect, 
+    disconnect,
+    connectionError,
+    retryCount,
+    maxRetries,
+    retryConnect
+  } = useRealtimeScribe({
     languageCodes: ['en', 'da'], // English and Danish only
+    maxRetries: 3,
     onPartialTranscript: (text) => {
       setLiveTranscript(text);
       
@@ -246,6 +258,17 @@ const AtlasTeach = () => {
     },
     onSpeechEnd: () => {
       console.log('[Teach] Speech ended');
+    },
+    onConnectionChange: (connected) => {
+      console.log('[Teach] Connection changed:', connected);
+      if (connected) {
+        setVoiceStatus('connected');
+        setVoiceError(null);
+        toast({
+          title: 'Voice Connected',
+          description: 'Say "Atlas" to start talking',
+        });
+      }
     },
     onError: (error) => {
       console.error('STT error:', error);
@@ -474,7 +497,9 @@ const AtlasTeach = () => {
           {voiceStatus === 'connecting' && (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm font-medium">Connecting...</span>
+              <span className="text-sm font-medium">
+                {retryCount > 0 ? `Retry ${retryCount}/${maxRetries}...` : 'Connecting...'}
+              </span>
             </>
           )}
           {voiceStatus === 'error' && (
@@ -482,14 +507,43 @@ const AtlasTeach = () => {
               <WifiOff className="w-4 h-4" />
               <span className="text-sm font-medium">Error</span>
               {voiceError && (
-                <span className="text-xs opacity-70 max-w-32 truncate">{voiceError}</span>
+                <span className="text-xs opacity-70 max-w-32 truncate" title={voiceError}>
+                  {voiceError}
+                </span>
               )}
+              <button
+                onClick={async () => {
+                  setVoiceStatus('connecting');
+                  setVoiceError(null);
+                  const success = await retryConnect();
+                  if (!success) {
+                    setVoiceStatus('error');
+                  }
+                }}
+                className="ml-1 p-1 rounded-full hover:bg-red-500/20 transition-colors"
+                title="Retry connection"
+              >
+                <RefreshCw className="w-3 h-3" />
+              </button>
             </>
           )}
           {voiceStatus === 'disconnected' && (
             <>
               <WifiOff className="w-4 h-4" />
               <span className="text-sm font-medium">Voice Disconnected</span>
+              <button
+                onClick={async () => {
+                  setVoiceStatus('connecting');
+                  const success = await connect();
+                  if (!success) {
+                    setVoiceStatus('error');
+                  }
+                }}
+                className="ml-1 p-1 rounded-full hover:bg-muted transition-colors"
+                title="Connect voice"
+              >
+                <RefreshCw className="w-3 h-3" />
+              </button>
             </>
           )}
         </motion.div>
