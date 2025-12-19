@@ -21,6 +21,262 @@ Public endpoints (marked with 🔓) can be called without authentication.
 
 ---
 
+## AI Provider Architecture
+
+Atlas uses a sophisticated multi-model AI architecture that routes different task types to specialized AI providers for optimal performance.
+
+### Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Frontend"
+        A[User Request]
+    end
+    
+    subgraph "Edge Functions"
+        B[chat-with-memory]
+        C[agent-run]
+        D[tool-gateway]
+    end
+    
+    subgraph "AI Providers"
+        E[Lovable AI Gateway]
+        F[Perplexity AI]
+        G[Jina Reader]
+    end
+    
+    subgraph "Lovable AI Models"
+        E --> H[GPT-5 / Gemini Pro]
+        E --> I[Gemini Flash]
+    end
+    
+    subgraph "Perplexity Models"
+        F --> J[sonar]
+        F --> K[sonar-pro]
+        F --> L[sonar-reasoning]
+    end
+    
+    A --> B
+    A --> C
+    B --> E
+    B --> F
+    C --> D
+    D --> E
+    D --> F
+    D --> G
+```
+
+### AI Providers
+
+| Provider | Models | Use Case | API Key |
+|----------|--------|----------|---------|
+| **Lovable AI Gateway** | `openai/gpt-5`, `google/gemini-2.5-flash`, `google/gemini-2.5-pro` | General reasoning, planning, verification | `LOVABLE_API_KEY` (auto-configured) |
+| **Perplexity AI** | `sonar`, `sonar-pro`, `sonar-reasoning` | Real-time web search, deep research | `PERPLEXITY_API_KEY` |
+| **Jina Reader** | N/A | Web page scraping, content extraction | Free (no key required) |
+
+### Model Tier System
+
+The `agent-run` function uses a tiered model system for different cognitive tasks:
+
+```typescript
+// Model tiers and their purposes
+type ModelTier = 'planner' | 'worker' | 'reasoner';
+
+const DEFAULT_MODELS = {
+  planner: 'openai/gpt-5',        // Strategic planning, step decomposition
+  worker: 'google/gemini-2.5-flash', // Fast execution, tool calling
+  reasoner: 'openai/gpt-5'        // Verification, quality assessment
+};
+```
+
+### Model Selection Logic
+
+The `selectModel()` function in `agent-run` dynamically routes tasks to the most appropriate model:
+
+```typescript
+function selectModel(task: string, agentConfig?: ModelConfig): string {
+  // Agent-specific overrides take priority
+  if (agentConfig?.modelOverrides?.[task]) {
+    return agentConfig.modelOverrides[task];
+  }
+  
+  // Task-based routing
+  switch (task) {
+    case 'planner':
+      return 'openai/gpt-5';           // Complex reasoning for planning
+    case 'worker':
+    case 'fast':
+      return 'google/gemini-2.5-flash'; // Speed-optimized for execution
+    case 'reasoner':
+      return 'openai/gpt-5';           // Deep analysis for verification
+    case 'research':
+    case 'search':
+      return 'sonar-pro';              // Perplexity for web grounding
+    default:
+      return 'google/gemini-2.5-flash';
+  }
+}
+```
+
+### Provider Configuration
+
+#### Lovable AI Gateway
+
+The primary AI provider, accessed via `https://ai.gateway.lovable.dev/v1/chat/completions`:
+
+```typescript
+const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'google/gemini-2.5-flash', // or 'openai/gpt-5', 'google/gemini-2.5-pro'
+    messages: [
+      { role: 'system', content: 'You are a helpful assistant.' },
+      { role: 'user', content: 'Hello!' }
+    ],
+    stream: true, // SSE streaming supported
+  }),
+});
+```
+
+**Available Models:**
+| Model | Best For | Speed | Cost |
+|-------|----------|-------|------|
+| `openai/gpt-5` | Complex reasoning, planning | Medium | High |
+| `google/gemini-2.5-pro` | Multimodal, long context | Medium | High |
+| `google/gemini-2.5-flash` | General tasks, speed | Fast | Low |
+| `google/gemini-2.5-flash-lite` | Simple tasks, classification | Fastest | Lowest |
+
+#### Perplexity AI
+
+Used for web-grounded responses and research:
+
+```typescript
+const response = await fetch('https://api.perplexity.ai/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${Deno.env.get('PERPLEXITY_API_KEY')}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'sonar-pro',
+    messages: [
+      { role: 'user', content: 'What are the latest AI developments?' }
+    ],
+  }),
+});
+
+// Response includes citations
+const data = await response.json();
+// data.citations: ["https://example.com/article1", ...]
+```
+
+**Available Models:**
+| Model | Description | Use Case |
+|-------|-------------|----------|
+| `sonar` | Fast web search | Quick factual lookups |
+| `sonar-pro` | Multi-step search with 2x citations | Research, complex queries |
+| `sonar-reasoning` | Chain-of-thought with search | Analysis, reasoning tasks |
+
+#### Jina Reader
+
+Free web scraping service for content extraction:
+
+```typescript
+const response = await fetch(`https://r.jina.ai/${encodeURIComponent(url)}`, {
+  headers: {
+    'Accept': 'application/json',
+  },
+});
+
+const data = await response.json();
+// data.content: Markdown-formatted page content
+// data.title: Page title
+// data.description: Meta description
+```
+
+### Fallback Behavior
+
+The system implements graceful fallbacks when providers are unavailable:
+
+```
+Primary Path:
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Perplexity │───▶│ Lovable AI  │───▶│   Error     │
+│   (search)  │    │  (fallback) │    │  Response   │
+└─────────────┘    └─────────────┘    └─────────────┘
+
+Research Flow:
+1. Try Perplexity sonar-pro for web-grounded research
+2. If PERPLEXITY_API_KEY missing → fallback to Lovable AI Gemini
+3. If both fail → return error with partial results
+```
+
+**Implementation Example:**
+```typescript
+async function searchWeb(query: string): Promise<SearchResult> {
+  const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
+  
+  if (perplexityKey) {
+    try {
+      return await perplexitySearch(query, perplexityKey);
+    } catch (error) {
+      console.warn('Perplexity failed, falling back to Lovable AI');
+    }
+  }
+  
+  // Fallback to Lovable AI (without real-time web access)
+  return await lovableAISearch(query);
+}
+```
+
+### Required Secrets
+
+| Secret | Provider | Required | Description |
+|--------|----------|----------|-------------|
+| `LOVABLE_API_KEY` | Lovable AI Gateway | ✅ Auto-configured | Access to GPT-5 and Gemini models |
+| `PERPLEXITY_API_KEY` | Perplexity AI | ⚠️ Optional | Web search and research capabilities |
+| `ELEVENLABS_API_KEY` | ElevenLabs | ✅ For voice | Speech-to-text and text-to-speech |
+
+### Agent Model Configuration
+
+Agents can override default model selection via the `model_config_json` field:
+
+```typescript
+interface AgentModelConfig {
+  planner?: string;    // Model for planning phase
+  worker?: string;     // Model for execution phase  
+  reasoner?: string;   // Model for verification phase
+  temperature?: number;
+  maxTokens?: number;
+}
+
+// Example agent configuration
+const agent = {
+  name: 'Research Assistant',
+  system_prompt: '...',
+  model_config_json: {
+    planner: 'openai/gpt-5',
+    worker: 'sonar-pro',  // Use Perplexity for research-heavy tasks
+    reasoner: 'google/gemini-2.5-pro',
+    temperature: 0.7,
+  },
+};
+```
+
+### Rate Limits by Provider
+
+| Provider | Limit | Scope |
+|----------|-------|-------|
+| Lovable AI Gateway | Varies by plan | Per workspace |
+| Perplexity AI | 50 req/min (free), 600 req/min (pro) | Per API key |
+| Jina Reader | Unlimited | Free tier |
+
+---
+
 ## Core AI Functions
 
 ### POST `/chat-with-memory`
