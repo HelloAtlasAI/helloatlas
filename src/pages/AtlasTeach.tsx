@@ -89,17 +89,14 @@ const AtlasTeach = () => {
   const { isPlaying, audioLevel, speak, stopPlayback } = useStreamingTTS({
     onPlaybackStart: () => setAtlasState('speaking'),
     onPlaybackEnd: () => {
-      setAtlasState('dormant');
-      // Return to passive listening after speaking
-      setListeningMode('passive');
-      isAwakeRef.current = false;
-      console.log('[Teach] Atlas done speaking, returning to passive listening');
+      // Stay in active mode after speaking - user doesn't need to say wake word again
+      setAtlasState('listening');
+      console.log('[Teach] Atlas done speaking, staying in active listening mode');
     },
     onError: (error) => {
       console.error('TTS error:', error);
-      setAtlasState('dormant');
-      setListeningMode('passive');
-      isAwakeRef.current = false;
+      setAtlasState('listening');
+      // Stay in active mode even on error
     },
   });
 
@@ -144,9 +141,8 @@ const AtlasTeach = () => {
       if (!isMuted && responseText) {
         await speak(responseText);
       } else {
-        setAtlasState('dormant');
-        setListeningMode('passive');
-        isAwakeRef.current = false;
+        // Stay in active listening mode
+        setAtlasState('listening');
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -156,9 +152,8 @@ const AtlasTeach = () => {
         variant: 'destructive',
       });
       setIsProcessing(false);
-      setAtlasState('dormant');
-      setListeningMode('passive');
-      isAwakeRef.current = false;
+      setAtlasState('listening');
+      // Stay in active mode on error
     }
   }, [messages, isMuted, speak, toast]);
 
@@ -185,7 +180,10 @@ const AtlasTeach = () => {
   }, []);
 
   // Realtime STT with VAD - always on, detects wake word
+  // Realtime STT with VAD - always on, detects wake word
+  // Configured for English and Danish only
   const { isConnected, isConnecting, isListening, partialTranscript, connect, disconnect } = useRealtimeScribe({
+    languageCodes: ['en', 'da'], // English and Danish only
     onPartialTranscript: (text) => {
       setLiveTranscript(text);
       
