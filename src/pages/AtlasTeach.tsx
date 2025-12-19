@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ChevronRight, ChevronLeft, Brain, Heart, User, Sparkles, Briefcase, Shield, Rocket, Smile, Users, Activity, Star, Clock, Trophy, LucideIcon, Zap } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ChevronRight, ChevronLeft, Brain, Heart, User, Sparkles, Briefcase, Shield, Rocket, Smile, Users, Activity, Star, Clock, Trophy, LucideIcon, Zap, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRealtimeScribeStable as useRealtimeScribe } from '@/hooks/useRealtimeScribeStable';
 import { useStreamingTTS } from '@/hooks/useStreamingTTS';
@@ -76,6 +76,8 @@ const AtlasTeach = () => {
   const [liveTranscript, setLiveTranscript] = useState("");
   const [recentlyLearned, setRecentlyLearned] = useState<LearnedItem[]>([]);
   const [listeningMode, setListeningMode] = useState<ListeningMode>('passive');
+  const [voiceStatus, setVoiceStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
@@ -183,7 +185,7 @@ const AtlasTeach = () => {
   }, []);
 
   // Realtime STT with VAD - always on, detects wake word
-  const { isConnected, isListening, partialTranscript, connect, disconnect } = useRealtimeScribe({
+  const { isConnected, isConnecting, isListening, partialTranscript, connect, disconnect } = useRealtimeScribe({
     onPartialTranscript: (text) => {
       setLiveTranscript(text);
       
@@ -249,6 +251,8 @@ const AtlasTeach = () => {
     },
     onError: (error) => {
       console.error('STT error:', error);
+      setVoiceStatus('error');
+      setVoiceError(error.message);
       toast({
         title: 'Voice Error',
         description: error.message,
@@ -256,6 +260,19 @@ const AtlasTeach = () => {
       });
     },
   });
+
+  // Update voice status based on connection state
+  useEffect(() => {
+    if (isConnecting) {
+      setVoiceStatus('connecting');
+      setVoiceError(null);
+    } else if (isConnected) {
+      setVoiceStatus('connected');
+      setVoiceError(null);
+    } else if (voiceStatus !== 'error') {
+      setVoiceStatus('disconnected');
+    }
+  }, [isConnected, isConnecting, voiceStatus]);
 
   // Update live transcript display
   useEffect(() => {
@@ -436,6 +453,50 @@ const AtlasTeach = () => {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Voice Status Header */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`
+            flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-md border shadow-lg
+            ${voiceStatus === 'connected' ? 'bg-green-500/10 border-green-500/30 text-green-400' : ''}
+            ${voiceStatus === 'connecting' ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' : ''}
+            ${voiceStatus === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' : ''}
+            ${voiceStatus === 'disconnected' ? 'bg-muted/50 border-border text-muted-foreground' : ''}
+          `}
+        >
+          {voiceStatus === 'connected' && (
+            <>
+              <Wifi className="w-4 h-4" />
+              <span className="text-sm font-medium">Voice Connected</span>
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            </>
+          )}
+          {voiceStatus === 'connecting' && (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm font-medium">Connecting...</span>
+            </>
+          )}
+          {voiceStatus === 'error' && (
+            <>
+              <WifiOff className="w-4 h-4" />
+              <span className="text-sm font-medium">Error</span>
+              {voiceError && (
+                <span className="text-xs opacity-70 max-w-32 truncate">{voiceError}</span>
+              )}
+            </>
+          )}
+          {voiceStatus === 'disconnected' && (
+            <>
+              <WifiOff className="w-4 h-4" />
+              <span className="text-sm font-medium">Voice Disconnected</span>
+            </>
+          )}
+        </motion.div>
+      </div>
+
       {/* Ambient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5" />
       
