@@ -39,30 +39,36 @@ graph TB
         D[tool-gateway]
     end
     
-    subgraph "AI Providers"
+    subgraph "Tier 1 & 2: Lovable AI Gateway"
         E[Lovable AI Gateway]
+        E --> H[GPT-5 Planner/Reasoner]
+        E --> I[Gemini Flash Worker]
+    end
+    
+    subgraph "Tier 3: Research"
         F[Perplexity AI]
+        F --> J[sonar Quick Search]
+        F --> K[sonar-pro Research]
+    end
+    
+    subgraph "Tier 4: Advanced Analysis"
+        M[Anthropic Claude]
+        M --> N[claude-sonnet-4-5 Critic/Creative]
+    end
+    
+    subgraph "Utility"
         G[Jina Reader]
-    end
-    
-    subgraph "Lovable AI Models"
-        E --> H[GPT-5 / Gemini Pro]
-        E --> I[Gemini Flash]
-    end
-    
-    subgraph "Perplexity Models"
-        F --> J[sonar]
-        F --> K[sonar-pro]
-        F --> L[sonar-reasoning]
     end
     
     A --> B
     A --> C
     B --> E
     B --> F
+    B --> M
     C --> D
     D --> E
     D --> F
+    D --> M
     D --> G
 ```
 
@@ -71,21 +77,35 @@ graph TB
 | Provider | Models | Use Case | API Key |
 |----------|--------|----------|---------|
 | **Lovable AI Gateway** | `openai/gpt-5`, `google/gemini-2.5-flash`, `google/gemini-2.5-pro` | General reasoning, planning, verification | `LOVABLE_API_KEY` (auto-configured) |
+| **Anthropic Claude** | `claude-sonnet-4-5` | Advanced reasoning, code review, creative writing | `ANTHROPIC_API_KEY` |
 | **Perplexity AI** | `sonar`, `sonar-pro`, `sonar-reasoning` | Real-time web search, deep research | `PERPLEXITY_API_KEY` |
 | **Jina Reader** | N/A | Web page scraping, content extraction | Free (no key required) |
 
 ### Model Tier System
 
-The `agent-run` function uses a tiered model system for different cognitive tasks:
+The `agent-run` function uses a 4-tier model system for different cognitive tasks:
 
 ```typescript
 // Model tiers and their purposes
-type ModelTier = 'planner' | 'worker' | 'reasoner';
+type TaskType = 
+  | 'planner' | 'worker' | 'reasoner'           // Tier 1 & 2
+  | 'research' | 'web_search'                   // Tier 3
+  | 'critic' | 'creative' | 'code_review';      // Tier 4
 
-const DEFAULT_MODELS = {
-  planner: 'openai/gpt-5',        // Strategic planning, step decomposition
-  worker: 'google/gemini-2.5-flash', // Fast execution, tool calling
-  reasoner: 'openai/gpt-5'        // Verification, quality assessment
+const PROVIDERS = {
+  lovable: {    // Tier 1 & 2
+    planner: 'openai/gpt-5',
+    worker: 'google/gemini-2.5-flash',
+    reasoner: 'openai/gpt-5'
+  },
+  anthropic: {  // Tier 4
+    critic: 'claude-sonnet-4-5',
+    creative: 'claude-sonnet-4-5'
+  },
+  perplexity: { // Tier 3
+    research: 'sonar-pro',
+    search: 'sonar'
+  }
 };
 ```
 
@@ -94,26 +114,44 @@ const DEFAULT_MODELS = {
 The `selectModel()` function in `agent-run` dynamically routes tasks to the most appropriate model:
 
 ```typescript
-function selectModel(task: string, agentConfig?: ModelConfig): string {
-  // Agent-specific overrides take priority
-  if (agentConfig?.modelOverrides?.[task]) {
-    return agentConfig.modelOverrides[task];
-  }
-  
-  // Task-based routing
-  switch (task) {
-    case 'planner':
-      return 'openai/gpt-5';           // Complex reasoning for planning
-    case 'worker':
-    case 'fast':
-      return 'google/gemini-2.5-flash'; // Speed-optimized for execution
-    case 'reasoner':
-      return 'openai/gpt-5';           // Deep analysis for verification
+function selectModel(taskType: string, agentConfig?: ModelConfig): { provider: string; model: string } {
+  switch (taskType) {
+    // Tier 4: Anthropic Claude for advanced analysis
+    case 'code_review':
+    case 'code_analysis':
+    case 'critic':
+      return { provider: 'anthropic', model: 'claude-sonnet-4-5' };
+    case 'creative_writing':
+    case 'creative':
+    case 'nuanced_response':
+      return { provider: 'anthropic', model: 'claude-sonnet-4-5' };
+    case 'complex_reasoning':
+    case 'multi_step_logic':
+      return { provider: 'anthropic', model: 'claude-sonnet-4-5' };
+    
+    // Tier 3: Perplexity for research
     case 'research':
-    case 'search':
-      return 'sonar-pro';              // Perplexity for web grounding
+    case 'web_research':
+    case 'deep_analysis':
+      return { provider: 'perplexity', model: 'sonar-pro' };
+    case 'web_search':
+    case 'quick_search':
+      return { provider: 'perplexity', model: 'sonar' };
+    
+    // Tier 1: Planning with best reasoning
+    case 'planning':
+      return { provider: 'lovable', model: 'openai/gpt-5' };
+    
+    // Tier 1: Verification
+    case 'verification':
+    case 'reasoning':
+      return { provider: 'lovable', model: 'openai/gpt-5' };
+    
+    // Tier 2: Execution with fast model
+    case 'execution':
+    case 'tool_call':
     default:
-      return 'google/gemini-2.5-flash';
+      return { provider: 'lovable', model: 'google/gemini-2.5-flash' };
   }
 }
 ```
@@ -150,7 +188,44 @@ const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions
 | `google/gemini-2.5-flash` | General tasks, speed | Fast | Low |
 | `google/gemini-2.5-flash-lite` | Simple tasks, classification | Fastest | Lowest |
 
-#### Perplexity AI
+#### Anthropic Claude (Tier 4)
+
+Used for advanced reasoning, code review, and creative tasks:
+
+```typescript
+const response = await fetch('https://api.anthropic.com/v1/messages', {
+  method: 'POST',
+  headers: {
+    'x-api-key': Deno.env.get('ANTHROPIC_API_KEY'),
+    'anthropic-version': '2023-06-01',
+    'content-type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'claude-sonnet-4-5',
+    max_tokens: 4096,
+    system: 'You are an expert code reviewer.',
+    messages: [
+      { role: 'user', content: 'Review this code for potential issues...' }
+    ],
+  }),
+});
+
+const data = await response.json();
+// data.content[0].text: Response text
+```
+
+**Available Models:**
+| Model | Description | Use Case |
+|-------|-------------|----------|
+| `claude-sonnet-4-5` | Most capable, intelligent reasoning | Code review, complex analysis, creative writing |
+
+**Best Use Cases:**
+- Code review and security analysis
+- Creative writing with nuanced responses
+- Complex multi-step reasoning
+- Architecture and design decisions
+
+#### Perplexity AI (Tier 3)
 
 Used for web-grounded responses and research:
 
@@ -181,7 +256,7 @@ const data = await response.json();
 | `sonar-pro` | Multi-step search with 2x citations | Research, complex queries |
 | `sonar-reasoning` | Chain-of-thought with search | Analysis, reasoning tasks |
 
-#### Jina Reader
+#### Jina Reader (Utility)
 
 Free web scraping service for content extraction:
 
@@ -238,6 +313,7 @@ async function searchWeb(query: string): Promise<SearchResult> {
 | Secret | Provider | Required | Description |
 |--------|----------|----------|-------------|
 | `LOVABLE_API_KEY` | Lovable AI Gateway | ✅ Auto-configured | Access to GPT-5 and Gemini models |
+| `ANTHROPIC_API_KEY` | Anthropic Claude | ⚠️ Optional | Advanced reasoning, code review, creative tasks |
 | `PERPLEXITY_API_KEY` | Perplexity AI | ⚠️ Optional | Web search and research capabilities |
 | `ELEVENLABS_API_KEY` | ElevenLabs | ✅ For voice | Speech-to-text and text-to-speech |
 
@@ -272,6 +348,7 @@ const agent = {
 | Provider | Limit | Scope |
 |----------|-------|-------|
 | Lovable AI Gateway | Varies by plan | Per workspace |
+| Anthropic Claude | 50 req/min (tier 1), 1000 req/min (tier 4) | Per API key |
 | Perplexity AI | 50 req/min (free), 600 req/min (pro) | Per API key |
 | Jina Reader | Unlimited | Free tier |
 

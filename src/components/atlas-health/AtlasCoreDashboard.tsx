@@ -32,6 +32,7 @@ import { AgentConfigPanel } from './AgentConfigPanel';
 import { LiveRunTimeline } from './LiveRunTimeline';
 import { ModelUsageAnalytics } from './ModelUsageAnalytics';
 import { AtlasSettingsPanel } from './AtlasSettingsPanel';
+import AIArchitectureDiagram from './AIArchitectureDiagram';
 import { useAtlasHealth } from '@/hooks/useAtlasHealth';
 import { useAtlasKnowledge } from '@/hooks/useAtlasKnowledge';
 import { useAtlasResearch } from '@/hooks/useAtlasResearch';
@@ -322,6 +323,15 @@ const AtlasCoreDashboard = () => {
             </TabsContent>
 
             <TabsContent value="agent" className="space-y-6 mt-0">
+              {/* AI Architecture Diagram */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+              >
+                <AIArchitectureDiagram />
+              </motion.div>
+
               {/* Live Timeline + Model Analytics */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <motion.div 

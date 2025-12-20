@@ -23,6 +23,13 @@ const PROVIDERS = {
       fast: "google/gemini-2.5-flash",   // Quick tasks
     }
   },
+  anthropic: {
+    url: "https://api.anthropic.com/v1/messages",
+    models: {
+      critic: "claude-sonnet-4-5",       // Code review, verification
+      creative: "claude-sonnet-4-5",     // Creative writing, nuanced responses
+    }
+  },
   perplexity: {
     url: "https://api.perplexity.ai/chat/completions",
     models: {
@@ -41,6 +48,34 @@ function selectModel(taskType: string, agentConfig: Record<string, unknown> | nu
   const modelConfig = agentConfig?.model_config_json as Record<string, string> | null;
   
   switch (taskType) {
+    // Tier 4: Anthropic Claude for advanced analysis
+    case "code_review":
+    case "code_analysis":
+    case "critic":
+      if (Deno.env.get("ANTHROPIC_API_KEY")) {
+        return { provider: "anthropic", model: PROVIDERS.anthropic.models.critic, url: PROVIDERS.anthropic.url };
+      }
+      break;
+    case "creative_writing":
+    case "creative":
+    case "nuanced_response":
+      if (Deno.env.get("ANTHROPIC_API_KEY")) {
+        return { provider: "anthropic", model: PROVIDERS.anthropic.models.creative, url: PROVIDERS.anthropic.url };
+      }
+      break;
+    case "complex_reasoning":
+    case "multi_step_logic":
+      if (Deno.env.get("ANTHROPIC_API_KEY")) {
+        return { provider: "anthropic", model: PROVIDERS.anthropic.models.critic, url: PROVIDERS.anthropic.url };
+      }
+      // Fallback to Lovable reasoner if no Anthropic key
+      return { 
+        provider: "lovable", 
+        model: modelConfig?.reasoner || PROVIDERS.lovable.models.reasoner, 
+        url: PROVIDERS.lovable.url 
+      };
+    
+    // Tier 3: Perplexity for research
     case "research":
     case "web_research":
     case "deep_analysis":
@@ -55,12 +90,16 @@ function selectModel(taskType: string, agentConfig: Record<string, unknown> | nu
         return { provider: "perplexity", model: PROVIDERS.perplexity.models.search, url: PROVIDERS.perplexity.url };
       }
       break;
+    
+    // Tier 1: Planning with best reasoning
     case "planning":
       return { 
         provider: "lovable", 
         model: modelConfig?.planner || PROVIDERS.lovable.models.planner, 
         url: PROVIDERS.lovable.url 
       };
+    
+    // Tier 1: Verification/reasoning
     case "verification":
     case "reasoning":
       return { 
@@ -68,6 +107,8 @@ function selectModel(taskType: string, agentConfig: Record<string, unknown> | nu
         model: modelConfig?.reasoner || PROVIDERS.lovable.models.reasoner, 
         url: PROVIDERS.lovable.url 
       };
+    
+    // Tier 2: Execution with fast model
     case "execution":
     case "tool_call":
     default:
@@ -85,6 +126,8 @@ function selectModel(taskType: string, agentConfig: Record<string, unknown> | nu
 // Get the appropriate API key for a provider
 function getApiKey(provider: string): string {
   switch (provider) {
+    case "anthropic":
+      return Deno.env.get("ANTHROPIC_API_KEY") || "";
     case "perplexity":
       return Deno.env.get("PERPLEXITY_API_KEY") || "";
     case "lovable":
@@ -108,6 +151,46 @@ async function callAI(
 
   console.log(`[agent-run] Using ${provider}/${model} for ${taskType}`);
 
+  // Handle Anthropic's different API format
+  if (provider === "anthropic") {
+    const systemMessage = messages.find(m => m.role === "system");
+    const userMessages = messages.filter(m => m.role !== "system").map(m => ({
+      role: m.role as "user" | "assistant",
+      content: m.content
+    }));
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 4096,
+        system: systemMessage?.content || "You are a helpful AI assistant.",
+        messages: userMessages,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[agent-run] Anthropic API call failed:`, response.status, errorText);
+      throw new Error(`Anthropic AI call failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.content?.[0]?.text || "";
+    
+    return {
+      content,
+      provider,
+      model,
+    };
+  }
+
+  // Standard OpenAI-compatible format for Lovable AI and Perplexity
   const body: Record<string, unknown> = {
     model,
     messages,
