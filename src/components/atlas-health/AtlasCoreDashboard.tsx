@@ -217,6 +217,13 @@ const AtlasCoreDashboard = () => {
                 <span className="hidden sm:inline">Learning</span>
               </TabsTrigger>
               <TabsTrigger 
+                value="memory" 
+                className="flex items-center gap-2 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
+              >
+                <Database className="w-4 h-4" />
+                <span className="hidden sm:inline">Memory</span>
+              </TabsTrigger>
+              <TabsTrigger 
                 value="errors" 
                 className="flex items-center gap-2 rounded-xl data-[state=active]:bg-destructive/20 data-[state=active]:text-destructive"
               >
@@ -428,6 +435,16 @@ const AtlasCoreDashboard = () => {
                 transition={{ duration: 0.3 }}
               >
                 <LearningFlowVisualization />
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="memory" className="mt-0">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <MemoryDashboardPanel />
               </motion.div>
             </TabsContent>
 
