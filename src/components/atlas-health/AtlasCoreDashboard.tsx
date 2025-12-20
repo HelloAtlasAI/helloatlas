@@ -33,6 +33,7 @@ import { LiveRunTimeline } from './LiveRunTimeline';
 import { ModelUsageAnalytics } from './ModelUsageAnalytics';
 import { AtlasSettingsPanel } from './AtlasSettingsPanel';
 import AIArchitectureDiagram from './AIArchitectureDiagram';
+import { MemoryDashboardPanel } from './MemoryDashboardPanel';
 import { useAtlasHealth } from '@/hooks/useAtlasHealth';
 import { useAtlasKnowledge } from '@/hooks/useAtlasKnowledge';
 import { useAtlasResearch } from '@/hooks/useAtlasResearch';

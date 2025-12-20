@@ -115,12 +115,15 @@ export type Database = {
           created_at: string
           id: string
           importance: number | null
+          is_fake: boolean | null
+          is_validated: boolean | null
           key: string
           last_mentioned: string | null
           memory_type: string
           mention_count: number | null
           updated_at: string
           user_id: string
+          validation_score: number | null
           value: Json
         }
         Insert: {
@@ -128,12 +131,15 @@ export type Database = {
           created_at?: string
           id?: string
           importance?: number | null
+          is_fake?: boolean | null
+          is_validated?: boolean | null
           key: string
           last_mentioned?: string | null
           memory_type: string
           mention_count?: number | null
           updated_at?: string
           user_id: string
+          validation_score?: number | null
           value: Json
         }
         Update: {
@@ -141,12 +147,15 @@ export type Database = {
           created_at?: string
           id?: string
           importance?: number | null
+          is_fake?: boolean | null
+          is_validated?: boolean | null
           key?: string
           last_mentioned?: string | null
           memory_type?: string
           mention_count?: number | null
           updated_at?: string
           user_id?: string
+          validation_score?: number | null
           value?: Json
         }
         Relationships: []
@@ -279,12 +288,17 @@ export type Database = {
           content: Json
           created_at: string
           id: string
+          is_fake: boolean | null
+          is_validated: boolean | null
           last_accessed: string | null
           relevance_score: number
           source: string
           topic: string
           updated_at: string
           user_id: string | null
+          validated_at: string | null
+          validation_consensus: Json | null
+          validation_score: number | null
         }
         Insert: {
           access_count?: number
@@ -293,12 +307,17 @@ export type Database = {
           content: Json
           created_at?: string
           id?: string
+          is_fake?: boolean | null
+          is_validated?: boolean | null
           last_accessed?: string | null
           relevance_score?: number
           source?: string
           topic: string
           updated_at?: string
           user_id?: string | null
+          validated_at?: string | null
+          validation_consensus?: Json | null
+          validation_score?: number | null
         }
         Update: {
           access_count?: number
@@ -307,12 +326,17 @@ export type Database = {
           content?: Json
           created_at?: string
           id?: string
+          is_fake?: boolean | null
+          is_validated?: boolean | null
           last_accessed?: string | null
           relevance_score?: number
           source?: string
           topic?: string
           updated_at?: string
           user_id?: string | null
+          validated_at?: string | null
+          validation_consensus?: Json | null
+          validation_score?: number | null
         }
         Relationships: []
       }
@@ -358,6 +382,8 @@ export type Database = {
           description: string | null
           findings: Json | null
           id: string
+          is_fake: boolean | null
+          is_validated: boolean | null
           parent_id: string | null
           priority: number
           sources: Json | null
@@ -365,6 +391,7 @@ export type Database = {
           topic: string
           updated_at: string
           user_id: string | null
+          validation_score: number | null
         }
         Insert: {
           auto_generated?: boolean
@@ -374,6 +401,8 @@ export type Database = {
           description?: string | null
           findings?: Json | null
           id?: string
+          is_fake?: boolean | null
+          is_validated?: boolean | null
           parent_id?: string | null
           priority?: number
           sources?: Json | null
@@ -381,6 +410,7 @@ export type Database = {
           topic: string
           updated_at?: string
           user_id?: string | null
+          validation_score?: number | null
         }
         Update: {
           auto_generated?: boolean
@@ -390,6 +420,8 @@ export type Database = {
           description?: string | null
           findings?: Json | null
           id?: string
+          is_fake?: boolean | null
+          is_validated?: boolean | null
           parent_id?: string | null
           priority?: number
           sources?: Json | null
@@ -397,6 +429,7 @@ export type Database = {
           topic?: string
           updated_at?: string
           user_id?: string | null
+          validation_score?: number | null
         }
         Relationships: [
           {
@@ -551,6 +584,45 @@ export type Database = {
           retention_days?: number | null
           should_remember?: boolean | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      memory_synthesis_logs: {
+        Row: {
+          conflicts_resolved: number | null
+          created_at: string
+          details: Json | null
+          duration_ms: number | null
+          id: string
+          input_count: number | null
+          insights_extracted: number | null
+          operation_type: string
+          output_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          conflicts_resolved?: number | null
+          created_at?: string
+          details?: Json | null
+          duration_ms?: number | null
+          id?: string
+          input_count?: number | null
+          insights_extracted?: number | null
+          operation_type: string
+          output_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          conflicts_resolved?: number | null
+          created_at?: string
+          details?: Json | null
+          duration_ms?: number | null
+          id?: string
+          input_count?: number | null
+          insights_extracted?: number | null
+          operation_type?: string
+          output_count?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1277,6 +1349,45 @@ export type Database = {
           lon?: number | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      validation_logs: {
+        Row: {
+          confidence: number
+          created_at: string
+          entry_id: string
+          entry_type: string
+          id: string
+          processing_time_ms: number | null
+          reasoning: string | null
+          sources_checked: Json | null
+          validator_model: string
+          verdict: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          entry_id: string
+          entry_type: string
+          id?: string
+          processing_time_ms?: number | null
+          reasoning?: string | null
+          sources_checked?: Json | null
+          validator_model: string
+          verdict: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          entry_id?: string
+          entry_type?: string
+          id?: string
+          processing_time_ms?: number | null
+          reasoning?: string | null
+          sources_checked?: Json | null
+          validator_model?: string
+          verdict?: string
         }
         Relationships: []
       }

@@ -59,3 +59,12 @@ verify_jwt = false
 
 [functions.memory-synthesize]
 verify_jwt = false
+
+[functions.validation-engine]
+verify_jwt = false
+
+[functions.knowledge-layer]
+verify_jwt = false
+
+[functions.memory-scheduler]
+verify_jwt = false
