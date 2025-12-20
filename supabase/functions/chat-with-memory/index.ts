@@ -575,21 +575,24 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Parallelize all database queries for faster response
-    const [profileResult, memoriesResult, knowledgeResult, upcomingResult, recentResult] = await Promise.all([
+    // Generate a session ID for working memory (use existing or create new)
+    const sessionId = req.headers.get("x-session-id") || `session_${Date.now()}`;
+
+    // Parallelize all database queries for faster response - including session context
+    const [profileResult, memoriesResult, knowledgeResult, upcomingResult, recentResult, sessionContextResult] = await Promise.all([
       // Fetch user profile
       userId 
         ? supabase.from("profiles").select("first_name, nickname, birthday, timezone, communication_style").eq("user_id", userId).single()
         : Promise.resolve({ data: null }),
       
-      // Fetch memories (limit to most important)
+      // Fetch memories (limit to most important, exclude fake entries)
       userId
-        ? supabase.from("ai_memory").select("key, value, category, importance").eq("user_id", userId).order("importance", { ascending: false }).limit(10)
+        ? supabase.from("ai_memory").select("key, value, category, importance").eq("user_id", userId).eq("is_fake", false).order("importance", { ascending: false }).limit(10)
         : Promise.resolve({ data: [] }),
       
-      // Fetch knowledge bank (limit for speed)
+      // Fetch knowledge bank (limit for speed, exclude fake entries)
       userId
-        ? supabase.from("atlas_knowledge_entries").select("topic, content, category").eq("user_id", userId).order("relevance_score", { ascending: false }).limit(15)
+        ? supabase.from("atlas_knowledge_entries").select("topic, content, category").eq("user_id", userId).eq("is_fake", false).order("relevance_score", { ascending: false }).limit(15)
         : Promise.resolve({ data: [] }),
       
       // Fetch upcoming life events
@@ -609,7 +612,15 @@ serve(async (req) => {
             return supabase.from("user_life_events").select("event_type, event_date, description, sentiment").eq("user_id", userId).eq("should_follow_up", true).gte("event_date", twoWeeksAgo).lt("event_date", today);
           })()
         : Promise.resolve({ data: [] }),
+      
+      // Fetch active session context (working memory)
+      userId
+        ? getSessionContext(supabase, userId, sessionId)
+        : Promise.resolve(""),
     ]);
+
+    // Get session context string
+    const sessionContextStr = typeof sessionContextResult === "string" ? sessionContextResult : "";
 
     const profile: UserProfile | null = profileResult.data;
     const memories: Memory[] = memoriesResult.data || [];
@@ -620,14 +631,20 @@ serve(async (req) => {
     console.log("[chat-with-memory] Processing chat for user:", userId);
     console.log("[chat-with-memory] Profile:", profile?.first_name);
     console.log("[chat-with-memory] Memories count:", memories.length);
+    console.log("[chat-with-memory] Session context:", sessionContextStr ? "loaded" : "none");
     console.log("[chat-with-memory] Tools enabled:", enableTools);
     console.log("[chat-with-memory] Teaching mode:", teachingMode);
     console.log("[chat-with-memory] Perplexity available:", !!PERPLEXITY_API_KEY);
 
     const hasTools = enableTools && !teachingMode && (!!PERPLEXITY_API_KEY || true); // Disable tools in teaching mode for speed
     
-    // Use override prompt if provided (for teaching mode), otherwise build personalized prompt
-    const systemPrompt = systemPromptOverride || buildPersonalizedPrompt(profile, memories, upcomingEvents, recentEvents, knowledgeBank, hasTools);
+    // Build personalized prompt and append session context (working memory)
+    let systemPrompt = systemPromptOverride || buildPersonalizedPrompt(profile, memories, upcomingEvents, recentEvents, knowledgeBank, hasTools);
+    
+    // Inject session context into the system prompt for conversation continuity
+    if (sessionContextStr) {
+      systemPrompt += sessionContextStr;
+    }
 
     // Build conversation with system prompt
     const conversationMessages = [
@@ -842,9 +859,16 @@ serve(async (req) => {
       throw new Error(`AI gateway error: ${streamResponse.status}`);
     }
 
-    // Trigger knowledge extraction asynchronously (fire and forget)
+    // Trigger knowledge extraction and session context tracking asynchronously (fire and forget)
     if (messages.length >= 2 && SUPABASE_URL) {
       triggerKnowledgeExtraction(SUPABASE_URL, messages, userId, source);
+    }
+    
+    // Track session context for working memory (non-blocking)
+    if (userId) {
+      trackSessionContext(supabase, userId, sessionId, messages).catch(e => 
+        console.log("[chat-with-memory] Session tracking error:", e)
+      );
     }
 
     // Create a custom stream that injects citations
