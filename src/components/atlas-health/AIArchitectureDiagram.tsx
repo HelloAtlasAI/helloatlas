@@ -9,7 +9,8 @@ import {
   Globe,
   Sparkles,
   Zap,
-  Brain
+  Brain,
+  Database
 } from 'lucide-react';
 import mermaid from 'mermaid';
 
@@ -38,12 +39,12 @@ const AIArchitectureDiagram = () => {
       tier: 'Tier 1 & 2'
     },
     {
-      name: 'Anthropic Claude',
-      connected: true, // Just configured
+      name: 'Claude Opus 4.5',
+      connected: true,
       icon: <Brain className="w-4 h-4" />,
-      description: 'Advanced reasoning, code review, and creative tasks',
-      models: ['claude-sonnet-4-5 (Critic/Creative)'],
-      tier: 'Tier 4'
+      description: 'Memory Core - synthesis, consolidation, and advanced reasoning',
+      models: ['claude-opus-4-5 (Memory Core)', 'claude-sonnet-4-5 (Critic/Creative)'],
+      tier: 'Memory Core'
     },
     {
       name: 'Perplexity AI',
@@ -75,66 +76,82 @@ graph TB
         C[chat-with-memory]
         D[agent-run]
         E[tool-gateway]
+        F[memory-synthesize]
+    end
+    
+    subgraph MemoryCore["Memory Core (Claude Opus 4.5)"]
+        G["claude-opus-4-5"]
+        H["Memory Synthesis"]
+        I["Conflict Resolution"]
+        J["Insight Extraction"]
     end
     
     subgraph Tier1["Tier 1: Planning & Reasoning"]
-        F["Lovable AI Gateway"]
-        G["GPT-5<br/>Planner"]
-        H["GPT-5<br/>Reasoner"]
+        K["Lovable AI Gateway"]
+        L["GPT-5<br/>Planner"]
+        M["GPT-5<br/>Reasoner"]
     end
     
     subgraph Tier2["Tier 2: Execution"]
-        I["Gemini 2.5 Flash<br/>Worker"]
+        N["Gemini 2.5 Flash<br/>Worker"]
     end
     
     subgraph Tier3["Tier 3: Research"]
-        J["Perplexity AI"]
-        K["sonar-pro<br/>Deep Research"]
-        L["sonar<br/>Quick Search"]
+        O["Perplexity AI"]
+        P["sonar-pro<br/>Deep Research"]
     end
     
-    subgraph Tier4["Tier 4: Advanced Analysis"]
-        M["Anthropic Claude"]
-        N["claude-sonnet-4-5<br/>Critic/Creative"]
+    subgraph Tier4["Tier 4: Analysis"]
+        Q["claude-sonnet-4-5<br/>Critic/Creative"]
     end
     
-    subgraph Utility["Web Scraping"]
-        O["Jina Reader<br/>URL Extraction"]
+    subgraph Memory["Memory Storage"]
+        R["ai_memory"]
+        S["session_context"]
+        T["atlas_knowledge"]
     end
     
     A --> B
     B --> C
     B --> D
-    C --> F
-    C --> J
-    C --> M
+    C --> G
+    C --> K
+    C --> O
     D --> E
-    E --> F
-    E --> J
-    E --> M
-    E --> O
+    D --> F
     F --> G
-    F --> H
-    F --> I
-    J --> K
-    J --> L
-    M --> N
+    G --> H
+    G --> I
+    G --> J
+    E --> K
+    E --> O
+    E --> Q
+    K --> L
+    K --> M
+    K --> N
+    O --> P
+    H --> R
+    I --> R
+    J --> T
+    C --> S
 
     classDef frontend fill:#1e1b4b,stroke:#6366f1,stroke-width:2px
     classDef edge fill:#1f2937,stroke:#6b7280,stroke-width:1px
+    classDef memoryCore fill:#7c2d12,stroke:#f97316,stroke-width:2px
     classDef tier1 fill:#4c1d95,stroke:#a855f7,stroke-width:2px
     classDef tier2 fill:#1e3a5f,stroke:#3b82f6,stroke-width:2px
     classDef tier3 fill:#164e63,stroke:#06b6d4,stroke-width:2px
     classDef tier4 fill:#4a1d4a,stroke:#d946ef,stroke-width:2px
-    classDef utility fill:#1c1917,stroke:#78716c,stroke-width:1px
+    classDef storage fill:#1c1917,stroke:#78716c,stroke-width:1px
     
     class A,B frontend
-    class C,D,E edge
-    class F,G,H tier1
-    class I tier2
-    class J,K,L tier3
-    class M,N tier4
-    class O utility
+    class C,D,E,F edge
+    class G,H,I,J memoryCore
+    class K,L,M tier1
+    class N tier2
+    class O,P tier3
+    class Q tier4
+    class R,S,T storage
 `;
 
   useEffect(() => {
@@ -204,7 +221,9 @@ graph TB
             key={provider.name}
             className={`relative p-4 rounded-xl border backdrop-blur-sm transition-all ${
               provider.connected 
-                ? 'bg-primary/5 border-primary/30 hover:border-primary/50' 
+                ? provider.tier === 'Memory Core'
+                  ? 'bg-orange-500/10 border-orange-500/30 hover:border-orange-500/50'
+                  : 'bg-primary/5 border-primary/30 hover:border-primary/50' 
                 : 'bg-muted/20 border-border/30'
             }`}
             initial={{ opacity: 0, scale: 0.9 }}
@@ -214,10 +233,16 @@ graph TB
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className={`p-1.5 rounded-lg ${provider.connected ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                <div className={`p-1.5 rounded-lg ${
+                  provider.tier === 'Memory Core' 
+                    ? 'bg-orange-500/20 text-orange-500'
+                    : provider.connected ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                }`}>
                   {provider.icon}
                 </div>
-                <span className="text-xs font-medium text-muted-foreground">{provider.tier}</span>
+                <span className={`text-xs font-medium ${
+                  provider.tier === 'Memory Core' ? 'text-orange-400' : 'text-muted-foreground'
+                }`}>{provider.tier}</span>
               </div>
               {provider.connected ? (
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
@@ -272,12 +297,16 @@ graph TB
       {/* Legend */}
       <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-orange-500/50 border border-orange-500" />
+          <span>Memory Core: Claude Opus 4.5</span>
+        </div>
+        <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-primary/50 border border-primary" />
           <span>Tier 1/2: Lovable AI (Primary)</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-fuchsia-500/50 border border-fuchsia-500" />
-          <span>Tier 4: Claude (Advanced)</span>
+          <span>Tier 4: Claude Sonnet 4.5</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-cyan-500/50 border border-cyan-500" />
@@ -285,7 +314,7 @@ graph TB
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-stone-500/50 border border-stone-500" />
-          <span>Utility: Jina (Scraping)</span>
+          <span>Storage: Memory Tables</span>
         </div>
       </div>
     </motion.div>

@@ -56,6 +56,13 @@ const PROVIDERS = {
     url: "https://ai.gateway.lovable.dev/v1/chat/completions",
     model: "google/gemini-2.5-flash",
   },
+  anthropic: {
+    url: "https://api.anthropic.com/v1/messages",
+    models: {
+      memory: "claude-opus-4-5-20251124",   // Memory synthesis
+      creative: "claude-sonnet-4-5",         // Creative responses
+    }
+  },
   jina: {
     url: "https://r.jina.ai",
   }
@@ -429,6 +436,123 @@ async function triggerKnowledgeExtraction(
     }).catch(e => console.log("[chat-with-memory] Knowledge extraction trigger failed:", e));
   } catch (e) {
     console.log("[chat-with-memory] Could not trigger knowledge extraction:", e);
+  }
+}
+
+// Track session context for working memory
+async function trackSessionContext(
+  supabase: any,
+  userId: string,
+  sessionId: string,
+  messages: Array<{ role: string; content: string }>
+) {
+  try {
+    // Extract context from the latest user message
+    const latestUserMessage = messages.filter(m => m.role === "user").pop();
+    if (!latestUserMessage) return;
+
+    const content = latestUserMessage.content.toLowerCase();
+    const contextEntries: Array<{
+      context_type: string;
+      content: Record<string, unknown>;
+      confidence: number;
+    }> = [];
+
+    // Detect topics
+    const topicPatterns: Record<string, string[]> = {
+      "work": ["work", "job", "office", "meeting", "project", "deadline", "boss", "colleague"],
+      "health": ["health", "doctor", "sick", "exercise", "gym", "sleep", "tired", "medicine"],
+      "relationships": ["friend", "family", "partner", "wife", "husband", "kids", "parents"],
+      "finance": ["money", "budget", "invest", "stock", "savings", "expense", "pay"],
+      "travel": ["trip", "vacation", "flight", "hotel", "travel", "destination"],
+      "learning": ["learn", "study", "course", "book", "research", "understand"],
+    };
+
+    for (const [topic, keywords] of Object.entries(topicPatterns)) {
+      if (keywords.some(kw => content.includes(kw))) {
+        contextEntries.push({
+          context_type: "topic",
+          content: { topic, message_excerpt: content.slice(0, 100) },
+          confidence: 0.8,
+        });
+      }
+    }
+
+    // Detect emotional signals
+    const emotionPatterns: Record<string, string[]> = {
+      "happy": ["happy", "excited", "great", "wonderful", "amazing", "love it"],
+      "stressed": ["stressed", "worried", "anxious", "overwhelmed", "nervous"],
+      "sad": ["sad", "disappointed", "upset", "frustrated", "down"],
+      "curious": ["curious", "wondering", "interested", "want to know", "tell me about"],
+    };
+
+    for (const [emotion, keywords] of Object.entries(emotionPatterns)) {
+      if (keywords.some(kw => content.includes(kw))) {
+        contextEntries.push({
+          context_type: "emotion",
+          content: { emotion, detected_from: content.slice(0, 50) },
+          confidence: 0.7,
+        });
+      }
+    }
+
+    // Detect goals/intents
+    if (content.includes("want to") || content.includes("need to") || content.includes("trying to") || content.includes("help me")) {
+      const goalMatch = content.match(/(want to|need to|trying to|help me)\s+(.{10,60})/);
+      if (goalMatch) {
+        contextEntries.push({
+          context_type: "goal",
+          content: { intent: goalMatch[2].trim() },
+          confidence: 0.8,
+        });
+      }
+    }
+
+    // Store context entries
+    if (contextEntries.length > 0) {
+      const insertData = contextEntries.map(entry => ({
+        user_id: userId,
+        session_id: sessionId,
+        context_type: entry.context_type,
+        content: entry.content,
+        confidence: entry.confidence,
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes
+      }));
+
+      await supabase.from("session_context").insert(insertData);
+      console.log(`[chat-with-memory] Tracked ${contextEntries.length} context entries`);
+    }
+  } catch (e) {
+    console.log("[chat-with-memory] Session context tracking error:", e);
+  }
+}
+
+// Get active session context
+async function getSessionContext(
+  supabase: any,
+  userId: string,
+  sessionId: string
+): Promise<string> {
+  try {
+    const { data: contexts } = await supabase
+      .from("session_context")
+      .select("context_type, content, confidence")
+      .eq("user_id", userId)
+      .eq("session_id", sessionId)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (!contexts || contexts.length === 0) return "";
+
+    const contextSummary = contexts.map((c: any) => 
+      `[${c.context_type}] ${JSON.stringify(c.content)}`
+    ).join("\n");
+
+    return `\n## Current Conversation Context (Working Memory)\n${contextSummary}`;
+  } catch (e) {
+    console.log("[chat-with-memory] Failed to get session context:", e);
+    return "";
   }
 }
 

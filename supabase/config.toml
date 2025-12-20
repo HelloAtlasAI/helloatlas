@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.memory-embed]
 verify_jwt = false
+
+[functions.memory-synthesize]
+verify_jwt = false
