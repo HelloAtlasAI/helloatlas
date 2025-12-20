@@ -956,6 +956,39 @@ export type Database = {
           },
         ]
       }
+      session_context: {
+        Row: {
+          confidence: number | null
+          content: Json
+          context_type: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          content: Json
+          context_type: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          confidence?: number | null
+          content?: Json
+          context_type?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tool_calls: {
         Row: {
           args_json: Json

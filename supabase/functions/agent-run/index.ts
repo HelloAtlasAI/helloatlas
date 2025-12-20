@@ -26,8 +26,12 @@ const PROVIDERS = {
   anthropic: {
     url: "https://api.anthropic.com/v1/messages",
     models: {
-      critic: "claude-sonnet-4-5",       // Code review, verification
-      creative: "claude-sonnet-4-5",     // Creative writing, nuanced responses
+      // Claude Opus 4.5 for advanced memory and reasoning tasks
+      memory: "claude-opus-4-5-20251124",     // Memory synthesis, consolidation
+      reasoner: "claude-opus-4-5-20251124",   // Complex multi-step reasoning
+      // Claude Sonnet 4.5 for faster analytical tasks
+      critic: "claude-sonnet-4-5",            // Code review, verification
+      creative: "claude-sonnet-4-5",          // Creative writing, nuanced responses
     }
   },
   perplexity: {
@@ -48,7 +52,31 @@ function selectModel(taskType: string, agentConfig: Record<string, unknown> | nu
   const modelConfig = agentConfig?.model_config_json as Record<string, string> | null;
   
   switch (taskType) {
-    // Tier 4: Anthropic Claude for advanced analysis
+    // Memory Core: Claude Opus 4.5 for advanced memory operations
+    case "memory_synthesis":
+    case "memory_consolidation":
+    case "contradiction_resolution":
+    case "insight_extraction":
+      if (Deno.env.get("ANTHROPIC_API_KEY")) {
+        return { provider: "anthropic", model: PROVIDERS.anthropic.models.memory, url: PROVIDERS.anthropic.url };
+      }
+      break;
+    
+    // Complex Reasoning: Claude Opus 4.5
+    case "complex_reasoning":
+    case "multi_step_logic":
+    case "deep_analysis":
+      if (Deno.env.get("ANTHROPIC_API_KEY")) {
+        return { provider: "anthropic", model: PROVIDERS.anthropic.models.reasoner, url: PROVIDERS.anthropic.url };
+      }
+      // Fallback to Lovable reasoner if no Anthropic key
+      return { 
+        provider: "lovable", 
+        model: modelConfig?.reasoner || PROVIDERS.lovable.models.reasoner, 
+        url: PROVIDERS.lovable.url 
+      };
+    
+    // Tier 4: Claude Sonnet 4.5 for faster analytical tasks
     case "code_review":
     case "code_analysis":
     case "critic":
@@ -63,17 +91,6 @@ function selectModel(taskType: string, agentConfig: Record<string, unknown> | nu
         return { provider: "anthropic", model: PROVIDERS.anthropic.models.creative, url: PROVIDERS.anthropic.url };
       }
       break;
-    case "complex_reasoning":
-    case "multi_step_logic":
-      if (Deno.env.get("ANTHROPIC_API_KEY")) {
-        return { provider: "anthropic", model: PROVIDERS.anthropic.models.critic, url: PROVIDERS.anthropic.url };
-      }
-      // Fallback to Lovable reasoner if no Anthropic key
-      return { 
-        provider: "lovable", 
-        model: modelConfig?.reasoner || PROVIDERS.lovable.models.reasoner, 
-        url: PROVIDERS.lovable.url 
-      };
     
     // Tier 3: Perplexity for research
     case "research":
