@@ -211,7 +211,7 @@ export const NebulaFlowSystem = memo(({
       // Pixel-stable rendering uniforms
       uPixelRatio: { value: pixelRatio },
       uResolution: { value: new THREE.Vector2(containerWidth, containerHeight) },
-      uPointSizePx: { value: 2.5 }, // Base point size in CSS pixels
+      uPointSizePx: { value: particleSize * 50 }, // Base point size derived from particleSize prop
       // Solid Surface uniforms
       uSolidSurface: { value: solidSurface ? 1.0 : 0.0 },
       uSurfaceBlend: { value: surfaceBlend },
@@ -335,6 +335,7 @@ export const NebulaFlowSystem = memo(({
     
     // Always use prop values for these
     u.uParticleSize.value = particleSize;
+    u.uPointSizePx.value = particleSize * 50; // Update point size when particleSize changes
     u.uDepthFade.value = depthFade;
     u.uCoreGlow.value = coreGlow;
     

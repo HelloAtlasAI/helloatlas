@@ -161,6 +161,7 @@ const AtlasSphereComponent = ({
           nebulaColorMid={settings.nebulaColorMid}
           nebulaColorEnd={settings.nebulaColorEnd}
           nebulaParticleCount={settings.nebulaParticleCount}
+          nebulaParticleMode={settings.nebulaParticleMode}
           nebulaParticleSize={settings.nebulaParticleSize}
           nebulaDensity={settings.nebulaDensity}
           nebulaRotationSpeed={settings.nebulaRotationSpeed}

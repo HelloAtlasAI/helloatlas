@@ -3,7 +3,7 @@ import { WakeWordState } from '@/types';
 import { NebulaStateConfig, NEBULA_STATE_CONFIGS } from '@/components/atlas/utils/nebulaStateConfigs';
 
 const STORAGE_KEY = 'atlas-demo-settings';
-const SETTINGS_VERSION = 10; // Bump for per-state customization system
+const SETTINGS_VERSION = 11; // Bump for nebulaParticleMode addition
 
 // Keys that can be customized per-state (nebula visual properties)
 export const NEBULA_CUSTOMIZABLE_KEYS = [
@@ -46,6 +46,9 @@ export type StateCustomizations = Partial<Record<WakeWordState, Partial<NebulaSt
 export interface AtlasSettings {
   // Visualization mode
   visualizationMode: 'classic' | 'nebulaFlow';
+  
+  // Particle mode: 'density' uses dynamic calculation, 'fixed' uses manual count
+  nebulaParticleMode: 'density' | 'fixed';
   
   // Dashboard preview mode
   dashboardPreview: boolean;
@@ -153,6 +156,7 @@ export interface AtlasSettings {
 // Default settings - optimized for performance
 export const defaultAtlasSettings: AtlasSettings = {
   visualizationMode: 'nebulaFlow',
+  nebulaParticleMode: 'fixed', // Use manual particle count by default
   dashboardPreview: false,
   comparisonView: false,
   state: 'dormant',

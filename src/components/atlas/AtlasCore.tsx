@@ -16,6 +16,8 @@ export interface AtlasCoreProps {
   containerHeight?: number;
   pixelRatio?: number;
   dynamicParticleCount?: number;
+  // Particle mode: 'density' uses dynamic calculation, 'fixed' uses manual count
+  nebulaParticleMode?: 'density' | 'fixed';
   // Trail settings
   enableTrails?: boolean;
   trailLength?: number;
@@ -212,6 +214,7 @@ const ParticleSystem = memo(({
   nebulaColorMid = '#8b5cf6',
   nebulaColorEnd = '#67e8f9',
   nebulaParticleCount = 8000,
+  nebulaParticleMode = 'fixed',
   nebulaParticleSize = 0.05,
   nebulaDensity = 1.0,
   nebulaRotationSpeed = 0.2,
@@ -234,8 +237,10 @@ const ParticleSystem = memo(({
   const trailGeometryRef = useRef<THREE.BufferGeometry | null>(null);
   const config = STATE_CONFIGS[state];
   
-  // Use dynamic particle count if provided, otherwise use settings
-  const effectiveParticleCount = dynamicParticleCount ?? nebulaParticleCount;
+  // Particle count: use manual setting in 'fixed' mode, dynamic calculation in 'density' mode
+  const effectiveParticleCount = nebulaParticleMode === 'density' && dynamicParticleCount 
+    ? dynamicParticleCount 
+    : nebulaParticleCount;
 
   // Nebula Flow mode
   if (visualizationMode === 'nebulaFlow') {
