@@ -13,7 +13,8 @@ import {
   Sparkles,
   TrendingUp,
   CircuitBoard,
-  Settings
+  Settings,
+  Radio
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -34,11 +35,13 @@ import { ModelUsageAnalytics } from './ModelUsageAnalytics';
 import { AtlasSettingsPanel } from './AtlasSettingsPanel';
 import AIArchitectureDiagram from './AIArchitectureDiagram';
 import { MemoryDashboardPanel } from './MemoryDashboardPanel';
+import { LiveLearningDashboard } from './LiveLearningDashboard';
 import { useAtlasHealth } from '@/hooks/useAtlasHealth';
 import { useAtlasKnowledge } from '@/hooks/useAtlasKnowledge';
 import { useAtlasResearch } from '@/hooks/useAtlasResearch';
 import { useApprovals } from '@/hooks/useApprovals';
 import { useAtlasNotifications } from '@/hooks/useAtlasNotifications';
+import { useAtlasLearning } from '@/hooks/useAtlasLearning';
 import { AtlasSphere } from '@/components/atlas';
 
 const AtlasCoreDashboard = () => {
@@ -49,6 +52,7 @@ const AtlasCoreDashboard = () => {
   const { knowledge, isLoading: knowledgeLoading } = useAtlasKnowledge();
   const { topics, isLoading: researchLoading, startResearch } = useAtlasResearch();
   const { pendingCount } = useApprovals();
+  const { isRunning: isBrainRunning } = useAtlasLearning();
   
   // Enable real-time notifications
   useAtlasNotifications({ enabled: true });
@@ -177,6 +181,20 @@ const AtlasCoreDashboard = () => {
               >
                 <Activity className="w-4 h-4" />
                 <span className="hidden sm:inline">Overview</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="live" 
+                className="flex items-center gap-2 rounded-xl data-[state=active]:bg-rose-500/20 data-[state=active]:text-rose-400 relative"
+              >
+                <Radio className="w-4 h-4" />
+                <span className="hidden sm:inline">Live</span>
+                {isBrainRunning && (
+                  <motion.span 
+                    className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full"
+                    animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  />
+                )}
               </TabsTrigger>
               <TabsTrigger 
                 value="agent" 
@@ -328,6 +346,10 @@ const AtlasCoreDashboard = () => {
                   <ErrorLogStream compact limit={5} />
                 </motion.div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="live" className="mt-0">
+              <LiveLearningDashboard />
             </TabsContent>
 
             <TabsContent value="agent" className="space-y-6 mt-0">
