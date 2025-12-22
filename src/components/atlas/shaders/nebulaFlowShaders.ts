@@ -208,7 +208,8 @@ void main() {
   gl_Position = projectionMatrix * mvPosition;
   
   // PIXEL-STABLE POINT SIZE CALCULATION
-  // Base size in CSS pixels with audio reactivity
+  // uPointSizePx is derived from particleSize prop (particleSize * 50)
+  // uParticleSize is the raw particleSize prop value for additional scaling
   float baseSizePx = uPointSizePx * (1.0 + uAudioLevel * 0.4);
   
   // Solid surface size boost
@@ -219,13 +220,13 @@ void main() {
   // At depth 4.0 (sphere center), particles are exactly baseSizePx
   float referenceDepth = 4.0;
   float depth = max(-mvPosition.z, 0.5);
-  float depthScale = clamp(referenceDepth / depth, 0.5, 2.0);
+  float depthScale = clamp(referenceDepth / depth, 0.5, 2.5);
   
   // Final size: base * pixelRatio * subtle perspective
   gl_PointSize = baseSizePx * uPixelRatio * depthScale;
   
-  // Clamp to reasonable range - particles should be small dots
-  gl_PointSize = clamp(gl_PointSize, 1.0, 16.0);
+  // Wider clamp range to allow user control over particle sizes
+  gl_PointSize = clamp(gl_PointSize, 0.5, 32.0);
 }
 `;
 

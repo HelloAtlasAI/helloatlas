@@ -557,7 +557,45 @@ export default function AtlasDemo() {
                 {/* Particle Configuration */}
                 <div className="space-y-2 pt-2 border-t border-border/20">
                   <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Particles</span>
-                  <SliderControl label="Particle Count" value={settings.nebulaParticleCount} onChange={(v) => setSetting('nebulaParticleCount', v)} min={3000} max={50000} step={1000} color="cyan" hint={['Light', '50K']} />
+                  {/* Particle Mode Toggle */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="text-xs text-foreground">Particle Mode</span>
+                      <p className="text-[10px] text-muted-foreground">Fixed uses slider value, Density auto-calculates</p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setSetting('nebulaParticleMode', 'fixed')}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-all ${
+                          settings.nebulaParticleMode === 'fixed'
+                            ? 'bg-cyan-500/30 border border-cyan-500/50 text-cyan-300'
+                            : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                        }`}
+                      >
+                        Fixed
+                      </button>
+                      <button
+                        onClick={() => setSetting('nebulaParticleMode', 'density')}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-all ${
+                          settings.nebulaParticleMode === 'density'
+                            ? 'bg-amber-500/30 border border-amber-500/50 text-amber-300'
+                            : 'bg-muted/20 border border-border/30 text-muted-foreground'
+                        }`}
+                      >
+                        Density
+                      </button>
+                    </div>
+                  </div>
+                  <SliderControl 
+                    label={`Particle Count${settings.nebulaParticleMode === 'density' ? ' (auto)' : ''}`} 
+                    value={settings.nebulaParticleCount} 
+                    onChange={(v) => setSetting('nebulaParticleCount', v)} 
+                    min={3000} 
+                    max={50000} 
+                    step={1000} 
+                    color="cyan" 
+                    hint={['Light', '50K']} 
+                  />
                   <SliderControl label="Particle Size" value={settings.nebulaParticleSize} onChange={(v) => setSetting('nebulaParticleSize', v)} min={0.02} max={0.12} step={0.005} color="cyan" decimals={3} />
                   <SliderControl label="Density" value={settings.nebulaDensity} onChange={(v) => setSetting('nebulaDensity', v)} min={0.5} max={2} step={0.05} color="cyan" decimals={2} />
                   <SliderControl label="Rotation Speed" value={settings.nebulaRotationSpeed} onChange={(v) => setSetting('nebulaRotationSpeed', v)} min={0} max={1} step={0.05} color="cyan" decimals={2} />
