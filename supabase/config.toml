@@ -68,3 +68,18 @@ verify_jwt = false
 
 [functions.memory-scheduler]
 verify_jwt = false
+
+[functions.atlas-brain]
+verify_jwt = false
+
+[functions.atlas-news-pulse]
+verify_jwt = false
+
+[functions.atlas-topic-discovery]
+verify_jwt = false
+
+[functions.firecrawl-scrape]
+verify_jwt = false
+
+[functions.firecrawl-search]
+verify_jwt = false

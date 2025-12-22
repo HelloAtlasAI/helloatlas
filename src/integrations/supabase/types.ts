@@ -220,6 +220,48 @@ export type Database = {
           },
         ]
       }
+      atlas_brain_runs: {
+        Row: {
+          completed_at: string | null
+          entries_validated: number | null
+          error_message: string | null
+          id: string
+          metrics: Json | null
+          news_collected: number | null
+          research_completed: number | null
+          run_type: string
+          started_at: string | null
+          status: string | null
+          topics_generated: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          entries_validated?: number | null
+          error_message?: string | null
+          id?: string
+          metrics?: Json | null
+          news_collected?: number | null
+          research_completed?: number | null
+          run_type: string
+          started_at?: string | null
+          status?: string | null
+          topics_generated?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          entries_validated?: number | null
+          error_message?: string | null
+          id?: string
+          metrics?: Json | null
+          news_collected?: number | null
+          research_completed?: number | null
+          run_type?: string
+          started_at?: string | null
+          status?: string | null
+          topics_generated?: number | null
+        }
+        Relationships: []
+      }
       atlas_error_logs: {
         Row: {
           context: Json | null
@@ -373,6 +415,69 @@ export type Database = {
         }
         Relationships: []
       }
+      atlas_research_queue: {
+        Row: {
+          attempts: number | null
+          category: string | null
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          error_message: string | null
+          id: string
+          last_attempt_at: string | null
+          max_attempts: number | null
+          metadata: Json | null
+          priority_score: number | null
+          processing_started_at: string | null
+          scheduled_for: string | null
+          source: string
+          status: string | null
+          topic: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          error_message?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          max_attempts?: number | null
+          metadata?: Json | null
+          priority_score?: number | null
+          processing_started_at?: string | null
+          scheduled_for?: string | null
+          source?: string
+          status?: string | null
+          topic: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          error_message?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          max_attempts?: number | null
+          metadata?: Json | null
+          priority_score?: number | null
+          processing_started_at?: string | null
+          scheduled_for?: string | null
+          source?: string
+          status?: string | null
+          topic?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       atlas_research_topics: {
         Row: {
           auto_generated: boolean
@@ -386,6 +491,7 @@ export type Database = {
           is_validated: boolean | null
           parent_id: string | null
           priority: number
+          root_topic_context: Json | null
           sources: Json | null
           status: string
           topic: string
@@ -405,6 +511,7 @@ export type Database = {
           is_validated?: boolean | null
           parent_id?: string | null
           priority?: number
+          root_topic_context?: Json | null
           sources?: Json | null
           status?: string
           topic: string
@@ -424,6 +531,7 @@ export type Database = {
           is_validated?: boolean | null
           parent_id?: string | null
           priority?: number
+          root_topic_context?: Json | null
           sources?: Json | null
           status?: string
           topic?: string
