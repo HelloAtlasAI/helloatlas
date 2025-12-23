@@ -5,10 +5,6 @@ import type { WakeWordState } from '@/types';
 interface AtlasInterfaceProps {
   state: WakeWordState;
   audioLevel: number;
-  userName?: string;
-  transcript?: string;
-  lastMessage?: string;
-  lastResponse?: string;
   isSupported?: boolean;
   voiceEnabled?: boolean;
   onManualActivate?: () => void;
@@ -57,7 +53,6 @@ const AtlasInterfaceComponent = ({
           className="w-full h-full"
         />
       </div>
-      
     </div>
   );
 };
