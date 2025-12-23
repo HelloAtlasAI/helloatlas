@@ -46,9 +46,10 @@ export const LearningFlowVisualization = ({ compact = false }: LearningFlowVisua
         .order('created_at', { ascending: false })
         .limit(5);
 
-      if (!error && data) {
-        setSessions(data as LearningSession[]);
-        setIsLearning(data.length > 0);
+      if (!error) {
+        const activeSessions = (data || []) as LearningSession[];
+        setSessions(activeSessions);
+        setIsLearning(activeSessions.length > 0);
       }
     };
 
