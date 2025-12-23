@@ -473,10 +473,6 @@ const Dashboard = () => {
             <AtlasInterface
               state={effectiveAtlasState}
               audioLevel={audioLevel}
-              userName={userName}
-              transcript={wakeWordTranscript}
-              lastMessage={lastUserMessage}
-              lastResponse={lastAiResponse}
               isSupported={isWakeWordSupported}
               voiceEnabled={voiceEnabled}
               onManualActivate={handleManualActivate}
