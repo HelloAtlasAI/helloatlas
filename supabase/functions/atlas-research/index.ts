@@ -558,8 +558,17 @@ serve(async (req) => {
           root_topic_context: context
         }));
 
-        await supabase.from("atlas_knowledge_entries").insert(knowledgeEntries);
-        console.log(`[atlas-research] Stored ${knowledgeEntries.length} knowledge entries`);
+        const { data: insertedKnowledge, error: knowledgeError } = await supabase
+          .from("atlas_knowledge_entries")
+          .insert(knowledgeEntries)
+          .select();
+        
+        if (knowledgeError) {
+          console.error(`[atlas-research] Failed to insert knowledge entries:`, knowledgeError);
+          console.error(`[atlas-research] Sample entry:`, JSON.stringify(knowledgeEntries[0], null, 2));
+        } else {
+          console.log(`[atlas-research] Stored ${insertedKnowledge?.length || 0} knowledge entries`);
+        }
       }
 
       // Update learning session discoveries if linked
