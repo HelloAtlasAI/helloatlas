@@ -21,7 +21,7 @@ interface SpeechRecognitionErrorEvent {
   error: string;
 }
 
-export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
+export const useWakeWord = (options: UseWakeWordOptions = {}) => {
   const {
     keyword = 'atlas',
     onWakeWordDetected,
@@ -313,4 +313,4 @@ export const useWakeWordFixed = (options: UseWakeWordOptions = {}) => {
   };
 };
 
-export default useWakeWordFixed;
+export default useWakeWord;

@@ -1,10 +1,9 @@
-import { useWakeWordFixed } from "./useWakeWordFixed";
+import { useWakeWord } from "./useWakeWordCore";
 import type { WakeWordState } from "@/types";
 
 /**
  * Backward-compatible wrapper for older imports.
- * Keeps behavior identical to `useWakeWordFixed`.
+ * Re-exports the consolidated useWakeWord hook.
  */
-export const useWakeWord = useWakeWordFixed;
-
+export { useWakeWord };
 export type { WakeWordState };
