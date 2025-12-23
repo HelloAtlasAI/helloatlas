@@ -289,7 +289,7 @@ const AtlasCoreDashboard = () => {
 
           {/* Tab Content */}
           <AnimatePresence mode="wait">
-            <TabsContent value="overview" className="space-y-6 mt-0">
+            <TabsContent key="overview" value="overview" className="space-y-6 mt-0">
               <motion.div 
                 className="grid grid-cols-1 lg:grid-cols-2 gap-6"
                 variants={containerVariants}
@@ -348,11 +348,11 @@ const AtlasCoreDashboard = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="live" className="mt-0">
+            <TabsContent key="live" value="live" className="mt-0">
               <LiveLearningDashboard />
             </TabsContent>
 
-            <TabsContent value="agent" className="space-y-6 mt-0">
+            <TabsContent key="agent" value="agent" className="space-y-6 mt-0">
               {/* AI Architecture Diagram */}
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
@@ -412,7 +412,7 @@ const AtlasCoreDashboard = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="knowledge" className="mt-0">
+            <TabsContent key="knowledge" value="knowledge" className="mt-0">
               <motion.div 
                 className="backdrop-blur-xl bg-background/30 border border-border/30 p-6 rounded-2xl"
                 initial={{ opacity: 0, scale: 0.98 }}
@@ -423,7 +423,7 @@ const AtlasCoreDashboard = () => {
               </motion.div>
             </TabsContent>
 
-            <TabsContent value="research" className="space-y-6 mt-0">
+            <TabsContent key="research" value="research" className="space-y-6 mt-0">
               {/* Queue Visualization */}
               <motion.div 
                 className="backdrop-blur-xl bg-background/30 border border-border/30 p-6 rounded-2xl"
@@ -449,7 +449,7 @@ const AtlasCoreDashboard = () => {
               </motion.div>
             </TabsContent>
 
-            <TabsContent value="learning" className="mt-0">
+            <TabsContent key="learning" value="learning" className="mt-0">
               <motion.div 
                 className="backdrop-blur-xl bg-background/30 border border-border/30 p-6 rounded-2xl"
                 initial={{ opacity: 0, scale: 0.98 }}
@@ -460,7 +460,7 @@ const AtlasCoreDashboard = () => {
               </motion.div>
             </TabsContent>
 
-            <TabsContent value="memory" className="mt-0">
+            <TabsContent key="memory" value="memory" className="mt-0">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -470,7 +470,7 @@ const AtlasCoreDashboard = () => {
               </motion.div>
             </TabsContent>
 
-            <TabsContent value="errors" className="mt-0">
+            <TabsContent key="errors" value="errors" className="mt-0">
               <motion.div 
                 className="backdrop-blur-xl bg-background/30 border border-border/30 p-6 rounded-2xl"
                 initial={{ opacity: 0, scale: 0.98 }}

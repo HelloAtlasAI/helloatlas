@@ -4,7 +4,7 @@ import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useVoice } from '@/hooks/useVoice';
-import { useWakeWordFixed as useWakeWord } from '@/hooks/useWakeWordFixed';
+import { useWakeWord } from '@/hooks/useWakeWord';
 import { useUnifiedChat } from '@/hooks/useUnifiedChat';
 import { useCardPriority } from '@/hooks/useCardPriority';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';

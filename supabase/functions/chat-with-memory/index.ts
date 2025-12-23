@@ -59,7 +59,7 @@ const PROVIDERS = {
   anthropic: {
     url: "https://api.anthropic.com/v1/messages",
     models: {
-      memory: "claude-opus-4-5-20251124",   // Memory synthesis
+      memory: "claude-sonnet-4-5",           // Memory synthesis
       creative: "claude-sonnet-4-5",         // Creative responses
     }
   },
