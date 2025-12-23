@@ -35,7 +35,7 @@ interface ConsensusResult {
 const PROVIDERS = {
   anthropic: {
     url: "https://api.anthropic.com/v1/messages",
-    model: "claude-opus-4-5-20251124",
+    model: "claude-sonnet-4-20250514",
   },
   lovable: {
     url: "https://ai.gateway.lovable.dev/v1/chat/completions",

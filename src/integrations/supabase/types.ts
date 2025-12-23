@@ -334,6 +334,9 @@ export type Database = {
           is_validated: boolean | null
           last_accessed: string | null
           relevance_score: number
+          relevance_to_root: number | null
+          research_topic_id: string | null
+          root_topic_context: Json | null
           source: string
           topic: string
           updated_at: string
@@ -341,6 +344,7 @@ export type Database = {
           validated_at: string | null
           validation_consensus: Json | null
           validation_score: number | null
+          validation_status: string | null
         }
         Insert: {
           access_count?: number
@@ -353,6 +357,9 @@ export type Database = {
           is_validated?: boolean | null
           last_accessed?: string | null
           relevance_score?: number
+          relevance_to_root?: number | null
+          research_topic_id?: string | null
+          root_topic_context?: Json | null
           source?: string
           topic: string
           updated_at?: string
@@ -360,6 +367,7 @@ export type Database = {
           validated_at?: string | null
           validation_consensus?: Json | null
           validation_score?: number | null
+          validation_status?: string | null
         }
         Update: {
           access_count?: number
@@ -372,6 +380,9 @@ export type Database = {
           is_validated?: boolean | null
           last_accessed?: string | null
           relevance_score?: number
+          relevance_to_root?: number | null
+          research_topic_id?: string | null
+          root_topic_context?: Json | null
           source?: string
           topic?: string
           updated_at?: string
@@ -379,8 +390,17 @@ export type Database = {
           validated_at?: string | null
           validation_consensus?: Json | null
           validation_score?: number | null
+          validation_status?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "atlas_knowledge_entries_research_topic_id_fkey"
+            columns: ["research_topic_id"]
+            isOneToOne: false
+            referencedRelation: "atlas_research_topics"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       atlas_learning_sessions: {
         Row: {
@@ -489,6 +509,7 @@ export type Database = {
           id: string
           is_fake: boolean | null
           is_validated: boolean | null
+          learning_session_id: string | null
           parent_id: string | null
           priority: number
           root_topic_context: Json | null
@@ -509,6 +530,7 @@ export type Database = {
           id?: string
           is_fake?: boolean | null
           is_validated?: boolean | null
+          learning_session_id?: string | null
           parent_id?: string | null
           priority?: number
           root_topic_context?: Json | null
@@ -529,6 +551,7 @@ export type Database = {
           id?: string
           is_fake?: boolean | null
           is_validated?: boolean | null
+          learning_session_id?: string | null
           parent_id?: string | null
           priority?: number
           root_topic_context?: Json | null
@@ -540,6 +563,13 @@ export type Database = {
           validation_score?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "atlas_research_topics_learning_session_id_fkey"
+            columns: ["learning_session_id"]
+            isOneToOne: false
+            referencedRelation: "atlas_learning_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "atlas_research_topics_parent_id_fkey"
             columns: ["parent_id"]
