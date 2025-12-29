@@ -1,9 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handleCors, jsonResponse, errorResponse } from "../_shared/cors.ts";
 
 const FINNHUB_API_KEY = Deno.env.get('FINNHUB_API_KEY');
 
@@ -28,9 +24,8 @@ const generateSparkline = (positive: boolean) => {
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const { symbols = ['AAPL', 'GOOGL', 'MSFT', 'NVDA'] } = await req.json();
@@ -55,9 +50,7 @@ serve(async (req) => {
         };
       });
 
-      return new Response(JSON.stringify({ stocks: mockResults }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ stocks: mockResults });
     }
 
     // Fetch real data from Finnhub
@@ -102,17 +95,11 @@ serve(async (req) => {
     });
 
     const stocks = await Promise.all(stockPromises);
-
-    return new Response(JSON.stringify({ stocks }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ stocks });
 
   } catch (error: unknown) {
     console.error('Stocks function error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse(message);
   }
 });

@@ -1,25 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { handleCors, jsonResponse, errorResponse } from "../_shared/cors.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const { text, voiceId = "EXAVITQu4vr4xnSDxMaL" } = await req.json();
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
 
     if (!ELEVENLABS_API_KEY) {
-      throw new Error("ELEVENLABS_API_KEY is not configured");
+      return errorResponse("ELEVENLABS_API_KEY is not configured", 500);
     }
 
     if (!text) {
-      throw new Error("Text is required");
+      return errorResponse("Text is required", 400);
     }
 
     console.log("Generating TTS for text:", text.substring(0, 50) + "...");
@@ -49,7 +44,7 @@ serve(async (req) => {
     if (!response.ok) {
       const error = await response.text();
       console.error("ElevenLabs TTS error:", error);
-      throw new Error(`Failed to generate speech: ${error}`);
+      return errorResponse(`Failed to generate speech: ${error}`, response.status);
     }
 
     const audioBuffer = await response.arrayBuffer();
@@ -66,20 +61,10 @@ serve(async (req) => {
 
     console.log("TTS generated successfully, audio length:", audioBuffer.byteLength);
 
-    return new Response(
-      JSON.stringify({ audioContent: base64Audio }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return jsonResponse({ audioContent: base64Audio });
   } catch (error) {
     console.error("TTS error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return errorResponse(message);
   }
 });

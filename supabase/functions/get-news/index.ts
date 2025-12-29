@@ -1,9 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handleCors, jsonResponse } from "../_shared/cors.ts";
 
 const NEWS_API_KEY = Deno.env.get('NEWS_API_KEY');
 
@@ -61,9 +57,8 @@ const getTimeAgo = (dateStr: string) => {
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const { category = 'general' } = await req.json();
@@ -71,9 +66,7 @@ serve(async (req) => {
     // If no API key, return mock data
     if (!NEWS_API_KEY) {
       console.log('No NEWS_API_KEY configured, returning mock data');
-      return new Response(JSON.stringify({ articles: MOCK_NEWS }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ articles: MOCK_NEWS });
     }
 
     const url = `https://newsapi.org/v2/top-headlines?country=us&category=${category}&pageSize=5&apiKey=${NEWS_API_KEY}`;
@@ -95,15 +88,11 @@ serve(async (req) => {
       category: category.charAt(0).toUpperCase() + category.slice(1),
     })) || [];
 
-    return new Response(JSON.stringify({ articles }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ articles });
 
   } catch (error) {
     console.error('News function error:', error);
     // Return mock data on error
-    return new Response(JSON.stringify({ articles: MOCK_NEWS }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ articles: MOCK_NEWS });
   }
 });
