@@ -1,17 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handleCors, jsonResponse, errorResponse } from "../_shared/cors.ts";
 
 const OPENWEATHER_API_KEY = Deno.env.get('OPENWEATHER_API_KEY');
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const { city = 'San Francisco', lat, lon } = await req.json();
@@ -19,7 +14,7 @@ serve(async (req) => {
     // If no API key, return mock data
     if (!OPENWEATHER_API_KEY) {
       console.log('No OPENWEATHER_API_KEY configured, returning mock data');
-      return new Response(JSON.stringify({
+      return jsonResponse({
         location: city,
         temp: 68,
         condition: 'Partly Cloudy',
@@ -35,8 +30,6 @@ serve(async (req) => {
           { time: '6PM', temp: 69, icon: 'partly-cloudy' },
           { time: '9PM', temp: 64, icon: 'cloudy' },
         ]
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -103,16 +96,11 @@ serve(async (req) => {
       hourly: hourlyData,
     };
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse(result);
 
   } catch (error: unknown) {
     console.error('Weather function error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse(message);
   }
 });

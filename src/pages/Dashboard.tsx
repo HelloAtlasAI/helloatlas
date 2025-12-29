@@ -1,10 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useVoice } from '@/hooks/useVoice';
-import { useWakeWord } from '@/hooks/useWakeWord';
+import { useDashboardVoice } from '@/hooks/useDashboardVoice';
 import { useUnifiedChat } from '@/hooks/useUnifiedChat';
 import { useCardPriority } from '@/hooks/useCardPriority';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
@@ -43,7 +42,6 @@ import {
   DocumentsAtmosphere,
   TravelAtmosphere,
 } from '@/components/dashboard/effects/CardAtmospheres';
-import type { WakeWordState, AIState } from '@/types';
 
 // Card animation variants
 const cardVariants = {
@@ -61,7 +59,7 @@ const cardVariants = {
   exit: { opacity: 0, scale: 0.9, transition: { duration: 0.2 } },
 };
 
-// Glow effect for focused cards (now supports multiple)
+// Glow effect for focused cards
 const getFocusedClasses = (cardName: string, focusedCards: string[], isSpeaking: boolean) => {
   const isFocused = focusedCards.includes(cardName);
   if (!isFocused) return '';
@@ -75,17 +73,11 @@ const getDimClasses = (cardName: string, focusedCards: string[], isSpeaking: boo
   return 'opacity-40 scale-[0.98] blur-[1px]';
 };
 
-// Get compact classes for empty cards
-const getEmptyClasses = (isEmpty: boolean) => {
-  if (!isEmpty) return '';
-  return 'row-span-1 !h-[60px] opacity-60';
-};
-
-// Get empty card styles with order for grid positioning
+// Get card styles with order for grid positioning
 const getCardStyles = (isEmpty: boolean, order: number) => {
   return {
     opacity: isEmpty ? 0.6 : 1,
-    order: order, // CSS Grid order property
+    order: order,
   };
 };
 
@@ -142,25 +134,11 @@ const Dashboard = () => {
   const { profile } = useUserProfile();
   const [isConversationOpen, setIsConversationOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
   const [focusedCards, setFocusedCards] = useState<string[]>([]);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
-  const [lastUserMessage, setLastUserMessage] = useState<string>('');
-  const [lastAiResponse, setLastAiResponse] = useState<string>('');
-  const [isWakeWordTriggered, setIsWakeWordTriggered] = useState(false);
 
   // Card priority system
   const { sortedCards, cardMeta } = useCardPriority();
-
-  const {
-    isRecording,
-    isPlaying,
-    audioLevel,
-    startRecording,
-    stopRecording,
-    speakText,
-    stopCurrentAudio
-  } = useVoice();
 
   // Handle multi-card focus callback
   const handleCardFocus = useCallback((cardIds: string[] | null) => {
@@ -172,59 +150,28 @@ const Dashboard = () => {
     onCardFocus: handleCardFocus,
   });
 
-  // Ref for auto-stop timer
-  const autoStopTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Wake word detection - declare first so we can use pauseListening in callbacks
+  // Voice logic - extracted to hook
   const {
-    state: wakeWordState,
-    setState: setWakeWordState,
-    transcript: wakeWordTranscript,
-    isSupported: isWakeWordSupported,
-    startPassiveListening,
-    resetToPassive,
-    pauseListening,
-    resumeListening,
-  } = useWakeWord({
-    keyword: 'atlas',
-    onWakeWordDetected: () => {
-      console.log('[Dashboard] Wake word detected! Starting recording...');
-      stopCurrentAudio();
-      setIsWakeWordTriggered(true);
-      startRecording();
-    },
-    onTimeout: () => {
-      console.log('[Dashboard] Wake word timeout');
-    },
+    voiceEnabled,
+    isVoiceProcessing,
+    isRecording,
+    isPlaying,
+    audioLevel,
+    effectiveAtlasState,
+    effectiveAiState,
+    isWakeWordSupported,
+    handleEnableVoice,
+    handleVoicePress,
+    handleVoiceRelease,
+    handleManualActivate,
+    stopCurrentAudio,
+  } = useDashboardVoice({
+    sendMessage,
+    stopAudio: undefined,
+    aiState,
+    isLoading,
+    setAiState,
   });
-
-  // Voice permission state - only start wake word after user enables it
-  const [voiceEnabled, setVoiceEnabled] = useState(() => {
-    // Check if user previously enabled voice
-    return localStorage.getItem('atlas-voice-enabled') === 'true';
-  });
-
-  // Enable voice handler - called when user clicks the Atlas interface
-  const handleEnableVoice = useCallback(async () => {
-    try {
-      // Request microphone permission
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(track => track.stop()); // Stop immediately, just checking permission
-      
-      setVoiceEnabled(true);
-      localStorage.setItem('atlas-voice-enabled', 'true');
-      startPassiveListening();
-    } catch (error) {
-      console.warn('[Dashboard] Microphone permission denied:', error);
-    }
-  }, [startPassiveListening]);
-
-  // Start passive listening only when voice is enabled and permission granted
-  useEffect(() => {
-    if (user && !authLoading && voiceEnabled) {
-      startPassiveListening();
-    }
-  }, [user, authLoading, voiceEnabled, startPassiveListening]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -233,150 +180,19 @@ const Dashboard = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Determine effective Atlas state
-  const effectiveAtlasState: WakeWordState = isRecording 
-    ? 'listening' 
-    : isVoiceProcessing || isLoading
-      ? 'thinking'
-      : isPlaying 
-        ? 'speaking' 
-        : wakeWordState;
-
-  // Determine effective AI state for legacy components
-  const effectiveAiState: AIState = isRecording 
-    ? 'listening' 
-    : isVoiceProcessing || isLoading
-      ? 'thinking'
-      : isPlaying 
-        ? 'speaking' 
-        : aiState;
-
   // Is Atlas speaking with focused cards?
   const isSpeakingWithFocus = effectiveAiState === 'speaking' && focusedCards.length > 0;
-
-  const handleVoicePress = useCallback(() => {
-    console.log('[Dashboard] Voice press - pausing wake word, starting recording');
-    pauseListening(); // Pause wake word to prevent conflicts
-    stopCurrentAudio();
-    startRecording();
-    setAiState('listening');
-  }, [startRecording, setAiState, stopCurrentAudio, pauseListening]);
-
-  const handleVoiceRelease = useCallback(async () => {
-    if (!isRecording) return;
-    
-    console.log('[Dashboard] Voice release - processing recording');
-    
-    // Clear auto-stop timer and wake word trigger
-    if (autoStopTimerRef.current) {
-      clearTimeout(autoStopTimerRef.current);
-      autoStopTimerRef.current = null;
-    }
-    setIsWakeWordTriggered(false);
-    
-    setIsVoiceProcessing(true);
-    setWakeWordState('thinking');
-    
-    try {
-      const transcribedText = await stopRecording();
-      console.log('[Dashboard] Transcribed text:', transcribedText);
-      
-      if (transcribedText && transcribedText.trim()) {
-        setLastUserMessage(transcribedText);
-        // Don't auto-open conversation drawer - let user manually trigger it
-        
-        console.log('[Dashboard] Sending message to chat...');
-        const response = await sendMessage(transcribedText);
-        console.log('[Dashboard] Got response:', response?.substring(0, 100));
-        
-        if (response && response.trim()) {
-          setLastAiResponse(response);
-          // Auto-speak the response for voice interactions
-          setWakeWordState('speaking');
-          console.log('[Dashboard] Speaking response...');
-          await speakText(response);
-          console.log('[Dashboard] TTS complete');
-        } else {
-          console.warn('[Dashboard] No response to speak');
-        }
-      } else {
-        console.log('[Dashboard] No transcribed text');
-      }
-    } catch (error) {
-      console.error('[Dashboard] Voice processing error:', error);
-    } finally {
-      setIsVoiceProcessing(false);
-      // Resume wake word listening after TTS is done
-      console.log('[Dashboard] Resuming wake word listening');
-      resumeListening();
-    }
-  }, [isRecording, stopRecording, sendMessage, setWakeWordState, speakText, resumeListening]);
-
-  // Auto-stop recording after silence when triggered by wake word
-  useEffect(() => {
-    if (!isRecording || !isWakeWordTriggered) return;
-
-    // Set up silence detection - auto-stop after 3 seconds of low audio
-    let silenceStart: number | null = null;
-    const SILENCE_THRESHOLD = 0.05;
-    const SILENCE_DURATION = 2000; // 2 seconds of silence to stop
-    const MAX_RECORDING_TIME = 30000; // 30 seconds max
-    
-    // Max recording time failsafe
-    autoStopTimerRef.current = setTimeout(() => {
-      handleVoiceRelease();
-    }, MAX_RECORDING_TIME);
-
-    // Check audio levels periodically
-    const checkInterval = setInterval(() => {
-      if (audioLevel < SILENCE_THRESHOLD) {
-        if (silenceStart === null) {
-          silenceStart = Date.now();
-        } else if (Date.now() - silenceStart > SILENCE_DURATION) {
-          // Silence detected for long enough, stop recording
-          handleVoiceRelease();
-        }
-      } else {
-        silenceStart = null;
-      }
-    }, 100);
-
-    return () => {
-      clearInterval(checkInterval);
-      if (autoStopTimerRef.current) {
-        clearTimeout(autoStopTimerRef.current);
-        autoStopTimerRef.current = null;
-      }
-    };
-  }, [isRecording, isWakeWordTriggered, audioLevel, handleVoiceRelease]);
 
   const handleSendMessage = useCallback(async () => {
     if (!inputValue.trim()) return;
     const message = inputValue;
     setInputValue('');
-    setLastUserMessage(message);
-    const response = await sendMessage(message);
-    if (response) {
-      setLastAiResponse(response);
-    }
+    await sendMessage(message);
   }, [inputValue, sendMessage]);
 
   const handleAssistantClick = useCallback(() => {
     setIsConversationOpen(true);
   }, []);
-
-  const handleManualActivate = useCallback(async () => {
-    // Toggle recording - if already recording, stop and process
-    if (isRecording) {
-      await handleVoiceRelease();
-      return;
-    }
-    
-    stopCurrentAudio();
-    setIsWakeWordTriggered(true); // Enable auto-stop for click activation
-    startRecording();
-    setWakeWordState('listening');
-  }, [isRecording, handleVoiceRelease, stopCurrentAudio, startRecording, setWakeWordState]);
 
   const handleLogout = useCallback(async () => {
     await signOut();
@@ -449,7 +265,7 @@ const Dashboard = () => {
       />
       
       <main className="relative z-10 w-full px-4 sm:px-6 lg:px-8 py-6">
-        {/* Mosaic Grid Layout - Dense auto-fill for optimal space usage */}
+        {/* Mosaic Grid Layout */}
         <AnimatePresence mode="wait">
           {!expandedCard ? (
         <LayoutGroup>
@@ -461,7 +277,7 @@ const Dashboard = () => {
             gridAutoFlow: 'dense',
           }}
         >
-          {/* Atlas AI Interface - Spans 2 columns, fixed height */}
+          {/* Atlas AI Interface */}
           <motion.div 
             layoutId="card-assistant"
             className={`md:col-span-2 xl:col-span-2 h-[200px] transition-all duration-300 ${getFocusedClasses('assistant', focusedCards, isSpeakingWithFocus)}`}
@@ -480,7 +296,7 @@ const Dashboard = () => {
             />
           </motion.div>
 
-          {/* Weather - 2 rows with morphable shape */}
+          {/* Weather */}
           <motion.div 
             layoutId="card-weather"
             className={`row-span-2 transition-all duration-300 ${getFocusedClasses('weather', focusedCards, isSpeakingWithFocus)} ${getDimClasses('weather', focusedCards, isSpeakingWithFocus)}`}
@@ -495,7 +311,7 @@ const Dashboard = () => {
             </MorphableCard>
           </motion.div>
 
-          {/* Travel - 2 rows with morphable shape */}
+          {/* Travel */}
           <motion.div 
             layoutId="card-travel"
             className={`${cardMeta['travel']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('travel', focusedCards, isSpeakingWithFocus)} ${getDimClasses('travel', focusedCards, isSpeakingWithFocus)}`}
@@ -510,7 +326,7 @@ const Dashboard = () => {
             </MorphableCard>
           </motion.div>
 
-          {/* Email - 3 rows tall */}
+          {/* Email */}
           <motion.div 
             layoutId="card-email"
             className={`row-span-3 transition-all duration-300 ${getFocusedClasses('email', focusedCards, isSpeakingWithFocus)} ${getDimClasses('email', focusedCards, isSpeakingWithFocus)}`}
@@ -523,7 +339,7 @@ const Dashboard = () => {
             <EmailCard onExpand={() => setExpandedCard('email')} />
           </motion.div>
 
-          {/* Calendar - 3 rows tall */}
+          {/* Calendar */}
           <motion.div 
             layoutId="card-calendar"
             className={`${cardMeta['calendar']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-3'} transition-all duration-300 ${getFocusedClasses('calendar', focusedCards, isSpeakingWithFocus)} ${getDimClasses('calendar', focusedCards, isSpeakingWithFocus)}`}
@@ -536,7 +352,7 @@ const Dashboard = () => {
             <CalendarCard onExpand={() => setExpandedCard('calendar')} />
           </motion.div>
 
-          {/* Stocks - Wide, 2-3 columns depending on screen */}
+          {/* Stocks */}
           <motion.div 
             layoutId="card-stocks"
             className={`md:col-span-2 xl:col-span-2 2xl:col-span-2 ${cardMeta['stocks']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('stocks', focusedCards, isSpeakingWithFocus)} ${getDimClasses('stocks', focusedCards, isSpeakingWithFocus)}`}
@@ -551,7 +367,7 @@ const Dashboard = () => {
             </MorphableCard>
           </motion.div>
 
-          {/* Tasks - 2 rows */}
+          {/* Tasks */}
           <motion.div 
             layoutId="card-tasks"
             className={`${cardMeta['tasks']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('tasks', focusedCards, isSpeakingWithFocus)} ${getDimClasses('tasks', focusedCards, isSpeakingWithFocus)}`}
@@ -564,7 +380,7 @@ const Dashboard = () => {
             <TasksCard onExpand={() => setExpandedCard('tasks')} />
           </motion.div>
 
-          {/* Notes - 2 rows */}
+          {/* Notes */}
           <motion.div 
             layoutId="card-notes"
             className={`${cardMeta['notes']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('notes', focusedCards, isSpeakingWithFocus)} ${getDimClasses('notes', focusedCards, isSpeakingWithFocus)}`}
@@ -577,7 +393,7 @@ const Dashboard = () => {
             <NotesCard onExpand={() => setExpandedCard('notes')} />
           </motion.div>
 
-          {/* News - Wide, 2-3 columns depending on screen */}
+          {/* News */}
           <motion.div 
             layoutId="card-news"
             className={`md:col-span-2 xl:col-span-2 2xl:col-span-3 ${cardMeta['news']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('news', focusedCards, isSpeakingWithFocus)} ${getDimClasses('news', focusedCards, isSpeakingWithFocus)}`}
@@ -590,7 +406,7 @@ const Dashboard = () => {
             <NewsCard onExpand={() => setExpandedCard('news')} />
           </motion.div>
 
-          {/* Documents - Wide, 2-3 columns depending on screen */}
+          {/* Documents */}
           <motion.div 
             layoutId="card-documents"
             className={`md:col-span-2 xl:col-span-2 2xl:col-span-2 ${cardMeta['documents']?.isEmpty ? 'row-span-1 h-[60px]' : 'row-span-2'} transition-all duration-300 ${getFocusedClasses('documents', focusedCards, isSpeakingWithFocus)} ${getDimClasses('documents', focusedCards, isSpeakingWithFocus)}`}
