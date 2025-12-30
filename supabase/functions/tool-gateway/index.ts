@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { handleCors, corsHeaders, jsonResponse, errorResponse } from "../_shared/cors.ts";
+import { getSupabaseClient } from "../_shared/supabase.ts";
 
 interface ToolCallRequest {
   tool_name: string;
@@ -24,7 +20,6 @@ const PROVIDERS = {
     models: {
       fast: "sonar",
       deep: "sonar-pro",
-      reasoning: "sonar-reasoning",
     }
   },
   lovable: {
@@ -32,7 +27,6 @@ const PROVIDERS = {
     models: {
       fast: "google/gemini-2.5-flash",
       standard: "google/gemini-2.5-pro",
-      reasoning: "openai/gpt-5",
     }
   },
   jina: {
@@ -41,15 +35,13 @@ const PROVIDERS = {
 };
 
 // Tool implementations
-const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: any) => Promise<unknown>> = {
-  // Web search using Perplexity Sonar (fast, grounded search with citations)
+const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: ReturnType<typeof getSupabaseClient>) => Promise<unknown>> = {
   web_search: async (args) => {
     const query = args.query as string;
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     
     if (!PERPLEXITY_API_KEY) {
       console.log("[web_search] Perplexity API key not configured, falling back to Lovable AI");
-      // Fallback to Lovable AI
       const response = await fetch(PROVIDERS.lovable.url, {
         method: "POST",
         headers: {
@@ -59,7 +51,7 @@ const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: 
         body: JSON.stringify({
           model: PROVIDERS.lovable.models.fast,
           messages: [
-            { role: "system", content: "You are a web search assistant. Provide accurate, well-structured information based on your training data. Always be clear about the limitations of your knowledge." },
+            { role: "system", content: "You are a web search assistant. Provide accurate information." },
             { role: "user", content: `Search and summarize information about: ${query}` },
           ],
         }),
@@ -83,7 +75,7 @@ const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: 
       body: JSON.stringify({
         model: PROVIDERS.perplexity.models.fast,
         messages: [
-          { role: "system", content: "Be precise and concise. Provide well-sourced information." },
+          { role: "system", content: "Be precise and concise." },
           { role: "user", content: query },
         ],
       }),
@@ -103,14 +95,12 @@ const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: 
     };
   },
 
-  // Deep research using Perplexity Sonar Pro (multi-step reasoning, 2x citations)
   deep_research: async (args) => {
     const topic = args.topic as string;
     const depth = (args.depth as string) || "comprehensive";
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     
     if (!PERPLEXITY_API_KEY) {
-      console.log("[deep_research] Perplexity API key not configured, falling back to Lovable AI");
       const response = await fetch(PROVIDERS.lovable.url, {
         method: "POST",
         headers: {
@@ -120,7 +110,7 @@ const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: 
         body: JSON.stringify({
           model: PROVIDERS.lovable.models.standard,
           messages: [
-            { role: "system", content: "You are an expert researcher. Provide comprehensive, well-organized research findings with clear sections for key insights, supporting evidence, and conclusions." },
+            { role: "system", content: "You are an expert researcher. Provide comprehensive research findings." },
             { role: "user", content: `Research thoroughly: ${topic}\n\nProvide a ${depth} analysis.` },
           ],
         }),
@@ -144,21 +134,13 @@ const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: 
       body: JSON.stringify({
         model: PROVIDERS.perplexity.models.deep,
         messages: [
-          { 
-            role: "system", 
-            content: "You are an expert research assistant. Provide comprehensive, well-sourced research with detailed analysis. Structure your response with clear sections." 
-          },
-          { 
-            role: "user", 
-            content: `Research this topic thoroughly: ${topic}\n\nDepth level: ${depth}\n\nProvide:\n1. Key findings and insights\n2. Supporting evidence\n3. Different perspectives if applicable\n4. Conclusions and implications` 
-          },
+          { role: "system", content: "You are an expert research assistant." },
+          { role: "user", content: `Research this topic thoroughly: ${topic}\n\nDepth level: ${depth}` },
         ],
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[deep_research] Perplexity API error:", errorText);
       throw new Error(`Research failed: ${response.status}`);
     }
 
@@ -170,7 +152,6 @@ const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: 
     };
   },
 
-  // Web scraping using Jina AI Reader (free, no API key required)
   web_scrape: async (args) => {
     const url = args.url as string;
     
@@ -180,19 +161,14 @@ const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: 
 
     console.log(`[web_scrape] Scraping with Jina Reader: ${url}`);
     
-    // Jina AI Reader - converts any URL to clean markdown
     const jinaUrl = `${PROVIDERS.jina.url}/${url}`;
     
     const response = await fetch(jinaUrl, {
       method: "GET",
-      headers: {
-        "Accept": "text/markdown",
-      },
+      headers: { "Accept": "text/markdown" },
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[web_scrape] Jina Reader error:", errorText);
       throw new Error(`Scraping failed: ${response.status}`);
     }
 
@@ -207,25 +183,22 @@ const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: 
     };
   },
 
-  // Combined search + scrape for comprehensive results
   deep_search: async (args, supabase) => {
     const query = args.query as string;
     const scrapeFirst = args.scrape_results as boolean || false;
     
     console.log(`[deep_search] Combined search + scrape for: ${query}`);
     
-    // First, perform web search
     const searchResult = await AVAILABLE_TOOLS.web_search({ query }, supabase) as { result: string; citations: string[] };
     
-    // If scrape_results is true and we have citations, scrape the first few
     let scrapedContent: { url: string; content: string }[] = [];
-    if (scrapeFirst && searchResult.citations && searchResult.citations.length > 0) {
-      const urlsToScrape = searchResult.citations.slice(0, 3); // Scrape top 3 sources
+    if (scrapeFirst && searchResult.citations?.length > 0) {
+      const urlsToScrape = searchResult.citations.slice(0, 3);
       
       for (const url of urlsToScrape) {
         try {
-          const scraped = await AVAILABLE_TOOLS.web_scrape({ url }, supabase) as { content: string; url: string };
-          scrapedContent.push({ url, content: scraped.content.slice(0, 5000) }); // Limit content length
+          const scraped = await AVAILABLE_TOOLS.web_scrape({ url }, supabase) as { content: string };
+          scrapedContent.push({ url, content: scraped.content.slice(0, 5000) });
         } catch (e) {
           console.log(`[deep_search] Failed to scrape ${url}:`, e);
         }
@@ -243,10 +216,9 @@ const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: 
   calculate: async (args) => {
     const expression = args.expression as string;
     try {
-      // Safe math evaluation
       const result = Function(`"use strict"; return (${expression})`)();
       return { result };
-    } catch (e) {
+    } catch {
       return { error: "Invalid expression" };
     }
   },
@@ -293,32 +265,22 @@ const AVAILABLE_TOOLS: Record<string, (args: Record<string, unknown>, supabase: 
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Missing authorization", 401);
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient();
 
-    // Get user from JWT
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Invalid token", 401);
     }
 
     const body: ToolCallRequest = await req.json();
@@ -326,19 +288,15 @@ serve(async (req) => {
 
     console.log(`[tool-gateway] User ${user.id} calling tool: ${tool_name}`);
 
-    // Check if tool exists
     if (!AVAILABLE_TOOLS[tool_name]) {
-      return new Response(JSON.stringify({ error: `Unknown tool: ${tool_name}` }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse(`Unknown tool: ${tool_name}`, 400);
     }
 
-    // Check agent's tool allowlist if agent_id provided
+    // Check agent's tool allowlist
     if (agent_id) {
       const { data: agent } = await supabase
         .from("agents")
-        .select("enabled_tools_json, risky_tools_json, daily_budget_limit")
+        .select("enabled_tools_json")
         .eq("id", agent_id)
         .eq("user_id", user.id)
         .single();
@@ -346,15 +304,12 @@ serve(async (req) => {
       if (agent) {
         const enabledTools = agent.enabled_tools_json || [];
         if (enabledTools.length > 0 && !enabledTools.includes(tool_name)) {
-          return new Response(JSON.stringify({ error: `Tool ${tool_name} not allowed for this agent` }), {
-            status: 403,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return errorResponse(`Tool ${tool_name} not allowed for this agent`, 403);
         }
       }
     }
 
-    // Check workspace budget and rate limits
+    // Check workspace limits
     const { data: settings } = await supabase
       .from("workspace_settings")
       .select("*")
@@ -362,7 +317,6 @@ serve(async (req) => {
       .single();
 
     if (settings) {
-      // Check daily tool call limit
       const today = new Date().toISOString().split("T")[0];
       const { count: todayCalls } = await supabase
         .from("tool_calls")
@@ -371,23 +325,17 @@ serve(async (req) => {
         .gte("created_at", `${today}T00:00:00Z`);
 
       if (todayCalls && todayCalls >= settings.daily_tool_call_limit) {
-        return new Response(JSON.stringify({ error: "Daily tool call limit exceeded" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return errorResponse("Daily tool call limit exceeded", 429);
       }
     }
 
-    // Determine if tool requires approval
     const requiresApproval = RISKY_TOOLS.includes(tool_name) && settings?.require_approval_for_risky;
 
-    // Estimate cost based on tool type
     let costEstimate = 0.001;
     if (tool_name === "deep_research") costEstimate = 0.01;
     else if (tool_name === "web_search") costEstimate = 0.005;
     else if (tool_name === "deep_search") costEstimate = 0.015;
 
-    // Create tool_call record
     const { data: toolCall, error: insertError } = await supabase
       .from("tool_calls")
       .insert({
@@ -405,13 +353,9 @@ serve(async (req) => {
 
     if (insertError) {
       console.error("[tool-gateway] Failed to create tool_call:", insertError);
-      return new Response(JSON.stringify({ error: "Failed to log tool call" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("Failed to log tool call", 500);
     }
 
-    // If requires approval, create approval request and wait
     if (requiresApproval) {
       await supabase.from("approvals").insert({
         user_id: user.id,
@@ -432,11 +376,9 @@ serve(async (req) => {
       });
     }
 
-    // Execute the tool
     try {
       const result = await AVAILABLE_TOOLS[tool_name]({ ...args, user_id: user.id }, supabase);
       
-      // Update tool_call with result
       await supabase
         .from("tool_calls")
         .update({
@@ -448,17 +390,14 @@ serve(async (req) => {
 
       console.log(`[tool-gateway] Tool ${tool_name} completed successfully`);
 
-      return new Response(JSON.stringify({
+      return jsonResponse({
         status: "completed",
         tool_call_id: toolCall.id,
         result,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (execError) {
       console.error(`[tool-gateway] Tool ${tool_name} failed:`, execError);
       
-      // Update tool_call with error
       await supabase
         .from("tool_calls")
         .update({
@@ -468,20 +407,10 @@ serve(async (req) => {
         })
         .eq("id", toolCall.id);
 
-      return new Response(JSON.stringify({
-        status: "failed",
-        tool_call_id: toolCall.id,
-        error: execError instanceof Error ? execError.message : "Tool execution failed",
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse(execError instanceof Error ? execError.message : "Tool execution failed", 500);
     }
   } catch (error) {
     console.error("[tool-gateway] Error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return errorResponse(error instanceof Error ? error.message : "Unknown error");
   }
 });

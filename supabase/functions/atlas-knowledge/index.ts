@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { handleCors, corsHeaders, jsonResponse, errorResponse } from "../_shared/cors.ts";
+import { getSupabaseClient } from "../_shared/supabase.ts";
 
 interface KnowledgeExtraction {
   topic: string;
@@ -92,7 +88,7 @@ Return a JSON array of extractions. If nothing worth extracting, return an empty
   });
 
   if (!response.ok) {
-    console.error("Knowledge extraction failed:", await response.text());
+    console.error("[atlas-knowledge] Extraction failed:", await response.text());
     return [];
   }
 
@@ -105,47 +101,41 @@ Return a JSON array of extractions. If nothing worth extracting, return an empty
       return parsed.extractions || [];
     }
   } catch (e) {
-    console.error("Failed to parse extraction:", e);
+    console.error("[atlas-knowledge] Failed to parse extraction:", e);
   }
 
   return [];
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const { conversation, userId, source = "conversation" } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!LOVABLE_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error("Missing required environment variables");
+    if (!LOVABLE_API_KEY) {
+      return errorResponse("Missing required environment variables", 500);
     }
 
     if (!conversation || !Array.isArray(conversation)) {
-      throw new Error("Invalid conversation data");
+      return errorResponse("Invalid conversation data", 400);
     }
 
-    console.log("Extracting knowledge from conversation, user:", userId);
+    console.log("[atlas-knowledge] Extracting knowledge from conversation, user:", userId);
 
     // Extract knowledge using AI
     const extractions = await extractKnowledge(conversation, LOVABLE_API_KEY);
-    console.log("Extracted", extractions.length, "knowledge entries");
+    console.log("[atlas-knowledge] Extracted", extractions.length, "knowledge entries");
 
     if (extractions.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, extracted: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ success: true, extracted: 0 });
     }
 
     // Store in database
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = getSupabaseClient();
 
     const entries = extractions
       .filter(e => e.confidence >= 0.5) // Only store confident extractions
@@ -165,29 +155,20 @@ serve(async (req) => {
         .insert(entries);
 
       if (error) {
-        console.error("Failed to store knowledge:", error);
-        throw new Error("Failed to store knowledge");
+        console.error("[atlas-knowledge] Failed to store knowledge:", error);
+        return errorResponse("Failed to store knowledge", 500);
       }
 
-      console.log("Stored", entries.length, "knowledge entries");
+      console.log("[atlas-knowledge] Stored", entries.length, "knowledge entries");
     }
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        extracted: extractions.length,
-        stored: entries.length 
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ 
+      success: true, 
+      extracted: extractions.length,
+      stored: entries.length 
+    });
   } catch (error) {
-    console.error("Knowledge extraction error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    console.error("[atlas-knowledge] Error:", error);
+    return errorResponse(error instanceof Error ? error.message : "Unknown error");
   }
 });

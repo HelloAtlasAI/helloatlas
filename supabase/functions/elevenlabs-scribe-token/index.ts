@@ -1,25 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { handleCors, jsonResponse, errorResponse } from "../_shared/cors.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
 
     if (!ELEVENLABS_API_KEY) {
-      throw new Error("ELEVENLABS_API_KEY is not configured");
+      return errorResponse("ELEVENLABS_API_KEY is not configured", 500);
     }
 
     console.log("[scribe-token] Generating single-use token for Scribe v2 Realtime");
 
-    // Request a single-use token for realtime scribe
     const response = await fetch(
       "https://api.elevenlabs.io/v1/single-use-token/realtime_scribe",
       {
@@ -33,26 +27,15 @@ serve(async (req) => {
     if (!response.ok) {
       const error = await response.text();
       console.error("[scribe-token] ElevenLabs error:", response.status, error);
-      throw new Error(`Failed to get token: ${error}`);
+      return errorResponse(`Failed to get token: ${error}`, response.status);
     }
 
     const data = await response.json();
     console.log("[scribe-token] Token generated successfully");
 
-    return new Response(
-      JSON.stringify({ token: data.token }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return jsonResponse({ token: data.token });
   } catch (error) {
     console.error("[scribe-token] Error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return errorResponse(error instanceof Error ? error.message : "Unknown error");
   }
 });

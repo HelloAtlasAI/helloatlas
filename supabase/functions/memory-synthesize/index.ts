@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { handleCors, corsHeaders, jsonResponse, errorResponse } from "../_shared/cors.ts";
+import { getSupabaseClient } from "../_shared/supabase.ts";
 
 interface MemoryItem {
   id: string;
@@ -29,7 +25,7 @@ interface SynthesisRequest {
 // Claude Opus 4.5 for advanced memory reasoning
 const ANTHROPIC_CONFIG = {
   url: "https://api.anthropic.com/v1/messages",
-  model: "claude-opus-4-5-20251124", // Latest Opus 4.5
+  model: "claude-opus-4-5-20251124",
 };
 
 // Memory synthesis tools for Claude Opus 4.5
@@ -168,7 +164,6 @@ async function callClaudeOpus(
 
   const data = await response.json();
   
-  // Extract text content and tool calls
   let textContent = "";
   const toolCalls: Array<{ name: string; input: unknown }> = [];
   
@@ -187,14 +182,11 @@ async function callClaudeOpus(
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient();
 
     // Check for auth if user_id not provided
     let userId: string | null = null;
@@ -210,10 +202,7 @@ serve(async (req) => {
     userId = body.user_id || userId;
 
     if (!userId) {
-      return new Response(JSON.stringify({ error: "User ID required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse("User ID required", 400);
     }
 
     const { operation, options = {} } = body;
@@ -244,22 +233,19 @@ serve(async (req) => {
 
     if (memoryError) {
       console.error("[memory-synthesize] Failed to fetch memories:", memoryError);
-      throw new Error("Failed to fetch memories");
+      return errorResponse("Failed to fetch memories", 500);
     }
 
     if (!memories || memories.length === 0) {
-      return new Response(JSON.stringify({ 
+      return jsonResponse({ 
         status: "no_memories",
         message: "No memories found matching criteria"
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     console.log(`[memory-synthesize] Processing ${memories.length} memories`);
 
-    // Build operation-specific prompts
-    let systemPrompt = `You are Atlas's Memory Core, powered by Claude Opus 4.5. Your role is to analyze, synthesize, and manage the user's personal memories with deep understanding and emotional intelligence.
+    const systemPrompt = `You are Atlas's Memory Core, powered by Claude Opus 4.5. Your role is to analyze, synthesize, and manage the user's personal memories with deep understanding and emotional intelligence.
 
 You have access to memory tools to perform operations. Use them thoughtfully to help maintain a coherent, non-redundant memory bank while preserving important nuances.
 
@@ -282,27 +268,20 @@ Key principles:
 Memories to analyze:
 ${JSON.stringify(memories.map(m => ({ id: m.id, key: m.key, value: m.value, category: m.category, importance: m.importance })), null, 2)}
 
-Use the create_synthesis tool for each consolidation you identify. Also use identify_themes to find patterns.`;
+Use the create_synthesis tool for each consolidation you identify.`;
         break;
 
       case "resolve_conflicts":
-        userPrompt = `Scan these memories for contradictions or conflicts. For example:
-- "Favorite color is blue" vs "Favorite color is green"
-- Outdated information that conflicts with newer facts
-- Inconsistent preferences
+        userPrompt = `Scan these memories for contradictions or conflicts.
 
 Memories to check:
 ${JSON.stringify(memories.map(m => ({ id: m.id, key: m.key, value: m.value, category: m.category, updated_at: m.updated_at })), null, 2)}
 
-Use detect_contradictions first, then resolve_conflict for each issue found. Be thoughtful - some "contradictions" might represent genuine complexity or change over time.`;
+Use detect_contradictions first, then resolve_conflict for each issue found.`;
         break;
 
       case "extract_insights":
-        userPrompt = `Analyze these memories to extract meta-insights about the user. Look for:
-- Patterns that reveal personality traits
-- Values that emerge across different contexts
-- Life themes and priorities
-- Potential blind spots or growth areas (noted gently)
+        userPrompt = `Analyze these memories to extract meta-insights about the user.
 
 Memories to analyze:
 ${JSON.stringify(memories.map(m => ({ id: m.id, key: m.key, value: m.value, category: m.category })), null, 2)}
@@ -312,27 +291,22 @@ Use identify_themes first, then extract_insight for each significant pattern you
 
       case "prune":
         userPrompt = `Review these memories and identify candidates for removal:
-- Truly duplicate information (not just similar)
+- Truly duplicate information
 - Outdated facts that have been superseded
 - Very low-importance items that add noise
 
 Memories to review:
 ${JSON.stringify(memories.map(m => ({ id: m.id, key: m.key, value: m.value, category: m.category, importance: m.importance, updated_at: m.updated_at })), null, 2)}
 
-Be conservative - when in doubt, keep the memory. Report which memories you recommend removing and why.`;
+Be conservative - when in doubt, keep the memory.`;
         break;
 
       default:
-        return new Response(JSON.stringify({ error: "Unknown operation" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return errorResponse("Unknown operation", 400);
     }
 
-    // Call Claude Opus 4.5 with memory tools
     const result = await callClaudeOpus(systemPrompt, userPrompt, MEMORY_TOOLS);
 
-    // Process tool calls and execute them
     const operations: Array<{ tool: string; input: unknown; status: string }> = [];
     
     if (result.tool_use) {
@@ -350,7 +324,6 @@ Be conservative - when in doubt, keep the memory. Report which memories you reco
                 source_memories: string[];
               };
               
-              // Create new synthesized memory
               await supabase.from("ai_memory").insert({
                 user_id: userId,
                 key: input.synthesized_key,
@@ -369,11 +342,9 @@ Be conservative - when in doubt, keep the memory. Report which memories you reco
                 conflicting_memories: string[];
                 resolution: string;
                 merged_value?: string;
-                reasoning: string;
               };
               
               if (input.resolution === "keep_newer" || input.resolution === "discard_both") {
-                // Remove older/all conflicting memories
                 const toRemove = input.resolution === "discard_both" 
                   ? input.conflicting_memories 
                   : input.conflicting_memories.slice(1);
@@ -382,7 +353,6 @@ Be conservative - when in doubt, keep the memory. Report which memories you reco
                   await supabase.from("ai_memory").delete().eq("id", memId).eq("user_id", userId);
                 }
               } else if (input.resolution === "merge" && input.merged_value) {
-                // Update first memory with merged value, remove others
                 const [keepId, ...removeIds] = input.conflicting_memories;
                 await supabase.from("ai_memory")
                   .update({ value: input.merged_value, updated_at: new Date().toISOString() })
@@ -406,7 +376,6 @@ Be conservative - when in doubt, keep the memory. Report which memories you reco
                 confidence: number;
               };
               
-              // Store insight as a high-importance memory
               await supabase.from("ai_memory").insert({
                 user_id: userId,
                 key: `insight_${input.insight_key}`,
@@ -427,7 +396,6 @@ Be conservative - when in doubt, keep the memory. Report which memories you reco
 
             case "identify_themes":
             case "detect_contradictions": {
-              // These are analytical tools - just record the analysis
               operations.push({ tool: toolCall.name, input: toolCall.input, status: "analyzed" });
               break;
             }
@@ -442,7 +410,6 @@ Be conservative - when in doubt, keep the memory. Report which memories you reco
       }
     }
 
-    // Log the synthesis operation
     await supabase.from("atlas_health_metrics").insert({
       metric_type: "memory_synthesis",
       value: operations.length,
@@ -456,24 +423,17 @@ Be conservative - when in doubt, keep the memory. Report which memories you reco
 
     console.log(`[memory-synthesize] Completed ${operation} with ${operations.length} tool executions`);
 
-    return new Response(JSON.stringify({
+    return jsonResponse({
       status: "completed",
       operation,
       memories_analyzed: memories.length,
       tool_operations: operations,
       analysis: result.content,
       model: ANTHROPIC_CONFIG.model,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
     console.error("[memory-synthesize] Error:", error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : "Unknown error" 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return errorResponse(error instanceof Error ? error.message : "Unknown error");
   }
 });

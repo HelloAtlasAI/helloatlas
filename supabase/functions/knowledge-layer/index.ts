@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { handleCors, jsonResponse, errorResponse } from "../_shared/cors.ts";
+import { getSupabaseClient, getSupabaseUrl } from "../_shared/supabase.ts";
 
 interface RetrieveRequest {
   query: string;
@@ -57,7 +53,7 @@ function calculateSimilarity(query: string, text: string): number {
 
 // Retrieve unified context from all sources
 async function retrieveContext(
-  supabase: any,
+  supabase: ReturnType<typeof getSupabaseClient>,
   request: RetrieveRequest
 ): Promise<UnifiedEntry[]> {
   const {
@@ -72,7 +68,6 @@ async function retrieveContext(
   const results: UnifiedEntry[] = [];
   const queries: Promise<void>[] = [];
 
-  // Query knowledge entries
   if (types.includes("knowledge")) {
     queries.push((async () => {
       let q = supabase
@@ -117,7 +112,6 @@ async function retrieveContext(
     })());
   }
 
-  // Query memories
   if (types.includes("memory")) {
     queries.push((async () => {
       let q = supabase
@@ -159,7 +153,6 @@ async function retrieveContext(
     })());
   }
 
-  // Query research topics
   if (types.includes("research")) {
     queries.push((async () => {
       let q = supabase
@@ -204,7 +197,6 @@ async function retrieveContext(
     })());
   }
 
-  // Query session context (working memory)
   if (types.includes("context")) {
     queries.push((async () => {
       if (!userId) return;
@@ -229,7 +221,7 @@ async function retrieveContext(
             content: item.content,
             category: item.context_type,
             relevanceScore: (item.confidence || 0.8) * (0.5 + similarity * 0.5),
-            isValidated: true, // Session context is ephemeral, no validation needed
+            isValidated: true,
             isFake: false,
             validationScore: 1,
             source: "session",
@@ -240,17 +232,15 @@ async function retrieveContext(
     })());
   }
 
-  // Execute all queries in parallel
   await Promise.all(queries);
 
-  // Sort by relevance and return top results
   results.sort((a, b) => b.relevanceScore - a.relevanceScore);
   return results.slice(0, limit);
 }
 
 // Store new entry and optionally trigger validation
 async function storeEntry(
-  supabase: any,
+  supabase: ReturnType<typeof getSupabaseClient>,
   supabaseUrl: string,
   request: StoreRequest
 ): Promise<{ id: string; type: string }> {
@@ -354,7 +344,7 @@ async function storeEntry(
             source: source || "api",
             userId,
           }],
-          immediate: false, // Background validation
+          immediate: false,
         }),
       }).catch(e => console.log("[knowledge-layer] Validation trigger failed:", e));
     } catch (e) {
@@ -366,27 +356,24 @@ async function storeEntry(
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const url = new URL(req.url);
     const path = url.pathname.split("/").pop();
     
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = getSupabaseClient();
+    const SUPABASE_URL = getSupabaseUrl();
 
     if (req.method === "GET" || path === "retrieve") {
-      // Handle retrieve request
       let request: RetrieveRequest;
       
       if (req.method === "GET") {
         request = {
           query: url.searchParams.get("query") || "",
           userId: url.searchParams.get("userId") || undefined,
-          types: url.searchParams.get("types")?.split(",") as any || undefined,
+          types: url.searchParams.get("types")?.split(",") as RetrieveRequest["types"] || undefined,
           limit: parseInt(url.searchParams.get("limit") || "20"),
           includeUnvalidated: url.searchParams.get("includeUnvalidated") !== "false",
           excludeFake: url.searchParams.get("excludeFake") !== "false",
@@ -401,62 +388,42 @@ serve(async (req) => {
       
       console.log(`[knowledge-layer] Found ${results.length} entries`);
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          count: results.length,
-          entries: results,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({
+        success: true,
+        count: results.length,
+        entries: results,
+      });
     }
 
     if (req.method === "POST" && path === "store") {
-      // Handle store request
       const request: StoreRequest = await req.json();
       
       console.log(`[knowledge-layer] Storing ${request.type}: "${request.topic}"`);
       
       const result = await storeEntry(supabase, SUPABASE_URL, request);
       
-      return new Response(
-        JSON.stringify({
-          success: true,
-          ...result,
-          message: `Stored ${result.type} entry`,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({
+        success: true,
+        ...result,
+        message: `Stored ${result.type} entry`,
+      });
     }
 
-    // Default: retrieve with POST body
     if (req.method === "POST") {
       const body = await req.json();
       
       if (body.action === "store") {
         const result = await storeEntry(supabase, SUPABASE_URL, body);
-        return new Response(
-          JSON.stringify({ success: true, ...result }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ success: true, ...result });
       }
 
       const results = await retrieveContext(supabase, body);
-      return new Response(
-        JSON.stringify({ success: true, count: results.length, entries: results }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ success: true, count: results.length, entries: results });
     }
 
-    return new Response(
-      JSON.stringify({ error: "Method not allowed" }),
-      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse("Method not allowed", 405);
   } catch (error) {
     console.error("[knowledge-layer] Error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(error instanceof Error ? error.message : "Unknown error");
   }
 });

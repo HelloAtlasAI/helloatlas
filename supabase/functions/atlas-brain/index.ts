@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { handleCors, corsHeaders, jsonResponse, errorResponse } from "../_shared/cors.ts";
+import { getSupabaseClient, getSupabaseUrl } from "../_shared/supabase.ts";
 
 interface BrainRunMetrics {
   newsCollected: number;
@@ -25,9 +21,8 @@ interface QueuedTopic {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   const startTime = Date.now();
   const metrics: BrainRunMetrics = {
@@ -42,9 +37,9 @@ serve(async (req) => {
   try {
     const { mode = "full", maxResearchItems = 5, maxValidationItems = 10 } = await req.json().catch(() => ({}));
 
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const supabase = getSupabaseClient();
+    const SUPABASE_URL = getSupabaseUrl();
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     console.log(`[atlas-brain] Starting ${mode} learning cycle...`);
 
@@ -62,7 +57,7 @@ serve(async (req) => {
     const runId = runData?.id;
 
     // Helper to invoke edge functions
-    const invokeFunction = async (name: string, body: any): Promise<any> => {
+    const invokeFunction = async (name: string, body: unknown): Promise<unknown> => {
       try {
         const response = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
           method: "POST",
@@ -85,18 +80,19 @@ serve(async (req) => {
       }
     };
 
-    // PHASE 1: Parallel data collection (News Pulse + Topic Discovery)
+    // PHASE 1: Parallel data collection
     console.log("[atlas-brain] Phase 1: Collecting news and discovering topics...");
     
-    const phase1Promises: Promise<any>[] = [];
+    const phase1Promises: Promise<unknown>[] = [];
     
     if (mode === "full" || mode === "news_pulse") {
       phase1Promises.push(
         invokeFunction("atlas-news-pulse", { categories: ["general", "technology", "science", "business"] })
-          .then(result => {
-            if (result?.newsCollected) {
-              metrics.newsCollected = result.newsCollected;
-              console.log(`[atlas-brain] Collected ${result.newsCollected} news items`);
+          .then((result: unknown) => {
+            const typedResult = result as { newsCollected?: number } | null;
+            if (typedResult?.newsCollected) {
+              metrics.newsCollected = typedResult.newsCollected;
+              console.log(`[atlas-brain] Collected ${typedResult.newsCollected} news items`);
             }
             return result;
           })
@@ -106,10 +102,11 @@ serve(async (req) => {
     if (mode === "full" || mode === "topic_discovery") {
       phase1Promises.push(
         invokeFunction("atlas-topic-discovery", { maxTopics: 5 })
-          .then(result => {
-            if (result?.topicsGenerated) {
-              metrics.topicsGenerated = result.topicsGenerated;
-              console.log(`[atlas-brain] Generated ${result.topicsGenerated} new topics`);
+          .then((result: unknown) => {
+            const typedResult = result as { topicsGenerated?: number } | null;
+            if (typedResult?.topicsGenerated) {
+              metrics.topicsGenerated = typedResult.topicsGenerated;
+              console.log(`[atlas-brain] Generated ${typedResult.topicsGenerated} new topics`);
             }
             return result;
           })
@@ -118,10 +115,9 @@ serve(async (req) => {
 
     await Promise.all(phase1Promises);
 
-    // PHASE 2: Process research queue in parallel
+    // PHASE 2: Process research queue
     console.log("[atlas-brain] Phase 2: Processing research queue...");
 
-    // Get queued items ordered by priority
     const { data: queuedItems, error: queueError } = await supabase
       .from("atlas_research_queue")
       .select("*")
@@ -135,19 +131,16 @@ serve(async (req) => {
     } else if (queuedItems && queuedItems.length > 0) {
       console.log(`[atlas-brain] Processing ${queuedItems.length} queued research items`);
 
-        // Mark items as processing
-        await supabase
-          .from("atlas_research_queue")
-          .update({ 
-            status: "processing", 
-            processing_started_at: new Date().toISOString(),
-          })
-          .in("id", queuedItems.map((q: QueuedTopic) => q.id));
+      await supabase
+        .from("atlas_research_queue")
+        .update({ 
+          status: "processing", 
+          processing_started_at: new Date().toISOString(),
+        })
+        .in("id", queuedItems.map((q: QueuedTopic) => q.id));
 
-      // Process research items in parallel
       const researchPromises = queuedItems.map(async (item: QueuedTopic) => {
         try {
-          // First, create a research topic entry
           const { data: topicData, error: insertError } = await supabase
             .from("atlas_research_topics")
             .insert({
@@ -165,15 +158,13 @@ serve(async (req) => {
             throw new Error(`Failed to create topic: ${insertError.message}`);
           }
 
-          // Trigger research
-          const result = await invokeFunction("atlas-research", {
+          await invokeFunction("atlas-research", {
             topicId: topicData.id,
             action: "start",
             autoDeepen: item.priority_score > 0.7,
             maxDepth: 2,
           });
 
-          // Mark queue item as completed
           await supabase
             .from("atlas_research_queue")
             .update({ 
@@ -186,14 +177,10 @@ serve(async (req) => {
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
           
-          // Mark queue item as failed or retry
-          const newAttempts = (item as any).attempts + 1;
-          const shouldRetry = newAttempts < (item as any).max_attempts;
-          
           await supabase
             .from("atlas_research_queue")
             .update({ 
-              status: shouldRetry ? "queued" : "failed",
+              status: "failed",
               error_message: msg,
               last_attempt_at: new Date().toISOString(),
             })
@@ -208,18 +195,16 @@ serve(async (req) => {
       console.log(`[atlas-brain] Completed ${metrics.researchCompleted}/${queuedItems.length} research items`);
     }
 
-    // PHASE 3: Batch validation of unvalidated entries
+    // PHASE 3: Batch validation
     if (mode === "full" || mode === "validation_batch") {
       console.log("[atlas-brain] Phase 3: Running batch validation...");
 
-      // Get unvalidated knowledge entries
       const { data: unvalidatedKnowledge } = await supabase
         .from("atlas_knowledge_entries")
         .select("id, topic, content, source")
         .eq("is_validated", false)
         .limit(maxValidationItems);
 
-      // Get unvalidated research topics
       const { data: unvalidatedResearch } = await supabase
         .from("atlas_research_topics")
         .select("id, topic, findings")
@@ -227,10 +212,16 @@ serve(async (req) => {
         .eq("status", "completed")
         .limit(maxValidationItems);
 
-      const validationEntries: any[] = [];
+      const validationEntries: Array<{
+        entryId: string;
+        entryType: string;
+        topic: string;
+        content: string;
+        source: string;
+      }> = [];
 
       if (unvalidatedKnowledge) {
-        validationEntries.push(...unvalidatedKnowledge.map((e: any) => ({
+        validationEntries.push(...unvalidatedKnowledge.map((e) => ({
           entryId: e.id,
           entryType: "knowledge",
           topic: e.topic,
@@ -240,7 +231,7 @@ serve(async (req) => {
       }
 
       if (unvalidatedResearch) {
-        validationEntries.push(...unvalidatedResearch.map((e: any) => ({
+        validationEntries.push(...unvalidatedResearch.map((e) => ({
           entryId: e.id,
           entryType: "research",
           topic: e.topic,
@@ -254,8 +245,8 @@ serve(async (req) => {
         
         const validationResult = await invokeFunction("validation-engine", {
           entries: validationEntries,
-          immediate: false, // Background processing
-        });
+          immediate: false,
+        }) as { queued?: boolean } | null;
 
         if (validationResult?.queued) {
           metrics.entriesValidated = validationEntries.length;
@@ -282,28 +273,17 @@ serve(async (req) => {
     }
 
     console.log(`[atlas-brain] Learning cycle complete in ${metrics.totalDurationMs}ms`);
-    console.log(`[atlas-brain] Results: ${metrics.newsCollected} news, ${metrics.topicsGenerated} topics, ${metrics.researchCompleted} research, ${metrics.entriesValidated} validated`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        runId,
-        mode,
-        metrics,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({
+      success: true,
+      runId,
+      mode,
+      metrics,
+    });
   } catch (error) {
     console.error("[atlas-brain] Fatal error:", error);
     metrics.totalDurationMs = Date.now() - startTime;
     
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        metrics,
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(error instanceof Error ? error.message : "Unknown error");
   }
 });
