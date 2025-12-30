@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { handleCors, jsonResponse, errorResponse } from "../_shared/cors.ts";
+import { getSupabaseClient } from "../_shared/supabase.ts";
 
 interface ValidationRequest {
   entryId: string;
@@ -69,7 +65,7 @@ Respond ONLY with valid JSON:
   "sources_to_verify": ["suggested sources to cross-reference"]
 }`;
 
-// Validate with Claude Opus 4.5 (Deep reasoning)
+// Validate with Claude
 async function validateWithClaude(
   entry: ValidationRequest,
   anthropicKey: string
@@ -106,12 +102,11 @@ async function validateWithClaude(
     const data = await response.json();
     const content = data.content?.[0]?.text || "{}";
     
-    // Parse JSON response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { verdict: "suspicious", confidence: 0.5, reasoning: "Parse error" };
 
     return {
-      model: "claude-opus-4-5",
+      model: "claude-sonnet-4",
       verdict: parsed.verdict || "suspicious",
       confidence: parsed.confidence || 0.5,
       reasoning: parsed.reasoning || "No reasoning provided",
@@ -121,7 +116,7 @@ async function validateWithClaude(
   } catch (error) {
     console.error("[validation-engine] Claude validation error:", error);
     return {
-      model: "claude-opus-4-5",
+      model: "claude-sonnet-4",
       verdict: "suspicious",
       confidence: 0.3,
       reasoning: `Validation error: ${error instanceof Error ? error.message : "unknown"}`,
@@ -131,7 +126,7 @@ async function validateWithClaude(
   }
 }
 
-// Validate with Gemini 2.5 Pro (Knowledge breadth)
+// Validate with Gemini
 async function validateWithGemini(
   entry: ValidationRequest,
   lovableKey: string
@@ -191,7 +186,7 @@ async function validateWithGemini(
   }
 }
 
-// Validate with Perplexity (Live source verification)
+// Validate with Perplexity
 async function validateWithPerplexity(
   entry: ValidationRequest,
   perplexityKey: string
@@ -259,10 +254,8 @@ function calculateConsensus(results: ValidationResult[]): ConsensusResult {
   const suspiciousVotes = results.filter(r => r.verdict === "suspicious").length;
   const fakeVotes = results.filter(r => r.verdict === "fake").length;
 
-  // Weighted confidence score
   const avgConfidence = results.reduce((sum, r) => sum + r.confidence, 0) / results.length;
 
-  // Determine final verdict (minimum 2 agreeing models required)
   let finalVerdict: "valid" | "suspicious" | "fake";
   let agreementCount: number;
 
@@ -276,12 +269,10 @@ function calculateConsensus(results: ValidationResult[]): ConsensusResult {
     finalVerdict = "suspicious";
     agreementCount = suspiciousVotes;
   } else {
-    // No consensus - default to suspicious
     finalVerdict = "suspicious";
     agreementCount = Math.max(validVotes, suspiciousVotes, fakeVotes);
   }
 
-  // Calculate consensus score based on agreement and confidence
   const consensusScore = (agreementCount / results.length) * avgConfidence;
 
   return {
@@ -294,7 +285,7 @@ function calculateConsensus(results: ValidationResult[]): ConsensusResult {
 
 // Store validation logs
 async function storeValidationLogs(
-  supabase: any,
+  supabase: ReturnType<typeof getSupabaseClient>,
   entryId: string,
   entryType: string,
   results: ValidationResult[]
@@ -315,7 +306,7 @@ async function storeValidationLogs(
 
 // Update entry with validation results
 async function updateEntryValidation(
-  supabase: any,
+  supabase: ReturnType<typeof getSupabaseClient>,
   entryId: string,
   entryType: string,
   consensus: ConsensusResult
@@ -349,9 +340,8 @@ async function updateEntryValidation(
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const { entries, immediate = false } = await req.json();
@@ -359,41 +349,31 @@ serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is required");
+      return errorResponse("LOVABLE_API_KEY is required", 500);
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = getSupabaseClient();
 
     const validationEntries: ValidationRequest[] = Array.isArray(entries) ? entries : [entries];
     const results: Array<{ entryId: string; consensus: ConsensusResult }> = [];
 
     console.log(`[validation-engine] Validating ${validationEntries.length} entries`);
 
-    // Process all entries in parallel
     const processEntry = async (entry: ValidationRequest) => {
-      const startTime = Date.now();
-      
-      // Run all validators in parallel (minimum 2 models)
       const validationPromises: Promise<ValidationResult>[] = [];
 
-      // Always use Gemini (via Lovable)
       validationPromises.push(validateWithGemini(entry, LOVABLE_API_KEY!));
 
-      // Use Claude if available
       if (ANTHROPIC_API_KEY) {
         validationPromises.push(validateWithClaude(entry, ANTHROPIC_API_KEY));
       }
 
-      // Use Perplexity if available (best for live source verification)
       if (PERPLEXITY_API_KEY) {
         validationPromises.push(validateWithPerplexity(entry, PERPLEXITY_API_KEY));
       }
 
-      // If we only have Gemini, run it twice with different prompts (basic and strict)
       if (validationPromises.length < 2) {
         validationPromises.push(validateWithGemini(
           { ...entry, content: `STRICT VERIFICATION: ${entry.content}` },
@@ -404,58 +384,42 @@ serve(async (req) => {
       const validatorResults = await Promise.all(validationPromises);
       const consensus = calculateConsensus(validatorResults);
 
-      console.log(`[validation-engine] Entry ${entry.entryId}: ${consensus.finalVerdict} (score: ${consensus.consensusScore.toFixed(2)}, ${consensus.agreementCount}/${validatorResults.length} agree)`);
+      console.log(`[validation-engine] Entry ${entry.entryId}: ${consensus.finalVerdict} (score: ${consensus.consensusScore.toFixed(2)})`);
 
-      // Store logs and update entry in parallel
       await Promise.all([
         storeValidationLogs(supabase, entry.entryId, entry.entryType, validatorResults),
         updateEntryValidation(supabase, entry.entryId, entry.entryType, consensus),
       ]);
 
-      return {
-        entryId: entry.entryId,
-        consensus,
-        totalTimeMs: Date.now() - startTime,
-      };
+      return { entryId: entry.entryId, consensus };
     };
 
     if (immediate) {
-      // Process all entries in parallel for real-time validation
       const allResults = await Promise.all(validationEntries.map(processEntry));
       results.push(...allResults);
     } else {
-      // Process in background for non-critical validation
       Promise.all(validationEntries.map(processEntry))
         .then(r => console.log(`[validation-engine] Background validation complete: ${r.length} entries`))
         .catch(e => console.error("[validation-engine] Background validation error:", e));
 
-      return new Response(
-        JSON.stringify({ 
-          message: `Validation queued for ${validationEntries.length} entries`,
-          queued: true,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ 
+        message: `Validation queued for ${validationEntries.length} entries`,
+        queued: true,
+      });
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        validated: results.length,
-        results: results.map(r => ({
-          entryId: r.entryId,
-          verdict: r.consensus.finalVerdict,
-          score: r.consensus.consensusScore,
-          agreement: `${r.consensus.agreementCount}/${r.consensus.validatorResults.length}`,
-        })),
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({
+      success: true,
+      validated: results.length,
+      results: results.map(r => ({
+        entryId: r.entryId,
+        verdict: r.consensus.finalVerdict,
+        score: r.consensus.consensusScore,
+        agreement: `${r.consensus.agreementCount}/${r.consensus.validatorResults.length}`,
+      })),
+    });
   } catch (error) {
     console.error("[validation-engine] Error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(error instanceof Error ? error.message : "Unknown error");
   }
 });
