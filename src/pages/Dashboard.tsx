@@ -11,6 +11,7 @@ import { AtlasInterface } from '@/components/dashboard/AtlasInterface';
 import { MiniAICard } from '@/components/dashboard/MiniAICard';
 import { ImmersiveCardShell } from '@/components/dashboard/ImmersiveCardShell';
 import { MorphableCard } from '@/components/dashboard/MorphableCard';
+import { CardErrorBoundary } from '@/components/dashboard/CardErrorBoundary';
 import { EmailCard } from '@/components/dashboard/EmailCard';
 import { CalendarCard } from '@/components/dashboard/CalendarCard';
 import { WeatherCard } from '@/components/dashboard/WeatherCard';
@@ -306,9 +307,11 @@ const Dashboard = () => {
             animate="visible"
             custom={1}
           >
-            <MorphableCard notch="bottom-right" notchSize={20} enabled={false}>
-              <WeatherCard onExpand={() => setExpandedCard('weather')} />
-            </MorphableCard>
+            <CardErrorBoundary cardName="Weather">
+              <MorphableCard notch="bottom-right" notchSize={20} enabled={false}>
+                <WeatherCard onExpand={() => setExpandedCard('weather')} />
+              </MorphableCard>
+            </CardErrorBoundary>
           </motion.div>
 
           {/* Travel */}
@@ -321,9 +324,11 @@ const Dashboard = () => {
             animate="visible"
             custom={2}
           >
-            <MorphableCard notch="bottom-left" notchSize={20} enabled={false}>
-              <TravelCard onExpand={() => setExpandedCard('travel')} />
-            </MorphableCard>
+            <CardErrorBoundary cardName="Travel">
+              <MorphableCard notch="bottom-left" notchSize={20} enabled={false}>
+                <TravelCard onExpand={() => setExpandedCard('travel')} />
+              </MorphableCard>
+            </CardErrorBoundary>
           </motion.div>
 
           {/* Email */}
@@ -336,7 +341,9 @@ const Dashboard = () => {
             animate="visible"
             custom={3}
           >
-            <EmailCard onExpand={() => setExpandedCard('email')} />
+            <CardErrorBoundary cardName="Email">
+              <EmailCard onExpand={() => setExpandedCard('email')} />
+            </CardErrorBoundary>
           </motion.div>
 
           {/* Calendar */}
@@ -349,7 +356,9 @@ const Dashboard = () => {
             animate="visible"
             custom={4}
           >
-            <CalendarCard onExpand={() => setExpandedCard('calendar')} />
+            <CardErrorBoundary cardName="Calendar">
+              <CalendarCard onExpand={() => setExpandedCard('calendar')} />
+            </CardErrorBoundary>
           </motion.div>
 
           {/* Stocks */}
@@ -362,9 +371,11 @@ const Dashboard = () => {
             animate="visible"
             custom={5}
           >
-            <MorphableCard notch="top-left" notchSize={12} enabled={false}>
-              <StocksCard onExpand={() => setExpandedCard('stocks')} />
-            </MorphableCard>
+            <CardErrorBoundary cardName="Stocks">
+              <MorphableCard notch="top-left" notchSize={12} enabled={false}>
+                <StocksCard onExpand={() => setExpandedCard('stocks')} />
+              </MorphableCard>
+            </CardErrorBoundary>
           </motion.div>
 
           {/* Tasks */}
@@ -377,7 +388,9 @@ const Dashboard = () => {
             animate="visible"
             custom={6}
           >
-            <TasksCard onExpand={() => setExpandedCard('tasks')} />
+            <CardErrorBoundary cardName="Tasks">
+              <TasksCard onExpand={() => setExpandedCard('tasks')} />
+            </CardErrorBoundary>
           </motion.div>
 
           {/* Notes */}
@@ -390,7 +403,9 @@ const Dashboard = () => {
             animate="visible"
             custom={7}
           >
-            <NotesCard onExpand={() => setExpandedCard('notes')} />
+            <CardErrorBoundary cardName="Notes">
+              <NotesCard onExpand={() => setExpandedCard('notes')} />
+            </CardErrorBoundary>
           </motion.div>
 
           {/* News */}
@@ -403,7 +418,9 @@ const Dashboard = () => {
             animate="visible"
             custom={8}
           >
-            <NewsCard onExpand={() => setExpandedCard('news')} />
+            <CardErrorBoundary cardName="News">
+              <NewsCard onExpand={() => setExpandedCard('news')} />
+            </CardErrorBoundary>
           </motion.div>
 
           {/* Documents */}
@@ -416,9 +433,11 @@ const Dashboard = () => {
             animate="visible"
             custom={9}
           >
-            <MorphableCard notch="top-right" notchSize={10} enabled={false}>
-              <DocumentsCard onExpand={() => setExpandedCard('documents')} />
-            </MorphableCard>
+            <CardErrorBoundary cardName="Documents">
+              <MorphableCard notch="top-right" notchSize={10} enabled={false}>
+                <DocumentsCard onExpand={() => setExpandedCard('documents')} />
+              </MorphableCard>
+            </CardErrorBoundary>
           </motion.div>
         </div>
         </LayoutGroup>

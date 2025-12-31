@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders, handleCors, jsonResponse, errorResponse } from "../_shared/cors.ts";
+import { getSupabaseClient, getSupabaseUrl } from "../_shared/supabase.ts";
 
 interface AgentRunRequest {
   agent_id: string;
@@ -26,9 +22,9 @@ const PROVIDERS = {
   anthropic: {
     url: "https://api.anthropic.com/v1/messages",
     models: {
-      // Claude Opus 4.5 for advanced memory and reasoning tasks
-      memory: "claude-opus-4-5-20251124",     // Memory synthesis, consolidation
-      reasoner: "claude-opus-4-5-20251124",   // Complex multi-step reasoning
+      // Claude Sonnet 4.5 for memory and reasoning tasks
+      memory: "claude-sonnet-4-5",            // Memory synthesis, consolidation
+      reasoner: "claude-sonnet-4-5",          // Complex multi-step reasoning
       // Claude Sonnet 4.5 for faster analytical tasks
       critic: "claude-sonnet-4-5",            // Code review, verification
       creative: "claude-sonnet-4-5",          // Creative writing, nuanced responses
@@ -276,9 +272,8 @@ serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseUrl = getSupabaseUrl();
+    const supabase = getSupabaseClient();
 
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
