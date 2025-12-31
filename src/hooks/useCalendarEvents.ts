@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useDataFetching } from './useDataFetching';
+import { useCrudOperations } from './useCrudOperations';
 
 export interface CalendarEvent {
   id: string;
@@ -22,31 +24,42 @@ const transformEvent = (data: any): CalendarEvent => ({
     : []
 });
 
+const sortByStartTime = (a: CalendarEvent, b: CalendarEvent) => 
+  new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+
 export const useCalendarEvents = () => {
   const { user } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [crudError, setCrudError] = useState<string | null>(null);
 
-  const fetchEvents = useCallback(async () => {
-    if (!user) return;
+  const fetcher = useCallback(async (): Promise<CalendarEvent[]> => {
+    if (!user) return [];
     
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('user_events')
-        .select('*')
-        .gte('start_time', new Date().toISOString().split('T')[0])
-        .order('start_time', { ascending: true });
+    const { data, error } = await supabase
+      .from('user_events')
+      .select('*')
+      .gte('start_time', new Date().toISOString().split('T')[0])
+      .order('start_time', { ascending: true });
 
-      if (error) throw error;
-      setEvents((data || []).map(transformEvent));
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
+    if (error) throw error;
+    return (data || []).map(transformEvent);
   }, [user]);
+
+  const { isLoading, error: fetchError, refetch } = useDataFetching<CalendarEvent[]>({
+    fetcher,
+    enabled: !!user,
+    onSuccess: setEvents,
+  });
+
+  const { add, update, remove } = useCrudOperations<CalendarEvent>(
+    { items: events, setItems: setEvents, isLoading, error: crudError, setError: setCrudError },
+    { 
+      table: 'user_events', 
+      userId: user?.id, 
+      transform: transformEvent,
+      sortFn: sortByStartTime,
+    }
+  );
 
   const addEvent = useCallback(async (event: {
     title: string;
@@ -57,74 +70,29 @@ export const useCalendarEvents = () => {
     event_type?: string;
     attendees?: string[];
   }) => {
-    if (!user) return null;
+    return add({
+      title: event.title,
+      description: event.description || null,
+      start_time: event.start_time.toISOString(),
+      end_time: event.end_time?.toISOString() || null,
+      location: event.location || null,
+      event_type: event.event_type || 'meeting',
+      attendees: event.attendees || [],
+    } as Partial<CalendarEvent>);
+  }, [add]);
 
-    try {
-      const { data, error } = await supabase
-        .from('user_events')
-        .insert({
-          user_id: user.id,
-          title: event.title,
-          description: event.description || null,
-          start_time: event.start_time.toISOString(),
-          end_time: event.end_time?.toISOString() || null,
-          location: event.location || null,
-          event_type: event.event_type || 'meeting',
-          attendees: event.attendees || [],
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      const newEvent = transformEvent(data);
-      setEvents(prev => [...prev, newEvent].sort((a, b) => 
-        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-      ));
-      return newEvent;
-    } catch (err: any) {
-      setError(err.message);
-      return null;
-    }
-  }, [user]);
-
-  const updateEvent = useCallback(async (id: string, updates: Partial<Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>>) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_events')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      const updated = transformEvent(data);
-      setEvents(prev => prev.map(event => event.id === id ? updated : event));
-      return updated;
-    } catch (err: any) {
-      setError(err.message);
-      return null;
-    }
-  }, []);
+  const updateEvent = useCallback(async (
+    id: string, 
+    updates: Partial<Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>>
+  ) => {
+    return update(id, updates);
+  }, [update]);
 
   const deleteEvent = useCallback(async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('user_events')
-        .delete()
-        .eq('id', id);
+    return remove(id);
+  }, [remove]);
 
-      if (error) throw error;
-      setEvents(prev => prev.filter(event => event.id !== id));
-      return true;
-    } catch (err: any) {
-      setError(err.message);
-      return false;
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+  const error = fetchError || crudError;
 
   return {
     events,
@@ -133,6 +101,6 @@ export const useCalendarEvents = () => {
     addEvent,
     updateEvent,
     deleteEvent,
-    refetch: fetchEvents,
+    refetch,
   };
 };
