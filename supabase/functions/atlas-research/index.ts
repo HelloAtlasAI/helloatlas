@@ -1,14 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { corsHeaders, handleCors, jsonResponse, errorResponse } from "../_shared/cors.ts";
+import { getSupabaseClient, getSupabaseUrl } from "../_shared/supabase.ts";
 
 // Declare EdgeRuntime for background tasks
 declare const EdgeRuntime: {
   waitUntil: (promise: Promise<unknown>) => void;
-};
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 interface ResearchFinding {
@@ -447,14 +443,14 @@ serve(async (req) => {
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_URL = getSupabaseUrl();
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!LOVABLE_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!LOVABLE_API_KEY) {
       throw new Error("Missing required environment variables");
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = getSupabaseClient();
 
     // Log provider being used
     console.log(`[atlas-research] Provider: ${PERPLEXITY_API_KEY ? 'Perplexity sonar-pro' : 'Lovable AI (fallback)'}`);
