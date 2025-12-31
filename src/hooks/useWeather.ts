@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useMemo } from 'react';
+import { useEdgeFunction } from './useEdgeFunction';
 
 export interface WeatherData {
   location: string;
@@ -17,57 +17,43 @@ export interface WeatherData {
   }>;
 }
 
+const FALLBACK_WEATHER: WeatherData = {
+  location: 'San Francisco',
+  temp: 68,
+  condition: 'Partly Cloudy',
+  humidity: 65,
+  windSpeed: 12,
+  icon: 'partly-cloudy',
+  sunrise: '6:42 AM',
+  sunset: '5:24 PM',
+  hourly: [
+    { time: 'Now', temp: 68, icon: 'partly-cloudy' },
+    { time: '12PM', temp: 71, icon: 'sunny' },
+    { time: '3PM', temp: 72, icon: 'sunny' },
+    { time: '6PM', temp: 69, icon: 'partly-cloudy' },
+    { time: '9PM', temp: 64, icon: 'cloudy' },
+  ],
+};
+
 export const useWeather = (city: string = 'San Francisco') => {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const fallbackData = useMemo(() => ({
+    ...FALLBACK_WEATHER,
+    location: city,
+  }), [city]);
 
-  const fetchWeather = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('get-weather', {
-        body: { city }
-      });
-
-      if (error) throw error;
-      setWeather(data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message);
-      // Use mock data as fallback
-      setWeather({
-        location: city,
-        temp: 68,
-        condition: 'Partly Cloudy',
-        humidity: 65,
-        windSpeed: 12,
-        icon: 'partly-cloudy',
-        sunrise: '6:42 AM',
-        sunset: '5:24 PM',
-        hourly: [
-          { time: 'Now', temp: 68, icon: 'partly-cloudy' },
-          { time: '12PM', temp: 71, icon: 'sunny' },
-          { time: '3PM', temp: 72, icon: 'sunny' },
-          { time: '6PM', temp: 69, icon: 'partly-cloudy' },
-          { time: '9PM', temp: 64, icon: 'cloudy' },
-        ]
-      });
-    } finally {
-      setIsLoading(false);
+  const { data, isLoading, error, refetch } = useEdgeFunction<WeatherData>(
+    'get-weather',
+    { city },
+    {
+      fallbackData,
+      refreshInterval: 30 * 60 * 1000, // 30 minutes
     }
-  }, [city]);
-
-  useEffect(() => {
-    fetchWeather();
-    // Refresh every 30 minutes
-    const interval = setInterval(fetchWeather, 30 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchWeather]);
+  );
 
   return {
-    weather,
+    weather: data,
     isLoading,
     error,
-    refetch: fetchWeather,
+    refetch,
   };
 };

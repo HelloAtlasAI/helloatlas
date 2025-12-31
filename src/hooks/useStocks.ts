@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useMemo } from 'react';
+import { useEdgeFunction } from './useEdgeFunction';
 
 export interface StockData {
   symbol: string;
@@ -18,51 +18,30 @@ const MOCK_STOCKS: StockData[] = [
 ];
 
 export const useStocks = (symbols: string[]) => {
-  const [stocks, setStocks] = useState<StockData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Stabilize symbols array reference using JSON comparison
+  // Stabilize symbols for memoization
   const symbolsKey = useMemo(() => JSON.stringify(symbols.slice().sort()), [symbols]);
   const stableSymbols = useMemo(() => symbols, [symbolsKey]);
-  const hasInitialized = useRef(false);
 
-  const fetchStocks = useCallback(async () => {
-    if (stableSymbols.length === 0) {
-      setStocks([]);
-      setIsLoading(false);
-      return;
+  const fallbackData = useMemo(
+    () => MOCK_STOCKS.filter(s => stableSymbols.includes(s.symbol)),
+    [stableSymbols]
+  );
+
+  const { data, isLoading, error, refetch } = useEdgeFunction<StockData[]>(
+    'get-stocks',
+    { symbols: stableSymbols },
+    {
+      fallbackData,
+      refreshInterval: 5 * 60 * 1000, // 5 minutes
+      enabled: stableSymbols.length > 0,
+      transform: (response) => response?.stocks || [],
     }
-
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('get-stocks', {
-        body: { symbols: stableSymbols }
-      });
-
-      if (error) throw error;
-      setStocks(data?.stocks || []);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message);
-      // Use mock data as fallback
-      setStocks(MOCK_STOCKS.filter(s => stableSymbols.includes(s.symbol)));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [stableSymbols]);
-
-  useEffect(() => {
-    fetchStocks();
-    // Refresh every 5 minutes
-    const interval = setInterval(fetchStocks, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchStocks]);
+  );
 
   return {
-    stocks,
+    stocks: data || [],
     isLoading,
     error,
-    refetch: fetchStocks,
+    refetch,
   };
 };
