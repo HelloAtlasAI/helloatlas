@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, BookOpen, Lightbulb, ExternalLink, ChevronRight } from 'lucide-react';
+import { Brain, BookOpen, Lightbulb, ChevronRight, Sparkles, Type } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import type { BrainSearchResult as BrainSearchResultType, BrainResultType } from '@/hooks/useBrainSearch';
@@ -9,6 +9,7 @@ interface BrainSearchResultProps {
   result: BrainSearchResultType;
   onClick?: (result: BrainSearchResultType) => void;
   isSelected?: boolean;
+  onFindSimilar?: (result: BrainSearchResultType) => void;
 }
 
 const typeConfig: Record<BrainResultType, { 
@@ -64,9 +65,10 @@ const formatPreview = (preview: string): JSX.Element => {
   );
 };
 
-export const BrainSearchResult = memo(({ result, onClick, isSelected }: BrainSearchResultProps) => {
+export const BrainSearchResult = memo(({ result, onClick, isSelected, onFindSimilar }: BrainSearchResultProps) => {
   const config = typeConfig[result.type];
   const Icon = config.icon;
+  const isSemanticResult = result.source === 'semantic';
   
   return (
     <motion.button
@@ -83,14 +85,19 @@ export const BrainSearchResult = memo(({ result, onClick, isSelected }: BrainSea
     >
       <div className="flex items-start gap-3">
         {/* Type Icon */}
-        <div className={`p-2 rounded-lg ${config.bgColor} flex-shrink-0`}>
+        <div className={`p-2 rounded-lg ${config.bgColor} flex-shrink-0 relative`}>
           <Icon className={`w-4 h-4 ${config.color}`} />
+          {isSemanticResult && (
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full flex items-center justify-center">
+              <Sparkles className="w-2 h-2 text-primary-foreground" />
+            </div>
+          )}
         </div>
         
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className={`text-xs font-medium ${config.color}`}>
               {config.label}
             </span>
@@ -107,6 +114,25 @@ export const BrainSearchResult = memo(({ result, onClick, isSelected }: BrainSea
                 {result.status}
               </Badge>
             )}
+            {/* Semantic match indicator */}
+            {isSemanticResult && result.similarity !== undefined && (
+              <Badge 
+                variant="outline" 
+                className="text-[10px] px-1.5 py-0 bg-primary/10 border-primary/30 text-primary gap-1"
+              >
+                <Sparkles className="w-2.5 h-2.5" />
+                {Math.round(result.similarity * 100)}% match
+              </Badge>
+            )}
+            {result.source === 'keyword' && (
+              <Badge 
+                variant="outline" 
+                className="text-[10px] px-1.5 py-0 bg-muted/50 gap-1"
+              >
+                <Type className="w-2.5 h-2.5" />
+                keyword
+              </Badge>
+            )}
           </div>
           
           {/* Title */}
@@ -119,9 +145,23 @@ export const BrainSearchResult = memo(({ result, onClick, isSelected }: BrainSea
             {formatPreview(result.preview)}
           </p>
           
-          {/* Footer with confidence and date */}
-          <div className="flex items-center gap-3 mt-2">
-            {result.confidence !== undefined && (
+          {/* Footer with confidence/similarity and date */}
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            {result.similarity !== undefined && (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-xs text-muted-foreground">Similarity:</span>
+                <div className="w-16">
+                  <Progress 
+                    value={result.similarity * 100} 
+                    className="h-1.5"
+                  />
+                </div>
+                <span className="text-xs text-primary font-medium">
+                  {Math.round(result.similarity * 100)}%
+                </span>
+              </div>
+            )}
+            {result.confidence !== undefined && !result.similarity && (
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-xs text-muted-foreground">Confidence:</span>
                 <div className="w-16">

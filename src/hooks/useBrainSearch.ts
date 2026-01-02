@@ -1,9 +1,11 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useDebouncedValue } from './useDebouncedValue';
 import { useAtlasKnowledge } from './useAtlasKnowledge';
 import { useAtlasResearch } from './useAtlasResearch';
+import { supabase } from '@/integrations/supabase/client';
 
 export type BrainResultType = 'knowledge' | 'research' | 'finding';
+export type SearchMode = 'keyword' | 'semantic' | 'hybrid';
 
 export interface BrainSearchResult {
   id: string;
@@ -16,6 +18,8 @@ export interface BrainSearchResult {
   createdAt: string;
   metadata: Record<string, unknown>;
   matchScore: number;
+  similarity?: number;
+  source?: 'keyword' | 'semantic';
 }
 
 export interface BrainSearchOptions {
@@ -23,6 +27,7 @@ export interface BrainSearchOptions {
   categories?: string[];
   minConfidence?: number;
   limit?: number;
+  searchMode?: SearchMode;
 }
 
 const highlightMatch = (text: string, query: string): string => {
@@ -75,7 +80,10 @@ const extractContent = (content: unknown): string => {
 
 export const useBrainSearch = (options: BrainSearchOptions = {}) => {
   const [query, setQuery] = useState('');
-  const debouncedQuery = useDebouncedValue(query, 200);
+  const [searchMode, setSearchMode] = useState<SearchMode>(options.searchMode || 'keyword');
+  const [semanticResults, setSemanticResults] = useState<BrainSearchResult[]>([]);
+  const [isSemanticSearching, setIsSemanticSearching] = useState(false);
+  const debouncedQuery = useDebouncedValue(query, 300);
   
   const { knowledge, isLoading: knowledgeLoading, categories: knowledgeCategories } = useAtlasKnowledge();
   const { topics, isLoading: researchLoading } = useAtlasResearch();
@@ -84,8 +92,9 @@ export const useBrainSearch = (options: BrainSearchOptions = {}) => {
   
   const isLoading = knowledgeLoading || researchLoading;
   
-  const results = useMemo(() => {
-    if (!debouncedQuery.trim()) return [];
+  // Keyword search results
+  const keywordResults = useMemo(() => {
+    if (!debouncedQuery.trim() || searchMode === 'semantic') return [];
     
     const allResults: BrainSearchResult[] = [];
     const queryLower = debouncedQuery.toLowerCase();
@@ -97,7 +106,6 @@ export const useBrainSearch = (options: BrainSearchOptions = {}) => {
         const searchableText = `${entry.topic} ${contentStr} ${entry.category}`.toLowerCase();
         
         if (!searchableText.includes(queryLower)) {
-          // Check for partial word matches
           const words = queryLower.split(/\s+/).filter(Boolean);
           const hasMatch = words.some(word => searchableText.includes(word));
           if (!hasMatch) return;
@@ -116,6 +124,7 @@ export const useBrainSearch = (options: BrainSearchOptions = {}) => {
           category: entry.category,
           confidence: entry.confidence,
           createdAt: entry.created_at,
+          source: 'keyword',
           metadata: {
             source: entry.source,
             accessCount: entry.access_count,
@@ -149,6 +158,7 @@ export const useBrainSearch = (options: BrainSearchOptions = {}) => {
           preview: highlightMatch(topic.description?.slice(0, 200) || 'No description', debouncedQuery),
           status: topic.status,
           createdAt: topic.created_at,
+          source: 'keyword',
           metadata: {
             findings: topic.findings,
             sources: topic.sources,
@@ -187,6 +197,7 @@ export const useBrainSearch = (options: BrainSearchOptions = {}) => {
             title: `Finding from: ${topic.topic}`,
             preview: highlightMatch(findingStr.slice(0, 200), debouncedQuery),
             createdAt: topic.created_at,
+            source: 'keyword',
             metadata: {
               parentTopicId: topic.id,
               parentTopic: topic.topic,
@@ -198,11 +209,98 @@ export const useBrainSearch = (options: BrainSearchOptions = {}) => {
       });
     }
     
-    // Sort by match score and limit
     return allResults
       .sort((a, b) => b.matchScore - a.matchScore)
       .slice(0, limit);
-  }, [debouncedQuery, knowledge, topics, types, categories, minConfidence, limit]);
+  }, [debouncedQuery, knowledge, topics, types, categories, minConfidence, limit, searchMode]);
+  
+  // Semantic search effect
+  const runSemanticSearch = useCallback(async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      setSemanticResults([]);
+      return;
+    }
+    
+    setIsSemanticSearching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('semantic-search', {
+        body: { query: searchQuery, threshold: 0.3, limit }
+      });
+      
+      if (error) {
+        console.error('Semantic search error:', error);
+        setSemanticResults([]);
+        return;
+      }
+      
+      const results: BrainSearchResult[] = (data?.results || []).map((r: any) => ({
+        id: r.id,
+        type: r.type === 'memory' ? 'knowledge' : r.type,
+        title: r.title,
+        preview: r.preview,
+        category: r.category,
+        confidence: r.confidence,
+        similarity: r.similarity,
+        createdAt: r.createdAt,
+        source: 'semantic' as const,
+        metadata: r.metadata || {},
+        matchScore: Math.round((r.similarity || 0) * 100),
+      }));
+      
+      setSemanticResults(results);
+    } catch (e) {
+      console.error('Semantic search failed:', e);
+      setSemanticResults([]);
+    } finally {
+      setIsSemanticSearching(false);
+    }
+  }, [limit]);
+  
+  // Trigger semantic search when query changes and mode is semantic/hybrid
+  useMemo(() => {
+    if (searchMode === 'semantic' || searchMode === 'hybrid') {
+      if (debouncedQuery.trim()) {
+        runSemanticSearch(debouncedQuery);
+      } else {
+        setSemanticResults([]);
+      }
+    }
+  }, [debouncedQuery, searchMode, runSemanticSearch]);
+  
+  // Combine results based on search mode
+  const results = useMemo(() => {
+    if (searchMode === 'keyword') {
+      return keywordResults;
+    }
+    
+    if (searchMode === 'semantic') {
+      return semanticResults;
+    }
+    
+    // Hybrid mode: combine and dedupe
+    const combined = new Map<string, BrainSearchResult>();
+    
+    // Add keyword results
+    keywordResults.forEach(r => {
+      combined.set(r.id, r);
+    });
+    
+    // Add/merge semantic results
+    semanticResults.forEach(r => {
+      const existing = combined.get(r.id);
+      if (existing) {
+        // Boost score for items found by both methods
+        existing.matchScore = Math.min(100, existing.matchScore + 20);
+        existing.similarity = r.similarity;
+      } else {
+        combined.set(r.id, r);
+      }
+    });
+    
+    return Array.from(combined.values())
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, limit);
+  }, [searchMode, keywordResults, semanticResults, limit]);
   
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -220,6 +318,22 @@ export const useBrainSearch = (options: BrainSearchOptions = {}) => {
   
   const clearSearch = useCallback(() => {
     setQuery('');
+    setSemanticResults([]);
+  }, []);
+
+  // Generate embeddings for new content
+  const generateEmbeddings = useCallback(async (batchSize = 10) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-embeddings', {
+        body: { batchSize }
+      });
+      
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('Generate embeddings error:', e);
+      throw e;
+    }
   }, []);
   
   return {
@@ -227,10 +341,14 @@ export const useBrainSearch = (options: BrainSearchOptions = {}) => {
     setQuery,
     results,
     resultsByType,
-    isLoading,
-    isSearching: query !== debouncedQuery,
+    isLoading: isLoading || isSemanticSearching,
+    isSearching: query !== debouncedQuery || isSemanticSearching,
     allCategories,
     totalResults: results.length,
     clearSearch,
+    searchMode,
+    setSearchMode,
+    generateEmbeddings,
+    hasSemanticResults: semanticResults.length > 0,
   };
 };

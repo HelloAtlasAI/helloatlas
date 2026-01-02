@@ -8,7 +8,11 @@ import {
   Lightbulb, 
   SlidersHorizontal,
   Command,
-  Loader2
+  Loader2,
+  Sparkles,
+  Type,
+  Wand2,
+  RefreshCw
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -20,8 +24,15 @@ import {
   PopoverContent, 
   PopoverTrigger 
 } from '@/components/ui/popover';
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger 
+} from '@/components/ui/tooltip';
 import { BrainSearchResult } from './BrainSearchResult';
-import { useBrainSearch, BrainResultType, BrainSearchResult as BrainSearchResultType } from '@/hooks/useBrainSearch';
+import { useBrainSearch, BrainResultType, SearchMode, BrainSearchResult as BrainSearchResultType } from '@/hooks/useBrainSearch';
+import { toast } from 'sonner';
 
 interface BrainSearchPanelProps {
   onResultClick?: (result: BrainSearchResultType) => void;
@@ -34,12 +45,19 @@ const typeFilters: { type: BrainResultType; icon: typeof Brain; label: string; c
   { type: 'finding', icon: Lightbulb, label: 'Findings', color: 'amber' },
 ];
 
+const searchModes: { mode: SearchMode; icon: typeof Type; label: string; description: string }[] = [
+  { mode: 'keyword', icon: Type, label: 'Keyword', description: 'Exact text matching' },
+  { mode: 'semantic', icon: Sparkles, label: 'AI Semantic', description: 'Find conceptually related content' },
+  { mode: 'hybrid', icon: Wand2, label: 'Hybrid', description: 'Best of both methods' },
+];
+
 export const BrainSearchPanel = ({ onResultClick, compact = false }: BrainSearchPanelProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedTypes, setSelectedTypes] = useState<BrainResultType[]>(['knowledge', 'research', 'finding']);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [minConfidence, setMinConfidence] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+  const [isIndexing, setIsIndexing] = useState(false);
   
   const { 
     query, 
@@ -50,12 +68,28 @@ export const BrainSearchPanel = ({ onResultClick, compact = false }: BrainSearch
     isSearching,
     allCategories,
     totalResults,
-    clearSearch 
+    clearSearch,
+    searchMode,
+    setSearchMode,
+    generateEmbeddings,
+    hasSemanticResults
   } = useBrainSearch({
     types: selectedTypes,
     categories: selectedCategories.length > 0 ? selectedCategories : undefined,
     minConfidence,
   });
+
+  const handleGenerateEmbeddings = useCallback(async () => {
+    setIsIndexing(true);
+    try {
+      const result = await generateEmbeddings(20);
+      toast.success(`Indexed ${result.created} items for semantic search`);
+    } catch (e) {
+      toast.error('Failed to generate embeddings');
+    } finally {
+      setIsIndexing(false);
+    }
+  }, [generateEmbeddings]);
   
   // Keyboard shortcut (Cmd/Ctrl + K)
   useEffect(() => {
@@ -124,6 +158,54 @@ export const BrainSearchPanel = ({ onResultClick, compact = false }: BrainSearch
               <Command className="w-3 h-3" />K
             </kbd>
           </div>
+        </div>
+        
+        {/* Search Mode Toggle */}
+        <div className="flex items-center gap-1 p-1 bg-background/30 rounded-lg border border-border/30">
+          <TooltipProvider>
+            {searchModes.map(({ mode, icon: Icon, label, description }) => (
+              <Tooltip key={mode}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchMode(mode)}
+                    className={`gap-1.5 h-8 px-3 rounded-md transition-all ${
+                      searchMode === mode
+                        ? 'bg-primary/20 text-primary shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  {description}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </TooltipProvider>
+          
+          {/* Index button for semantic search */}
+          {(searchMode === 'semantic' || searchMode === 'hybrid') && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 ml-1"
+                  onClick={handleGenerateEmbeddings}
+                  disabled={isIndexing}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isIndexing ? 'animate-spin' : ''}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Index new content for semantic search
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
         
         {/* Type Filters & Filter Button */}
