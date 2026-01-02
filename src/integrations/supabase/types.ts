@@ -1580,6 +1580,21 @@ export type Database = {
         }
         Returns: boolean
       }
+      match_brain_vectors: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          p_user_id?: string
+          query_embedding: string
+        }
+        Returns: {
+          chunk_text: string
+          id: string
+          knowledge_entry_id: string
+          memory_item_id: string
+          similarity: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
