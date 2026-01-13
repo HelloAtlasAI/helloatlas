@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, handleCors, jsonResponse, errorResponse } from "../_shared/cors.ts";
 import { getSupabaseClient, getSupabaseUrl } from "../_shared/supabase.ts";
+import { 
+  isLearningEnabled, 
+  isProviderHealthy,
+  recordSuccess, 
+  recordError,
+  updateLearningSession
+} from "../_shared/providerStatus.ts";
 
 // Declare EdgeRuntime for background tasks
 declare const EdgeRuntime: {
@@ -259,6 +266,8 @@ Current research depth: ${depth} (0 = root topic, higher = more specific)`
         }),
       });
 
+      // Record the API call result
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error("[atlas-research] Perplexity API error:", errorText);
@@ -452,8 +461,42 @@ serve(async (req) => {
 
     const supabase = getSupabaseClient();
 
+    // Check if learning is enabled before proceeding
+    const learningSettings = await isLearningEnabled(supabase);
+    if (!learningSettings.enabled) {
+      console.log("[atlas-research] Learning is disabled, aborting research");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Learning is disabled",
+          reason: "learning_disabled"
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if primary provider is healthy
+    const isHealthy = await isProviderHealthy(supabase, 'lovable_ai');
+    const isPerplexityHealthy = PERPLEXITY_API_KEY ? await isProviderHealthy(supabase, 'perplexity') : false;
+    
+    if (!isHealthy && !isPerplexityHealthy) {
+      console.log("[atlas-research] All AI providers are unhealthy, aborting research");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "AI providers are unavailable",
+          reason: "providers_unhealthy"
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Use settings-based max depth instead of hardcoded
+    const effectiveMaxDepth = Math.min(maxDepth, learningSettings.maxDepth);
+    console.log(`[atlas-research] Using max depth: ${effectiveMaxDepth} (settings: ${learningSettings.maxDepth}, requested: ${maxDepth})`);
+
     // Log provider being used
-    console.log(`[atlas-research] Provider: ${PERPLEXITY_API_KEY ? 'Perplexity sonar-pro' : 'Lovable AI (fallback)'}`);
+    console.log(`[atlas-research] Provider: ${PERPLEXITY_API_KEY && isPerplexityHealthy ? 'Perplexity sonar-pro' : 'Lovable AI (fallback)'}`);
 
     // Handle different actions
     if (action === "start" || action === "resume") {
