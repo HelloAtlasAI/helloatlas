@@ -402,6 +402,54 @@ export type Database = {
           },
         ]
       }
+      atlas_learning_logs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          intent_detected: string | null
+          max_topics_allowed: number
+          provider_errors: Json | null
+          session_id: string | null
+          status: string
+          topic_requested: string | null
+          topics_learned: number
+          trigger_type: string
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          intent_detected?: string | null
+          max_topics_allowed?: number
+          provider_errors?: Json | null
+          session_id?: string | null
+          status?: string
+          topic_requested?: string | null
+          topics_learned?: number
+          trigger_type: string
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          intent_detected?: string | null
+          max_topics_allowed?: number
+          provider_errors?: Json | null
+          session_id?: string | null
+          status?: string
+          topic_requested?: string | null
+          topics_learned?: number
+          trigger_type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       atlas_learning_sessions: {
         Row: {
           created_at: string
@@ -432,6 +480,54 @@ export type Database = {
           status?: string
           topic?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      atlas_provider_status: {
+        Row: {
+          avg_response_time_ms: number | null
+          created_at: string
+          error_count: number
+          failed_calls: number
+          id: string
+          last_error: string | null
+          last_success: string | null
+          provider: string
+          rate_limit_until: string | null
+          status: string
+          successful_calls: number
+          total_calls: number
+          updated_at: string
+        }
+        Insert: {
+          avg_response_time_ms?: number | null
+          created_at?: string
+          error_count?: number
+          failed_calls?: number
+          id?: string
+          last_error?: string | null
+          last_success?: string | null
+          provider: string
+          rate_limit_until?: string | null
+          status?: string
+          successful_calls?: number
+          total_calls?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_response_time_ms?: number | null
+          created_at?: string
+          error_count?: number
+          failed_calls?: number
+          id?: string
+          last_error?: string | null
+          last_success?: string | null
+          provider?: string
+          rate_limit_until?: string | null
+          status?: string
+          successful_calls?: number
+          total_calls?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -578,6 +674,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      atlas_system_settings: {
+        Row: {
+          auto_knowledge_extraction: boolean
+          auto_validation: boolean
+          created_at: string
+          id: string
+          learning_enabled: boolean
+          learning_mode: string
+          max_research_depth: number
+          max_topics_per_session: number
+          updated_at: string
+        }
+        Insert: {
+          auto_knowledge_extraction?: boolean
+          auto_validation?: boolean
+          created_at?: string
+          id?: string
+          learning_enabled?: boolean
+          learning_mode?: string
+          max_research_depth?: number
+          max_topics_per_session?: number
+          updated_at?: string
+        }
+        Update: {
+          auto_knowledge_extraction?: boolean
+          auto_validation?: boolean
+          created_at?: string
+          id?: string
+          learning_enabled?: boolean
+          learning_mode?: string
+          max_research_depth?: number
+          max_topics_per_session?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       conversations: {
         Row: {
