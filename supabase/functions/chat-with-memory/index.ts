@@ -1,6 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, handleCors, jsonResponse, errorResponse } from "../_shared/cors.ts";
 import { getSupabaseClient, getSupabaseUrl } from "../_shared/supabase.ts";
+import { 
+  isLearningEnabled, 
+  detectLearningIntent, 
+  recordSuccess, 
+  recordError,
+  logLearningSession,
+  updateLearningSession,
+  isProviderHealthy
+} from "../_shared/providerStatus.ts";
 
 interface Memory {
   key: string;
@@ -415,20 +424,61 @@ async function executeTool(
   }
 }
 
-// Trigger knowledge extraction asynchronously
+// Trigger knowledge extraction asynchronously - ONLY if learning is enabled
 async function triggerKnowledgeExtraction(
   supabaseUrl: string,
   conversation: Array<{ role: string; content: string }>,
   userId: string | null,
-  source: string
+  source: string,
+  supabase: any,
+  learningIntent: ReturnType<typeof detectLearningIntent>
 ) {
   try {
+    // Check if learning is enabled in system settings
+    const learningSettings = await isLearningEnabled(supabase);
+    
+    if (!learningSettings.enabled) {
+      console.log("[chat-with-memory] Learning is disabled, skipping knowledge extraction");
+      return;
+    }
+
+    // Only extract if user has learning intent
+    if (!learningIntent.hasIntent) {
+      console.log("[chat-with-memory] No learning intent detected, skipping knowledge extraction");
+      return;
+    }
+
+    // Check if primary provider is healthy
+    const isHealthy = await isProviderHealthy(supabase, 'lovable_ai');
+    if (!isHealthy) {
+      console.log("[chat-with-memory] Primary AI provider unhealthy, skipping knowledge extraction");
+      return;
+    }
+
+    // Log the learning session
+    await logLearningSession(supabase, {
+      userId: userId || undefined,
+      triggerType: source === 'voice' ? 'voice' : 'text',
+      intentDetected: learningIntent.intentType,
+      topicRequested: learningIntent.topic,
+      status: 'started',
+      maxTopicsAllowed: learningSettings.maxTopics,
+    });
+
+    console.log(`[chat-with-memory] Triggering knowledge extraction for topic: ${learningIntent.topic || 'general'}`);
+
     fetch(`${supabaseUrl}/functions/v1/atlas-knowledge`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ conversation, userId, source }),
+      body: JSON.stringify({ 
+        conversation, 
+        userId, 
+        source,
+        learningTopic: learningIntent.topic,
+        maxTopics: learningSettings.maxTopics,
+      }),
     }).catch(e => console.log("[chat-with-memory] Knowledge extraction trigger failed:", e));
   } catch (e) {
     console.log("[chat-with-memory] Could not trigger knowledge extraction:", e);
@@ -764,6 +814,9 @@ serve(async (req) => {
       });
 
       if (!checkResponse.ok) {
+        const errorText = await checkResponse.text();
+        await recordError(supabase, 'lovable_ai', checkResponse.status, errorText);
+        
         if (checkResponse.status === 429) {
           return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
             status: 429,
@@ -778,6 +831,9 @@ serve(async (req) => {
         }
         throw new Error(`AI gateway error: ${checkResponse.status}`);
       }
+
+      // Record successful call
+      await recordSuccess(supabase, 'lovable_ai');
 
       const checkData = await checkResponse.json();
       const choice = checkData.choices?.[0];
@@ -851,12 +907,24 @@ serve(async (req) => {
     if (!streamResponse.ok) {
       const errorText = await streamResponse.text();
       console.error("[chat-with-memory] Stream error:", streamResponse.status, errorText);
+      await recordError(supabase, 'lovable_ai', streamResponse.status, errorText);
       throw new Error(`AI gateway error: ${streamResponse.status}`);
     }
 
-    // Trigger knowledge extraction and session context tracking asynchronously (fire and forget)
-    if (messages.length >= 2 && SUPABASE_URL) {
-      triggerKnowledgeExtraction(SUPABASE_URL, messages, userId, source);
+    // Record successful stream
+    await recordSuccess(supabase, 'lovable_ai');
+
+    // Detect learning intent from the latest user message
+    const latestUserMessage = messages.filter((m: any) => m.role === 'user').pop();
+    const learningIntent = latestUserMessage 
+      ? detectLearningIntent(latestUserMessage.content) 
+      : { hasIntent: false };
+
+    console.log("[chat-with-memory] Learning intent:", learningIntent.hasIntent ? learningIntent.intentType : 'none');
+
+    // Trigger knowledge extraction ONLY if learning intent detected and learning is enabled
+    if (messages.length >= 2 && SUPABASE_URL && learningIntent.hasIntent) {
+      triggerKnowledgeExtraction(SUPABASE_URL, messages, userId, source, supabase, learningIntent);
     }
     
     // Track session context for working memory (non-blocking)

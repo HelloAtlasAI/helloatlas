@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, Brain, Zap, Lightbulb, TrendingUp, Loader2 } from 'lucide-react';
+import { BarChart3, Brain, Zap, Lightbulb, TrendingUp, Loader2, DollarSign, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
+import { useAtlasProviderStatus } from '@/hooks/useAtlasProviderStatus';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -26,69 +28,53 @@ interface DailyUsage {
   reasoner: number;
 }
 
+const COST_PER_1K_TOKENS: Record<string, { input: number; output: number }> = {
+  'lovable_ai': { input: 0.00015, output: 0.0006 },
+  'perplexity': { input: 0.001, output: 0.001 },
+  'anthropic': { input: 0.003, output: 0.015 },
+  'openai': { input: 0.0025, output: 0.01 },
+  'jina': { input: 0.0001, output: 0.0001 },
+};
+
+const PROVIDER_COLORS: Record<string, string> = {
+  'lovable_ai': 'bg-purple-400',
+  'perplexity': 'bg-blue-400',
+  'anthropic': 'bg-amber-400',
+  'openai': 'bg-green-400',
+  'jina': 'bg-pink-400',
+};
+
 const tierConfig = {
-  planner: {
-    label: 'Planner',
-    icon: Brain,
-    color: 'bg-purple-400',
-    textColor: 'text-purple-400',
-    description: 'Strategic planning & goal decomposition',
-  },
-  worker: {
-    label: 'Worker',
-    icon: Zap,
-    color: 'bg-blue-400',
-    textColor: 'text-blue-400',
-    description: 'Task execution & tool calls',
-  },
-  reasoner: {
-    label: 'Reasoner',
-    icon: Lightbulb,
-    color: 'bg-amber-400',
-    textColor: 'text-amber-400',
-    description: 'Verification & quality checks',
-  },
+  planner: { label: 'Planner', icon: Brain, color: 'bg-purple-400', textColor: 'text-purple-400' },
+  worker: { label: 'Worker', icon: Zap, color: 'bg-blue-400', textColor: 'text-blue-400' },
+  reasoner: { label: 'Reasoner', icon: Lightbulb, color: 'bg-amber-400', textColor: 'text-amber-400' },
 };
 
 export function ModelUsageAnalytics() {
   const { user } = useAuth();
+  const { providers, isLoading: providersLoading } = useAtlasProviderStatus();
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('7d');
   const [stats, setStats] = useState<TokenStats>({ planner: 0, worker: 0, reasoner: 0, total: 0 });
-  const [dailyUsage, setDailyUsage] = useState<DailyUsage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'credits' | 'tokens'>('credits');
 
   useEffect(() => {
     const fetchStats = async () => {
       if (!user) return;
       setIsLoading(true);
-
       try {
-        // Calculate date range
         let dateFilter = '';
         const now = new Date();
         if (timeRange === '7d') {
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          dateFilter = weekAgo.toISOString();
+          dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
         } else if (timeRange === '30d') {
-          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          dateFilter = monthAgo.toISOString();
+          dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
         }
 
-        // Fetch runs with token data
-        let query = supabase
-          .from('runs')
-          .select('tokens_planner, tokens_worker, tokens_reasoner, created_at')
-          .eq('user_id', user.id);
+        let query = supabase.from('runs').select('tokens_planner, tokens_worker, tokens_reasoner').eq('user_id', user.id);
+        if (dateFilter) query = query.gte('created_at', dateFilter);
 
-        if (dateFilter) {
-          query = query.gte('created_at', dateFilter);
-        }
-
-        const { data: runs, error } = await query;
-
-        if (error) throw error;
-
-        // Aggregate token stats
+        const { data: runs } = await query;
         const aggregated = (runs || []).reduce(
           (acc, run) => ({
             planner: acc.planner + (run.tokens_planner || 0),
@@ -97,94 +83,51 @@ export function ModelUsageAnalytics() {
           }),
           { planner: 0, worker: 0, reasoner: 0 }
         );
-
-        setStats({
-          ...aggregated,
-          total: aggregated.planner + aggregated.worker + aggregated.reasoner,
-        });
-
-        // Calculate daily usage for chart
-        const dailyMap = new Map<string, DailyUsage>();
-        (runs || []).forEach((run) => {
-          const date = new Date(run.created_at).toISOString().split('T')[0];
-          const existing = dailyMap.get(date) || { date, planner: 0, worker: 0, reasoner: 0 };
-          dailyMap.set(date, {
-            date,
-            planner: existing.planner + (run.tokens_planner || 0),
-            worker: existing.worker + (run.tokens_worker || 0),
-            reasoner: existing.reasoner + (run.tokens_reasoner || 0),
-          });
-        });
-
-        // Sort by date
-        const sortedDaily = Array.from(dailyMap.values()).sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
-        setDailyUsage(sortedDaily);
-      } catch (error) {
-        console.error('Error fetching token stats:', error);
+        setStats({ ...aggregated, total: aggregated.planner + aggregated.worker + aggregated.reasoner });
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchStats();
   }, [user, timeRange]);
 
-  // Calculate percentages for the donut chart
-  const percentages = useMemo(() => {
-    if (stats.total === 0) return { planner: 0, worker: 0, reasoner: 0 };
-    return {
-      planner: Math.round((stats.planner / stats.total) * 100),
-      worker: Math.round((stats.worker / stats.total) * 100),
-      reasoner: Math.round((stats.reasoner / stats.total) * 100),
-    };
-  }, [stats]);
+  const providerCosts = useMemo(() => {
+    return providers.map(provider => {
+      const costs = COST_PER_1K_TOKENS[provider.provider] || { input: 0.001, output: 0.001 };
+      const estimatedCost = provider.successfulCalls * 500 * (costs.input + costs.output) / 1000;
+      const successRate = provider.totalCalls > 0 ? ((provider.successfulCalls / provider.totalCalls) * 100).toFixed(1) : '100';
+      return { ...provider, estimatedCost, successRate, color: PROVIDER_COLORS[provider.provider] || 'bg-gray-400' };
+    });
+  }, [providers]);
 
-  // Calculate max for bar chart scaling
-  const maxDaily = useMemo(() => {
-    if (dailyUsage.length === 0) return 1;
-    return Math.max(...dailyUsage.map((d) => d.planner + d.worker + d.reasoner));
-  }, [dailyUsage]);
+  const totalEstimatedCost = useMemo(() => providerCosts.reduce((sum, p) => sum + p.estimatedCost, 0), [providerCosts]);
+  const totalCalls = useMemo(() => providers.reduce((sum, p) => sum + p.totalCalls, 0), [providers]);
+  const failedCalls = useMemo(() => providers.reduce((sum, p) => sum + p.failedCalls, 0), [providers]);
 
-  if (isLoading) {
+  if (isLoading || providersLoading) {
     return (
       <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <BarChart3 className="w-5 h-5 text-primary" />
-          </div>
+          <div className="p-2 rounded-lg bg-primary/10"><BarChart3 className="w-5 h-5 text-primary" /></div>
           <h3 className="text-lg font-semibold text-foreground">Model Usage Analytics</h3>
         </div>
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-        </div>
+        <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
       </div>
     );
   }
 
   return (
-    <motion.div
-      className="glass-card p-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      {/* Header */}
+    <motion.div className="glass-card p-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <BarChart3 className="w-5 h-5 text-primary" />
-          </div>
+          <div className="p-2 rounded-lg bg-primary/10"><BarChart3 className="w-5 h-5 text-primary" /></div>
           <div>
             <h3 className="text-lg font-semibold text-foreground">Model Usage Analytics</h3>
-            <p className="text-xs text-muted-foreground">Token consumption by tier</p>
+            <p className="text-xs text-muted-foreground">Token consumption & estimated costs</p>
           </div>
         </div>
         <Select value={timeRange} onValueChange={(v) => setTimeRange(v as typeof timeRange)}>
-          <SelectTrigger className="w-[100px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-[100px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="7d">Last 7 days</SelectItem>
             <SelectItem value="30d">Last 30 days</SelectItem>
@@ -193,125 +136,92 @@ export function ModelUsageAnalytics() {
         </Select>
       </div>
 
-      {stats.total === 0 ? (
-        <div className="text-center py-8">
-          <TrendingUp className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">No usage data yet</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Run an agent to see token analytics
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Total tokens */}
-          <div className="text-center mb-6">
-            <p className="text-3xl font-bold text-foreground">
-              {stats.total.toLocaleString()}
-            </p>
-            <p className="text-sm text-muted-foreground">Total Tokens</p>
-          </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'credits' | 'tokens')}>
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="credits" className="text-xs"><DollarSign className="w-3 h-3 mr-1" />Credit Usage</TabsTrigger>
+          <TabsTrigger value="tokens" className="text-xs"><Zap className="w-3 h-3 mr-1" />Token Usage</TabsTrigger>
+        </TabsList>
 
-          {/* Tier breakdown cards */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {(Object.keys(tierConfig) as Array<keyof typeof tierConfig>).map((tier) => {
-              const config = tierConfig[tier];
-              const Icon = config.icon;
-              const value = stats[tier];
-              const pct = percentages[tier];
+        <TabsContent value="credits">
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50 text-center">
+                <DollarSign className="w-4 h-4 mx-auto text-green-400 mb-1" />
+                <p className="text-lg font-bold text-foreground">${totalEstimatedCost.toFixed(3)}</p>
+                <p className="text-[10px] text-muted-foreground">Est. Total Cost</p>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50 text-center">
+                <Zap className="w-4 h-4 mx-auto text-blue-400 mb-1" />
+                <p className="text-lg font-bold text-foreground">{totalCalls.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Total API Calls</p>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50 text-center">
+                <AlertTriangle className="w-4 h-4 mx-auto text-red-400 mb-1" />
+                <p className="text-lg font-bold text-foreground">{failedCalls}</p>
+                <p className="text-[10px] text-muted-foreground">Failed Calls</p>
+              </div>
+            </div>
 
-              return (
-                <div
-                  key={tier}
-                  className="p-3 rounded-lg bg-muted/30 border border-border/50"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon className={`w-4 h-4 ${config.textColor}`} />
-                    <span className="text-xs font-medium text-foreground">{config.label}</span>
-                  </div>
-                  <p className="text-lg font-semibold text-foreground">
-                    {value.toLocaleString()}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <motion.div
-                        className={`h-full ${config.color}`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
-                      />
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">Provider Breakdown</p>
+              {providerCosts.map(provider => (
+                <div key={provider.provider} className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${provider.color}`} />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{provider.provider.replace('_', ' ').toUpperCase()}</p>
+                      <p className="text-xs text-muted-foreground">{provider.totalCalls} calls • {provider.successRate}% success</p>
                     </div>
-                    <span className="text-xs text-muted-foreground">{pct}%</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-foreground">${provider.estimatedCost.toFixed(3)}</p>
+                    <Badge variant={provider.status === 'healthy' ? 'secondary' : 'destructive'} className="text-[10px]">{provider.status}</Badge>
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
+        </TabsContent>
 
-          {/* Daily usage bar chart */}
-          {dailyUsage.length > 1 && (
-            <div className="mt-6">
-              <p className="text-sm font-medium text-foreground mb-3">Daily Usage</p>
-              <div className="flex items-end gap-1 h-24">
-                {dailyUsage.slice(-14).map((day, index) => {
-                  const total = day.planner + day.worker + day.reasoner;
-                  const height = Math.max((total / maxDaily) * 100, 4);
-                  const plannerH = total > 0 ? (day.planner / total) * height : 0;
-                  const workerH = total > 0 ? (day.worker / total) * height : 0;
-                  const reasonerH = total > 0 ? (day.reasoner / total) * height : 0;
-
+        <TabsContent value="tokens">
+          {stats.total === 0 ? (
+            <div className="text-center py-8">
+              <TrendingUp className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">No token data yet</p>
+            </div>
+          ) : (
+            <>
+              <div className="text-center mb-6">
+                <p className="text-3xl font-bold text-foreground">{stats.total.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Total Tokens</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {(Object.keys(tierConfig) as Array<keyof typeof tierConfig>).map((tier) => {
+                  const config = tierConfig[tier];
+                  const Icon = config.icon;
+                  const value = stats[tier];
+                  const pct = stats.total > 0 ? Math.round((value / stats.total) * 100) : 0;
                   return (
-                    <motion.div
-                      key={day.date}
-                      className="flex-1 flex flex-col justify-end group relative"
-                      initial={{ opacity: 0, scaleY: 0 }}
-                      animate={{ opacity: 1, scaleY: 1 }}
-                      transition={{ duration: 0.3, delay: index * 0.03 }}
-                      style={{ transformOrigin: 'bottom' }}
-                    >
-                      <div
-                        className="w-full bg-amber-400 rounded-t-sm"
-                        style={{ height: `${reasonerH}%` }}
-                      />
-                      <div
-                        className="w-full bg-blue-400"
-                        style={{ height: `${workerH}%` }}
-                      />
-                      <div
-                        className="w-full bg-purple-400 rounded-b-sm"
-                        style={{ height: `${plannerH}%` }}
-                      />
-                      
-                      {/* Tooltip */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                        <div className="bg-popover text-popover-foreground text-xs p-2 rounded shadow-lg whitespace-nowrap">
-                          <p className="font-medium">{new Date(day.date).toLocaleDateString()}</p>
-                          <p className="text-purple-400">Planner: {day.planner.toLocaleString()}</p>
-                          <p className="text-blue-400">Worker: {day.worker.toLocaleString()}</p>
-                          <p className="text-amber-400">Reasoner: {day.reasoner.toLocaleString()}</p>
-                        </div>
+                    <div key={tier} className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Icon className={`w-4 h-4 ${config.textColor}`} />
+                        <span className="text-xs font-medium text-foreground">{config.label}</span>
                       </div>
-                    </motion.div>
+                      <p className="text-lg font-semibold text-foreground">{value.toLocaleString()}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <motion.div className={`h-full ${config.color}`} initial={{ width: 0 }} animate={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-xs text-muted-foreground">{pct}%</span>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                <span>{dailyUsage.slice(-14)[0]?.date.slice(-5)}</span>
-                <span>{dailyUsage.slice(-1)[0]?.date.slice(-5)}</span>
-              </div>
-            </div>
+            </>
           )}
-
-          {/* Legend */}
-          <div className="flex items-center justify-center gap-4 mt-4 text-xs">
-            {(Object.keys(tierConfig) as Array<keyof typeof tierConfig>).map((tier) => (
-              <div key={tier} className="flex items-center gap-1.5">
-                <div className={`w-2 h-2 rounded-full ${tierConfig[tier].color}`} />
-                <span className="text-muted-foreground">{tierConfig[tier].label}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+        </TabsContent>
+      </Tabs>
     </motion.div>
   );
 }

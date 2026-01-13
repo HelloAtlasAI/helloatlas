@@ -1,6 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { handleCors, corsHeaders, jsonResponse, errorResponse } from "../_shared/cors.ts";
 import { getSupabaseClient } from "../_shared/supabase.ts";
+import { 
+  isLearningEnabled, 
+  isProviderHealthy,
+  recordSuccess, 
+  recordError
+} from "../_shared/providerStatus.ts";
 
 interface KnowledgeExtraction {
   topic: string;
@@ -12,11 +18,14 @@ interface KnowledgeExtraction {
 // Extract knowledge using AI
 async function extractKnowledge(
   conversation: Array<{ role: string; content: string }>,
-  apiKey: string
+  apiKey: string,
+  supabase: ReturnType<typeof getSupabaseClient>
 ): Promise<KnowledgeExtraction[]> {
   const conversationText = conversation
     .map(m => `${m.role}: ${m.content}`)
     .join("\n");
+
+  const startTime = Date.now();
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -87,10 +96,17 @@ Return a JSON array of extractions. If nothing worth extracting, return an empty
     }),
   });
 
+  const responseTime = Date.now() - startTime;
+
   if (!response.ok) {
-    console.error("[atlas-knowledge] Extraction failed:", await response.text());
+    const errorText = await response.text();
+    console.error("[atlas-knowledge] Extraction failed:", errorText);
+    await recordError(supabase, 'lovable_ai', response.status, errorText);
     return [];
   }
+
+  // Record successful call
+  await recordSuccess(supabase, 'lovable_ai', responseTime);
 
   const result = await response.json();
   
@@ -112,7 +128,7 @@ serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
-    const { conversation, userId, source = "conversation" } = await req.json();
+    const { conversation, userId, source = "conversation", learningTopic, maxTopics } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
@@ -124,22 +140,41 @@ serve(async (req) => {
       return errorResponse("Invalid conversation data", 400);
     }
 
+    const supabase = getSupabaseClient();
+
+    // Check if learning is enabled
+    const learningSettings = await isLearningEnabled(supabase);
+    if (!learningSettings.enabled) {
+      console.log("[atlas-knowledge] Learning is disabled, skipping extraction");
+      return jsonResponse({ success: true, extracted: 0, reason: "learning_disabled" });
+    }
+
+    // Check if AI provider is healthy
+    const isHealthy = await isProviderHealthy(supabase, 'lovable_ai');
+    if (!isHealthy) {
+      console.log("[atlas-knowledge] AI provider unhealthy, skipping extraction");
+      return jsonResponse({ success: true, extracted: 0, reason: "provider_unhealthy" });
+    }
+
     console.log("[atlas-knowledge] Extracting knowledge from conversation, user:", userId);
+    console.log("[atlas-knowledge] Learning topic:", learningTopic || "general");
 
     // Extract knowledge using AI
-    const extractions = await extractKnowledge(conversation, LOVABLE_API_KEY);
+    const extractions = await extractKnowledge(conversation, LOVABLE_API_KEY, supabase);
     console.log("[atlas-knowledge] Extracted", extractions.length, "knowledge entries");
 
     if (extractions.length === 0) {
       return jsonResponse({ success: true, extracted: 0 });
     }
 
-    // Store in database
-    const supabase = getSupabaseClient();
+    // Limit extractions based on settings
+    const limitedExtractions = maxTopics 
+      ? extractions.slice(0, maxTopics) 
+      : extractions;
 
-    const entries = extractions
-      .filter(e => e.confidence >= 0.5) // Only store confident extractions
-      .map(e => ({
+    const entries = limitedExtractions
+      .filter((e: KnowledgeExtraction) => e.confidence >= 0.5) // Only store confident extractions
+      .map((e: KnowledgeExtraction) => ({
         user_id: userId || null,
         topic: e.topic,
         content: e.content,
