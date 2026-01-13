@@ -34,7 +34,7 @@ import { AgentConfigPanel } from './AgentConfigPanel';
 import { LiveRunTimeline } from './LiveRunTimeline';
 import { ModelUsageAnalytics } from './ModelUsageAnalytics';
 import { AtlasSettingsPanel } from './AtlasSettingsPanel';
-import AIArchitectureDiagram from './AIArchitectureDiagram';
+import LiveArchitectureStatus from './LiveArchitectureStatus';
 import { MemoryDashboardPanel } from './MemoryDashboardPanel';
 import { LiveLearningDashboard } from './LiveLearningDashboard';
 import { BrainSearchPanel } from './BrainSearchPanel';
@@ -386,7 +386,7 @@ const AtlasCoreDashboard = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 }}
               >
-                <AIArchitectureDiagram />
+                <LiveArchitectureStatus />
               </motion.div>
 
               {/* Live Timeline + Model Analytics */}
