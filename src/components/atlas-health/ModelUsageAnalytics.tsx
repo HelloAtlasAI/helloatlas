@@ -94,15 +94,15 @@ export function ModelUsageAnalytics() {
   const providerCosts = useMemo(() => {
     return providers.map(provider => {
       const costs = COST_PER_1K_TOKENS[provider.provider] || { input: 0.001, output: 0.001 };
-      const estimatedCost = provider.successfulCalls * 500 * (costs.input + costs.output) / 1000;
-      const successRate = provider.totalCalls > 0 ? ((provider.successfulCalls / provider.totalCalls) * 100).toFixed(1) : '100';
+      const estimatedCost = provider.successful_calls * 500 * (costs.input + costs.output) / 1000;
+      const successRate = provider.total_calls > 0 ? ((provider.successful_calls / provider.total_calls) * 100).toFixed(1) : '100';
       return { ...provider, estimatedCost, successRate, color: PROVIDER_COLORS[provider.provider] || 'bg-gray-400' };
     });
   }, [providers]);
 
   const totalEstimatedCost = useMemo(() => providerCosts.reduce((sum, p) => sum + p.estimatedCost, 0), [providerCosts]);
-  const totalCalls = useMemo(() => providers.reduce((sum, p) => sum + p.totalCalls, 0), [providers]);
-  const failedCalls = useMemo(() => providers.reduce((sum, p) => sum + p.failedCalls, 0), [providers]);
+  const totalCalls = useMemo(() => providers.reduce((sum, p) => sum + p.total_calls, 0), [providers]);
+  const failedCalls = useMemo(() => providers.reduce((sum, p) => sum + p.failed_calls, 0), [providers]);
 
   if (isLoading || providersLoading) {
     return (
@@ -170,7 +170,7 @@ export function ModelUsageAnalytics() {
                     <div className={`w-3 h-3 rounded-full ${provider.color}`} />
                     <div>
                       <p className="text-sm font-medium text-foreground">{provider.provider.replace('_', ' ').toUpperCase()}</p>
-                      <p className="text-xs text-muted-foreground">{provider.totalCalls} calls • {provider.successRate}% success</p>
+                      <p className="text-xs text-muted-foreground">{provider.total_calls} calls • {provider.successRate}% success</p>
                     </div>
                   </div>
                   <div className="text-right">
