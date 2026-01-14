@@ -1,0 +1,199 @@
+import { DollarSign, AlertTriangle, Zap, Bell } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { useSpendingAlerts } from "@/hooks/useSpendingAlerts";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export function BudgetSettingsPanel() {
+  const {
+    budgetSettings,
+    isLoading,
+    updateBudgetSettings,
+    isUpdating,
+    dailySpending,
+    weeklySpending,
+    dailyBudgetUsedPct,
+    weeklyBudgetUsedPct,
+  } = useSpendingAlerts();
+
+  if (isLoading) {
+    return (
+      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-4 w-48 mt-2" />
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!budgetSettings) return null;
+
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <DollarSign className="h-5 w-5 text-primary" />
+          Budget Settings
+        </CardTitle>
+        <CardDescription>
+          Set spending limits to control AI costs
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Current Spending Summary */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1">Daily Usage</p>
+            <p className="text-lg font-semibold">${dailySpending.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">
+              of ${budgetSettings.daily_budget_usd.toFixed(2)} ({dailyBudgetUsedPct.toFixed(0)}%)
+            </p>
+          </div>
+          <div className="p-3 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1">Weekly Usage</p>
+            <p className="text-lg font-semibold">${weeklySpending.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">
+              of ${budgetSettings.weekly_budget_usd.toFixed(2)} ({weeklyBudgetUsedPct.toFixed(0)}%)
+            </p>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Daily Budget */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-yellow-500" />
+              Daily Budget
+            </Label>
+            <span className="text-sm font-medium">${budgetSettings.daily_budget_usd.toFixed(2)}</span>
+          </div>
+          <Slider
+            value={[budgetSettings.daily_budget_usd]}
+            min={1}
+            max={50}
+            step={1}
+            disabled={isUpdating}
+            onValueCommit={([value]) => updateBudgetSettings({ daily_budget_usd: value })}
+            className="w-full"
+          />
+          <p className="text-xs text-muted-foreground">
+            Maximum amount to spend on AI operations per day
+          </p>
+        </div>
+
+        {/* Weekly Budget */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-green-500" />
+              Weekly Budget
+            </Label>
+            <span className="text-sm font-medium">${budgetSettings.weekly_budget_usd.toFixed(2)}</span>
+          </div>
+          <Slider
+            value={[budgetSettings.weekly_budget_usd]}
+            min={5}
+            max={200}
+            step={5}
+            disabled={isUpdating}
+            onValueCommit={([value]) => updateBudgetSettings({ weekly_budget_usd: value })}
+            className="w-full"
+          />
+          <p className="text-xs text-muted-foreground">
+            Maximum amount to spend on AI operations per week
+          </p>
+        </div>
+
+        <Separator />
+
+        {/* Alert Thresholds */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+              Warning Threshold
+            </Label>
+            <span className="text-sm font-medium">{budgetSettings.alert_threshold_pct}%</span>
+          </div>
+          <Slider
+            value={[budgetSettings.alert_threshold_pct]}
+            min={50}
+            max={90}
+            step={5}
+            disabled={isUpdating}
+            onValueCommit={([value]) => updateBudgetSettings({ alert_threshold_pct: value })}
+            className="w-full"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+              Critical Threshold
+            </Label>
+            <span className="text-sm font-medium">{budgetSettings.critical_threshold_pct}%</span>
+          </div>
+          <Slider
+            value={[budgetSettings.critical_threshold_pct]}
+            min={80}
+            max={99}
+            step={1}
+            disabled={isUpdating}
+            onValueCommit={([value]) => updateBudgetSettings({ critical_threshold_pct: value })}
+            className="w-full"
+          />
+        </div>
+
+        <Separator />
+
+        {/* Toggles */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-primary" />
+                Enable Alerts
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Show notifications when approaching limits
+              </p>
+            </div>
+            <Switch
+              checked={budgetSettings.alerts_enabled}
+              disabled={isUpdating}
+              onCheckedChange={(checked) => updateBudgetSettings({ alerts_enabled: checked })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-destructive" />
+                Auto-disable Learning
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Automatically pause learning when budget is exceeded
+              </p>
+            </div>
+            <Switch
+              checked={budgetSettings.auto_disable_on_limit}
+              disabled={isUpdating}
+              onCheckedChange={(checked) => updateBudgetSettings({ auto_disable_on_limit: checked })}
+            />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
