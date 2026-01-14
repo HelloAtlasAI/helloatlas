@@ -92,3 +92,12 @@ verify_jwt = false
 
 [functions.atlas-control]
 verify_jwt = false
+
+[functions.record-usage-snapshot]
+verify_jwt = false
+
+# Scheduled cron job to record daily usage snapshots at midnight UTC
+[[cron_jobs]]
+name = "daily-usage-snapshot"
+schedule = "0 0 * * *"
+function_name = "record-usage-snapshot"

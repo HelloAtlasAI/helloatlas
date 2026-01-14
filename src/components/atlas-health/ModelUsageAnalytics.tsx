@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, Brain, Zap, Lightbulb, TrendingUp, Loader2, DollarSign, AlertTriangle, Settings2 } from 'lucide-react';
+import { BarChart3, Brain, Zap, Lightbulb, TrendingUp, Loader2, DollarSign, AlertTriangle, Settings2, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { UsageHistoryChart } from './UsageHistoryChart';
 import { BudgetSettingsPanel } from './BudgetSettingsPanel';
+import { CostOptimizationPanel } from './CostOptimizationPanel';
 
 interface TokenStats {
   planner: number;
@@ -58,7 +59,7 @@ export function ModelUsageAnalytics() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('7d');
   const [stats, setStats] = useState<TokenStats>({ planner: 0, worker: 0, reasoner: 0, total: 0 });
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'credits' | 'tokens' | 'trends' | 'budget'>('credits');
+  const [activeTab, setActiveTab] = useState<'credits' | 'tokens' | 'trends' | 'budget' | 'optimize'>('credits');
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -138,12 +139,13 @@ export function ModelUsageAnalytics() {
         </Select>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'credits' | 'tokens' | 'trends' | 'budget')}>
-        <TabsList className="grid w-full grid-cols-4 mb-4">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'credits' | 'tokens' | 'trends' | 'budget' | 'optimize')}>
+        <TabsList className="grid w-full grid-cols-5 mb-4">
           <TabsTrigger value="credits" className="text-xs"><DollarSign className="w-3 h-3 mr-1" />Credits</TabsTrigger>
           <TabsTrigger value="tokens" className="text-xs"><Zap className="w-3 h-3 mr-1" />Tokens</TabsTrigger>
           <TabsTrigger value="trends" className="text-xs"><TrendingUp className="w-3 h-3 mr-1" />Trends</TabsTrigger>
           <TabsTrigger value="budget" className="text-xs"><Settings2 className="w-3 h-3 mr-1" />Budget</TabsTrigger>
+          <TabsTrigger value="optimize" className="text-xs"><Sparkles className="w-3 h-3 mr-1" />Optimize</TabsTrigger>
         </TabsList>
 
         <TabsContent value="credits">
@@ -232,6 +234,10 @@ export function ModelUsageAnalytics() {
 
         <TabsContent value="budget">
           <BudgetSettingsPanel />
+        </TabsContent>
+
+        <TabsContent value="optimize">
+          <CostOptimizationPanel />
         </TabsContent>
       </Tabs>
     </motion.div>
