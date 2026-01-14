@@ -262,6 +262,48 @@ export type Database = {
         }
         Relationships: []
       }
+      atlas_budget_settings: {
+        Row: {
+          alert_threshold_pct: number
+          alerts_enabled: boolean
+          auto_disable_on_limit: boolean
+          created_at: string
+          critical_threshold_pct: number
+          daily_budget_usd: number
+          id: string
+          last_daily_alert_at: string | null
+          last_weekly_alert_at: string | null
+          updated_at: string
+          weekly_budget_usd: number
+        }
+        Insert: {
+          alert_threshold_pct?: number
+          alerts_enabled?: boolean
+          auto_disable_on_limit?: boolean
+          created_at?: string
+          critical_threshold_pct?: number
+          daily_budget_usd?: number
+          id?: string
+          last_daily_alert_at?: string | null
+          last_weekly_alert_at?: string | null
+          updated_at?: string
+          weekly_budget_usd?: number
+        }
+        Update: {
+          alert_threshold_pct?: number
+          alerts_enabled?: boolean
+          auto_disable_on_limit?: boolean
+          created_at?: string
+          critical_threshold_pct?: number
+          daily_budget_usd?: number
+          id?: string
+          last_daily_alert_at?: string | null
+          last_weekly_alert_at?: string | null
+          updated_at?: string
+          weekly_budget_usd?: number
+        }
+        Relationships: []
+      }
       atlas_error_logs: {
         Row: {
           context: Json | null
@@ -708,6 +750,42 @@ export type Database = {
           max_research_depth?: number
           max_topics_per_session?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      atlas_usage_history: {
+        Row: {
+          created_at: string
+          date: string
+          estimated_cost: number
+          failed_calls: number
+          id: string
+          provider: string
+          successful_calls: number
+          tokens_used: number
+          total_calls: number
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          estimated_cost?: number
+          failed_calls?: number
+          id?: string
+          provider: string
+          successful_calls?: number
+          tokens_used?: number
+          total_calls?: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          estimated_cost?: number
+          failed_calls?: number
+          id?: string
+          provider?: string
+          successful_calls?: number
+          tokens_used?: number
+          total_calls?: number
         }
         Relationships: []
       }
@@ -1727,6 +1805,7 @@ export type Database = {
           similarity: number
         }[]
       }
+      record_daily_usage_snapshot: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

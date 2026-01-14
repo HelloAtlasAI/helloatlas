@@ -38,6 +38,7 @@ import LiveArchitectureStatus from './LiveArchitectureStatus';
 import { MemoryDashboardPanel } from './MemoryDashboardPanel';
 import { LiveLearningDashboard } from './LiveLearningDashboard';
 import { BrainSearchPanel } from './BrainSearchPanel';
+import { SpendingAlertBanner } from './SpendingAlertBanner';
 import { useAtlasHealth } from '@/hooks/useAtlasHealth';
 import { useAtlasKnowledge } from '@/hooks/useAtlasKnowledge';
 import { useAtlasResearch } from '@/hooks/useAtlasResearch';
@@ -90,6 +91,11 @@ const AtlasCoreDashboard = () => {
 
   return (
     <div className="min-h-screen">
+      {/* Spending Alert Banner */}
+      <div className="container mx-auto px-4 pt-4">
+        <SpendingAlertBanner onOpenSettings={() => setShowSettings(true)} />
+      </div>
+
       {/* Hero Section with Sphere */}
       <motion.section 
         className="relative py-8 overflow-hidden"
