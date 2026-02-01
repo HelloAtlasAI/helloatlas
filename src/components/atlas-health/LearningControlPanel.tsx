@@ -92,6 +92,21 @@ export function LearningControlPanel({ compact = false }: LearningControlPanelPr
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
+      {/* Lovable AI Disabled Warning */}
+      {!settings?.lovable_ai_enabled && (
+        <div className="p-3 rounded-lg bg-red-500/20 border border-red-500/30 mb-4">
+          <div className="flex items-center gap-2">
+            <Power className="w-4 h-4 text-red-400" />
+            <span className="text-sm font-medium text-red-400">
+              Lovable AI is disabled - Learning is unavailable
+            </span>
+          </div>
+          <p className="text-xs text-red-400/80 mt-1 ml-6">
+            Enable Lovable AI in the control panel to resume learning.
+          </p>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -134,7 +149,7 @@ export function LearningControlPanel({ compact = false }: LearningControlPanelPr
             variant={learningEnabled ? 'default' : 'outline'}
             size="sm"
             onClick={handleToggle}
-            disabled={isToggling || hasCreditsIssue}
+            disabled={isToggling || hasCreditsIssue || !settings?.lovable_ai_enabled}
             className="gap-2"
           >
             <Power className="w-4 h-4" />
