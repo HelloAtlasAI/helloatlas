@@ -1,13 +1,17 @@
-import { DollarSign, AlertTriangle, Zap, Bell } from "lucide-react";
+import { DollarSign, AlertTriangle, Zap, Bell, PowerOff } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { useSpendingAlerts } from "@/hooks/useSpendingAlerts";
+import { useAtlasProviderStatus } from "@/hooks/useAtlasProviderStatus";
+import { useHolographicToast } from "@/hooks/useHolographicToast";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function BudgetSettingsPanel() {
+  const toast = useHolographicToast();
   const {
     budgetSettings,
     isLoading,
@@ -18,6 +22,17 @@ export function BudgetSettingsPanel() {
     dailyBudgetUsedPct,
     weeklyBudgetUsedPct,
   } = useSpendingAlerts();
+  
+  const { settings, updateSettings, lovableAIEnabled } = useAtlasProviderStatus();
+  
+  const handleEmergencyStop = () => {
+    updateSettings({ 
+      lovable_ai_enabled: false,
+      disable_reason: 'emergency_stop',
+      disabled_at: new Date().toISOString(),
+    });
+    toast.warning({ title: 'Emergency Stop', description: 'All AI operations have been stopped' });
+  };
 
   if (isLoading) {
     return (
@@ -39,13 +54,29 @@ export function BudgetSettingsPanel() {
   return (
     <Card className="bg-card/50 backdrop-blur-sm border-border/50">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <DollarSign className="h-5 w-5 text-primary" />
-          Budget Settings
-        </CardTitle>
-        <CardDescription>
-          Set spending limits to control AI costs
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              Budget Settings
+            </CardTitle>
+            <CardDescription>
+              Set spending limits to control AI costs
+            </CardDescription>
+          </div>
+          {lovableAIEnabled && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleEmergencyStop}
+              disabled={isUpdating}
+              className="gap-2"
+            >
+              <PowerOff className="w-4 h-4" />
+              Emergency Stop
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Current Spending Summary */}

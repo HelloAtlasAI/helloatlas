@@ -12,7 +12,8 @@ import {
   RotateCcw,
   Sliders,
   Target,
-  Clock
+  Clock,
+  DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -20,7 +21,10 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
+import { LovableAIControlPanel } from './LovableAIControlPanel';
+import { BudgetSettingsPanel } from './BudgetSettingsPanel';
 
 interface AtlasSettings {
   notifications: {
@@ -145,7 +149,7 @@ export const AtlasSettingsPanel = ({ onClose }: AtlasSettingsPanelProps) => {
           </div>
           <div>
             <h3 className="text-lg font-semibold">Atlas Core Settings</h3>
-            <p className="text-sm text-muted-foreground">Configure learning and research preferences</p>
+            <p className="text-sm text-muted-foreground">Configure AI, budget, and preferences</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -160,209 +164,145 @@ export const AtlasSettingsPanel = ({ onClose }: AtlasSettingsPanelProps) => {
         </div>
       </div>
 
-      <Separator className="bg-border/30" />
+      {/* Tabs for Settings Categories */}
+      <Tabs defaultValue="ai" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsTrigger value="ai" className="gap-2">
+            <Zap className="w-4 h-4" />
+            <span className="hidden sm:inline">AI Control</span>
+          </TabsTrigger>
+          <TabsTrigger value="budget" className="gap-2">
+            <DollarSign className="w-4 h-4" />
+            <span className="hidden sm:inline">Budget</span>
+          </TabsTrigger>
+          <TabsTrigger value="learning" className="gap-2">
+            <Brain className="w-4 h-4" />
+            <span className="hidden sm:inline">Learning</span>
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-2">
+            <Bell className="w-4 h-4" />
+            <span className="hidden sm:inline">Alerts</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Notifications Section */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Bell className="w-4 h-4 text-amber-400" />
-          <h4 className="font-medium">Notifications</h4>
-        </div>
-        
-        <div className="grid gap-4 pl-6">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="notifications-enabled" className="flex items-center gap-2">
-              Enable Notifications
-            </Label>
-            <Switch
-              id="notifications-enabled"
-              checked={settings.notifications.enabled}
-              onCheckedChange={(checked) => updateSettings('notifications', 'enabled', checked)}
-            />
+        <TabsContent value="ai" className="mt-0">
+          <LovableAIControlPanel />
+        </TabsContent>
+
+        <TabsContent value="budget" className="mt-0">
+          <BudgetSettingsPanel />
+        </TabsContent>
+
+        <TabsContent value="learning" className="mt-0 space-y-4">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400" />
+            <h4 className="font-medium">Learning Preferences</h4>
           </div>
           
-          <div className="flex items-center justify-between">
-            <Label htmlFor="sound-enabled" className="flex items-center gap-2">
-              {settings.notifications.soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-              Sound Alerts
-            </Label>
-            <Switch
-              id="sound-enabled"
-              checked={settings.notifications.soundEnabled}
-              onCheckedChange={(checked) => updateSettings('notifications', 'soundEnabled', checked)}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Badge 
-              variant={settings.notifications.knowledgeAlerts ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => updateSettings('notifications', 'knowledgeAlerts', !settings.notifications.knowledgeAlerts)}
-            >
-              <Brain className="w-3 h-3 mr-1" />
-              Knowledge
-            </Badge>
-            <Badge 
-              variant={settings.notifications.researchAlerts ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => updateSettings('notifications', 'researchAlerts', !settings.notifications.researchAlerts)}
-            >
-              <Search className="w-3 h-3 mr-1" />
-              Research
-            </Badge>
-            <Badge 
-              variant={settings.notifications.learningAlerts ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => updateSettings('notifications', 'learningAlerts', !settings.notifications.learningAlerts)}
-            >
-              <Zap className="w-3 h-3 mr-1" />
-              Learning
-            </Badge>
-          </div>
-        </div>
-      </div>
-
-      <Separator className="bg-border/30" />
-
-      {/* Learning Preferences */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-amber-400" />
-          <h4 className="font-medium">Learning Preferences</h4>
-        </div>
-        
-        <div className="grid gap-4 pl-6">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="auto-learn">Auto-Learning Mode</Label>
-            <Switch
-              id="auto-learn"
-              checked={settings.learning.autoLearn}
-              onCheckedChange={(checked) => updateSettings('learning', 'autoLearn', checked)}
-            />
-          </div>
-
-          <div className="space-y-2">
+          <div className="grid gap-4 pl-6">
             <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2">
-                <Target className="w-4 h-4" />
-                Learning Depth
-              </Label>
-              <span className="text-sm text-muted-foreground">Level {settings.learning.depthLevel}</span>
+              <Label htmlFor="auto-learn">Auto-Learning Mode</Label>
+              <Switch
+                id="auto-learn"
+                checked={settings.learning.autoLearn}
+                onCheckedChange={(checked) => updateSettings('learning', 'autoLearn', checked)}
+              />
             </div>
-            <Slider
-              value={[settings.learning.depthLevel]}
-              onValueChange={([value]) => updateSettings('learning', 'depthLevel', value)}
-              min={1}
-              max={5}
-              step={1}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Surface</span>
-              <span>Deep</span>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  Learning Depth
+                </Label>
+                <span className="text-sm text-muted-foreground">Level {settings.learning.depthLevel}</span>
+              </div>
+              <Slider
+                value={[settings.learning.depthLevel]}
+                onValueChange={([value]) => updateSettings('learning', 'depthLevel', value)}
+                min={1}
+                max={5}
+                step={1}
+                className="w-full"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Sliders className="w-4 h-4" />
+                  Priority Threshold
+                </Label>
+                <span className="text-sm text-muted-foreground">{Math.round(settings.learning.priorityThreshold * 100)}%</span>
+              </div>
+              <Slider
+                value={[settings.learning.priorityThreshold * 100]}
+                onValueChange={([value]) => updateSettings('learning', 'priorityThreshold', value / 100)}
+                min={10}
+                max={100}
+                step={5}
+              />
             </div>
           </div>
+        </TabsContent>
 
-          <div className="space-y-2">
+        <TabsContent value="notifications" className="mt-0 space-y-4">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 text-amber-400" />
+            <h4 className="font-medium">Notifications</h4>
+          </div>
+          
+          <div className="grid gap-4 pl-6">
             <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2">
-                <Sliders className="w-4 h-4" />
-                Priority Threshold
-              </Label>
-              <span className="text-sm text-muted-foreground">{Math.round(settings.learning.priorityThreshold * 100)}%</span>
+              <Label htmlFor="notifications-enabled">Enable Notifications</Label>
+              <Switch
+                id="notifications-enabled"
+                checked={settings.notifications.enabled}
+                onCheckedChange={(checked) => updateSettings('notifications', 'enabled', checked)}
+              />
             </div>
-            <Slider
-              value={[settings.learning.priorityThreshold * 100]}
-              onValueChange={([value]) => updateSettings('learning', 'priorityThreshold', value / 100)}
-              min={10}
-              max={100}
-              step={5}
-            />
-          </div>
-
-          <div className="space-y-2">
+            
             <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Concurrent Sessions
+              <Label htmlFor="sound-enabled" className="flex items-center gap-2">
+                {settings.notifications.soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                Sound Alerts
               </Label>
-              <span className="text-sm text-muted-foreground">{settings.learning.maxConcurrentSessions}</span>
+              <Switch
+                id="sound-enabled"
+                checked={settings.notifications.soundEnabled}
+                onCheckedChange={(checked) => updateSettings('notifications', 'soundEnabled', checked)}
+              />
             </div>
-            <Slider
-              value={[settings.learning.maxConcurrentSessions]}
-              onValueChange={([value]) => updateSettings('learning', 'maxConcurrentSessions', value)}
-              min={1}
-              max={5}
-              step={1}
-            />
-          </div>
-        </div>
-      </div>
 
-      <Separator className="bg-border/30" />
-
-      {/* Research Priorities */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Search className="w-4 h-4 text-cyan-400" />
-          <h4 className="font-medium">Research Priorities</h4>
-        </div>
-        
-        <div className="grid gap-4 pl-6">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="auto-research">Auto-Research Mode</Label>
-            <Switch
-              id="auto-research"
-              checked={settings.research.autoResearch}
-              onCheckedChange={(checked) => updateSettings('research', 'autoResearch', checked)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Source Priority</Label>
             <div className="flex flex-wrap gap-2">
-              {(['web', 'academic', 'internal'] as const).map((source) => (
-                <Badge
-                  key={source}
-                  variant={settings.research.sourcePriority.includes(source) ? "default" : "outline"}
-                  className="cursor-pointer capitalize"
-                  onClick={() => toggleSourcePriority(source)}
-                >
-                  {source}
-                </Badge>
-              ))}
+              <Badge 
+                variant={settings.notifications.knowledgeAlerts ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => updateSettings('notifications', 'knowledgeAlerts', !settings.notifications.knowledgeAlerts)}
+              >
+                <Brain className="w-3 h-3 mr-1" />
+                Knowledge
+              </Badge>
+              <Badge 
+                variant={settings.notifications.researchAlerts ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => updateSettings('notifications', 'researchAlerts', !settings.notifications.researchAlerts)}
+              >
+                <Search className="w-3 h-3 mr-1" />
+                Research
+              </Badge>
+              <Badge 
+                variant={settings.notifications.learningAlerts ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => updateSettings('notifications', 'learningAlerts', !settings.notifications.learningAlerts)}
+              >
+                <Zap className="w-3 h-3 mr-1" />
+                Learning
+              </Badge>
             </div>
           </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Research Depth</Label>
-              <span className="text-sm text-muted-foreground">Level {settings.research.maxDepth}</span>
-            </div>
-            <Slider
-              value={[settings.research.maxDepth]}
-              onValueChange={([value]) => updateSettings('research', 'maxDepth', value)}
-              min={1}
-              max={5}
-              step={1}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Confidence Threshold</Label>
-              <span className="text-sm text-muted-foreground">{Math.round(settings.research.confidenceThreshold * 100)}%</span>
-            </div>
-            <Slider
-              value={[settings.research.confidenceThreshold * 100]}
-              onValueChange={([value]) => updateSettings('research', 'confidenceThreshold', value / 100)}
-              min={30}
-              max={100}
-              step={5}
-            />
-          </div>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </motion.div>
   );
 };

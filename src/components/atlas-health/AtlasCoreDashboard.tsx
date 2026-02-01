@@ -39,12 +39,14 @@ import { MemoryDashboardPanel } from './MemoryDashboardPanel';
 import { LiveLearningDashboard } from './LiveLearningDashboard';
 import { BrainSearchPanel } from './BrainSearchPanel';
 import { SpendingAlertBanner } from './SpendingAlertBanner';
+import { LovableAIControlPanel } from './LovableAIControlPanel';
 import { useAtlasHealth } from '@/hooks/useAtlasHealth';
 import { useAtlasKnowledge } from '@/hooks/useAtlasKnowledge';
 import { useAtlasResearch } from '@/hooks/useAtlasResearch';
 import { useApprovals } from '@/hooks/useApprovals';
 import { useAtlasNotifications } from '@/hooks/useAtlasNotifications';
 import { useAtlasLearning } from '@/hooks/useAtlasLearning';
+import { useAtlasProviderStatus } from '@/hooks/useAtlasProviderStatus';
 import { AtlasSphere } from '@/components/atlas';
 
 const AtlasCoreDashboard = () => {
@@ -56,6 +58,7 @@ const AtlasCoreDashboard = () => {
   const { topics, isLoading: researchLoading, startResearch } = useAtlasResearch();
   const { pendingCount } = useApprovals();
   const { isRunning: isBrainRunning } = useAtlasLearning();
+  const { lovableAIEnabled, currentRoutingMode } = useAtlasProviderStatus();
   
   // Enable real-time notifications
   useAtlasNotifications({ enabled: true });
@@ -92,8 +95,13 @@ const AtlasCoreDashboard = () => {
   return (
     <div className="min-h-screen">
       {/* Spending Alert Banner */}
-      <div className="container mx-auto px-4 pt-4">
+      <div className="container mx-auto px-4 pt-4 space-y-4">
         <SpendingAlertBanner onOpenSettings={() => setShowSettings(true)} />
+        
+        {/* Lovable AI Control Panel - Prominent position when disabled */}
+        {!lovableAIEnabled && (
+          <LovableAIControlPanel compact />
+        )}
       </div>
 
       {/* Hero Section with Sphere */}

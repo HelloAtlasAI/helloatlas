@@ -29,6 +29,13 @@ export interface SystemSettings {
   max_research_depth: number;
   auto_validation: boolean;
   auto_knowledge_extraction: boolean;
+  // Lovable AI control fields
+  lovable_ai_enabled: boolean;
+  auto_switch_enabled: boolean;
+  budget_switch_threshold_pct: number;
+  preferred_cheap_provider: string;
+  disable_reason: string | null;
+  disabled_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -74,7 +81,7 @@ export function useAtlasProviderStatus() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('atlas_system_settings')
-        .select('*')
+        .select('*, lovable_ai_enabled, auto_switch_enabled, budget_switch_threshold_pct, preferred_cheap_provider, disable_reason, disabled_at')
         .limit(1)
         .single();
 
@@ -225,6 +232,17 @@ export function useAtlasProviderStatus() {
   const getProviderStatus = (name: ProviderName) => 
     mergedProviders.find(p => p.provider === name);
 
+  // Lovable AI control computed values
+  const lovableAIEnabled = settings?.lovable_ai_enabled ?? true;
+  const autoSwitchEnabled = settings?.auto_switch_enabled ?? true;
+  
+  // Calculate current routing mode
+  const calculateRoutingMode = (): 'normal' | 'budget_saving' | 'minimal' | 'disabled' => {
+    if (!lovableAIEnabled) return 'disabled';
+    // Additional budget-based calculation would require spending data
+    return 'normal';
+  };
+
   return {
     // Data
     providers: mergedProviders,
@@ -242,6 +260,11 @@ export function useAtlasProviderStatus() {
     hasRateLimitIssue,
     learningEnabled: settings?.learning_enabled ?? false,
     learningMode: settings?.learning_mode ?? 'disabled',
+    
+    // Lovable AI control
+    lovableAIEnabled,
+    autoSwitchEnabled,
+    currentRoutingMode: calculateRoutingMode(),
     
     // Helpers
     getProviderStatus,

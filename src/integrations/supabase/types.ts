@@ -528,12 +528,15 @@ export type Database = {
       atlas_provider_status: {
         Row: {
           avg_response_time_ms: number | null
+          cost_tier: string | null
           created_at: string
           error_count: number
           failed_calls: number
           id: string
+          is_enabled: boolean
           last_error: string | null
           last_success: string | null
+          priority_order: number
           provider: string
           rate_limit_until: string | null
           status: string
@@ -543,12 +546,15 @@ export type Database = {
         }
         Insert: {
           avg_response_time_ms?: number | null
+          cost_tier?: string | null
           created_at?: string
           error_count?: number
           failed_calls?: number
           id?: string
+          is_enabled?: boolean
           last_error?: string | null
           last_success?: string | null
+          priority_order?: number
           provider: string
           rate_limit_until?: string | null
           status?: string
@@ -558,12 +564,15 @@ export type Database = {
         }
         Update: {
           avg_response_time_ms?: number | null
+          cost_tier?: string | null
           created_at?: string
           error_count?: number
           failed_calls?: number
           id?: string
+          is_enabled?: boolean
           last_error?: string | null
           last_success?: string | null
+          priority_order?: number
           provider?: string
           rate_limit_until?: string | null
           status?: string
@@ -720,35 +729,53 @@ export type Database = {
       atlas_system_settings: {
         Row: {
           auto_knowledge_extraction: boolean
+          auto_switch_enabled: boolean
           auto_validation: boolean
+          budget_switch_threshold_pct: number
           created_at: string
+          disable_reason: string | null
+          disabled_at: string | null
           id: string
           learning_enabled: boolean
           learning_mode: string
+          lovable_ai_enabled: boolean
           max_research_depth: number
           max_topics_per_session: number
+          preferred_cheap_provider: string | null
           updated_at: string
         }
         Insert: {
           auto_knowledge_extraction?: boolean
+          auto_switch_enabled?: boolean
           auto_validation?: boolean
+          budget_switch_threshold_pct?: number
           created_at?: string
+          disable_reason?: string | null
+          disabled_at?: string | null
           id?: string
           learning_enabled?: boolean
           learning_mode?: string
+          lovable_ai_enabled?: boolean
           max_research_depth?: number
           max_topics_per_session?: number
+          preferred_cheap_provider?: string | null
           updated_at?: string
         }
         Update: {
           auto_knowledge_extraction?: boolean
+          auto_switch_enabled?: boolean
           auto_validation?: boolean
+          budget_switch_threshold_pct?: number
           created_at?: string
+          disable_reason?: string | null
+          disabled_at?: string | null
           id?: string
           learning_enabled?: boolean
           learning_mode?: string
+          lovable_ai_enabled?: boolean
           max_research_depth?: number
           max_topics_per_session?: number
+          preferred_cheap_provider?: string | null
           updated_at?: string
         }
         Relationships: []
