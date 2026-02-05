@@ -1,346 +1,338 @@
 
-
-## Plan: Provider Auto-Switching & Lovable AI Kill Switch
+## Plan: Atlas Architecture Documentation Page
 
 ### Overview
 
-Implement two key features to give users control over AI spending:
-
-1. **Provider Auto-Switching** - Dynamically route requests to cheaper providers when budget thresholds are approached
-2. **Lovable AI Kill Switch** - A master toggle to completely disable all Lovable AI usage, preventing credit consumption
+Create a new standalone page `/atlas-architecture` that explains the Atlas Core system architecture, memory system, research pipeline, and AI provider tiers in a visually engaging, interactive format. This page will serve as both documentation and a learning resource for understanding how Atlas works.
 
 ---
 
-### Part 1: Database Schema Updates
+### Part 1: Page Structure
 
-#### 1.1 Extend `atlas_system_settings` Table
+#### 1.1 Create `src/pages/AtlasArchitecture.tsx`
 
-Add new columns for provider control:
+A new page following the existing patterns from `AtlasCore.tsx` and `AtlasTeach.tsx`:
 
-| Column | Type | Default | Purpose |
-|--------|------|---------|---------|
-| `lovable_ai_enabled` | boolean | true | Master kill switch for Lovable AI |
-| `auto_switch_enabled` | boolean | true | Enable automatic provider switching |
-| `budget_switch_threshold_pct` | int | 70 | Switch to cheaper providers at this % of daily budget |
-| `preferred_cheap_provider` | text | 'lovable_ai' | Fallback provider when budget is tight |
-| `disable_reason` | text | null | Why Lovable AI was disabled (manual/budget/error) |
-| `disabled_at` | timestamp | null | When Lovable AI was disabled |
-
-#### 1.2 Extend `atlas_provider_status` Table
-
-Add routing priority:
-
-| Column | Type | Purpose |
-|--------|------|---------|
-| `priority_order` | int | Lower = higher priority for routing |
-| `cost_tier` | text | 'cheap', 'standard', 'premium' |
-| `is_enabled` | boolean | Can this provider be used? |
+```text
++------------------------------------------------------------------+
+|  Header: Back to Dashboard | Atlas Architecture                   |
++------------------------------------------------------------------+
+|                                                                   |
+|  [Hero Section with Mini Sphere]                                  |
+|  "Understanding Atlas Intelligence"                               |
+|  Brief intro paragraph                                            |
+|                                                                   |
++------------------------------------------------------------------+
+|  Tab Navigation                                                   |
+|  [Overview] [AI Providers] [Memory] [Learning] [Sphere]           |
++------------------------------------------------------------------+
+|                                                                   |
+|  Tab Content Area                                                 |
+|                                                                   |
++------------------------------------------------------------------+
+```
 
 ---
 
-### Part 2: Backend Auto-Switching Logic
+### Part 2: Documentation Sections
 
-#### 2.1 Create `supabase/functions/_shared/providerRouting.ts`
+#### 2.1 Overview Tab
 
-New shared utility for intelligent provider routing:
+High-level architecture with interactive diagrams:
 
-```typescript
-interface RoutingDecision {
-  provider: string;
-  model: string;
-  reason: 'default' | 'budget_switch' | 'provider_down' | 'rate_limited';
-  originalProvider?: string;
-}
+| Section | Content |
+|---------|---------|
+| System Overview | Mermaid diagram showing Frontend → Edge Functions → AI Providers → Storage flow |
+| Core Concepts | Cards explaining Voice-First, Persistent Memory, Proactive Intelligence |
+| Technology Stack | Visual table of all technologies used |
 
-// Main routing function
-export async function selectOptimalProvider(
-  supabase: SupabaseClient,
-  taskType: string,
-  preferredProvider?: string
-): Promise<RoutingDecision> {
-  // 1. Check if Lovable AI is globally disabled
-  // 2. Check budget thresholds
-  // 3. Check provider health
-  // 4. Return optimal provider with reasoning
-}
+#### 2.2 AI Providers Tab
 
-// Cost tier definitions
-const COST_TIERS = {
-  cheap: ['lovable_ai'], // gemini-flash-lite
-  standard: ['lovable_ai', 'perplexity'], // gemini-flash, sonar
-  premium: ['openai', 'anthropic'], // gpt-5, claude
-};
+Detailed explanation of the multi-model architecture:
 
-// Auto-switching rules
-const SWITCHING_RULES = {
-  // When budget > 70%, downgrade to cheaper models
-  budget_warning: { 
-    from: 'premium', 
-    to: 'standard' 
-  },
-  // When budget > 90%, downgrade to cheapest
-  budget_critical: { 
-    from: ['premium', 'standard'], 
-    to: 'cheap' 
-  },
-  // When Lovable AI disabled, use alternatives
-  lovable_disabled: {
-    fallback: 'perplexity' // or null to block
-  },
-};
-```
+| Section | Content |
+|---------|---------|
+| Provider Cards | Interactive cards for each provider (Lovable AI, Claude, Perplexity, Jina) |
+| Model Tier System | Visual diagram of 4-tier model routing |
+| Task Routing | Table showing which tasks go to which models |
+| Fallback Chains | Visual representation of fallback behavior |
+| Budget Routing | Explanation of cost-aware model selection |
 
-#### 2.2 Update Edge Functions with Auto-Switching
+#### 2.3 Memory Tab
 
-Modify these functions to use the new routing system:
+Explanation of the memory architecture:
 
-**`chat-with-memory/index.ts`:**
-- Check `lovable_ai_enabled` before making any Lovable AI calls
-- Use `selectOptimalProvider()` for model selection
-- Fall back to cached responses or offline mode when all providers unavailable
+| Section | Content |
+|---------|---------|
+| Memory Tiers | Visual diagram of Working → Short-term → Long-term → Semantic Core |
+| Session Context | How working memory tracks conversation state |
+| Knowledge Validation | Multi-model validation pipeline diagram |
+| Memory Synthesis | Claude Opus integration for memory consolidation |
 
-**`agent-run/index.ts`:**
-- Inject budget-aware model selection into `selectModel()`
-- Track provider switches in run steps for debugging
+#### 2.4 Learning Tab
 
-**`atlas-research/index.ts`:**
-- Completely pause research when Lovable AI is disabled
-- Use cheaper models for initial topic discovery
+Always-alive learning system documentation:
 
-**`atlas-knowledge/index.ts`:**
-- Skip knowledge extraction when Lovable AI disabled
-- Use cheaper validation when budget is tight
+| Section | Content |
+|---------|---------|
+| Learning Pipeline | Animated diagram: News Pulse → Topic Discovery → Research → Validation → Storage |
+| Scheduled Jobs | Timeline showing cron job frequencies |
+| Research Queue | Visual explanation of priority-based research processing |
+| Brain Orchestration | 30-minute cycle explanation |
+
+#### 2.5 Sphere Tab
+
+3D visualization system documentation:
+
+| Section | Content |
+|---------|---------|
+| 6 States | Visual cards for each state (dormant, passive, activated, listening, thinking, speaking) |
+| Shader System | Code snippets and visual examples |
+| Audio Reactivity | Explanation with demo |
+| Customization | How to configure colors and behaviors |
 
 ---
 
-### Part 3: Frontend Kill Switch & Controls
+### Part 3: Component Architecture
 
-#### 3.1 Update `src/hooks/useAtlasProviderStatus.ts`
+#### 3.1 New Components to Create
 
-Add new state and mutations:
+| Component | Purpose |
+|-----------|---------|
+| `src/pages/AtlasArchitecture.tsx` | Main page component |
+| `src/components/architecture/ArchitectureOverview.tsx` | Overview tab content |
+| `src/components/architecture/AIProvidersSection.tsx` | AI providers documentation |
+| `src/components/architecture/MemoryArchitectureSection.tsx` | Memory system docs |
+| `src/components/architecture/LearningPipelineSection.tsx` | Learning system docs |
+| `src/components/architecture/SphereDocumentation.tsx` | 3D sphere docs |
+| `src/components/architecture/ArchitectureDiagram.tsx` | Reusable Mermaid wrapper |
+| `src/components/architecture/ConceptCard.tsx` | Reusable concept explanation card |
+| `src/components/architecture/CodeBlock.tsx` | Syntax-highlighted code display |
 
-```typescript
-// New state
-lovableAIEnabled: boolean;
-autoSwitchEnabled: boolean;
-currentRoutingMode: 'normal' | 'budget_saving' | 'minimal' | 'disabled';
+#### 3.2 Reuse Existing Components
 
-// New mutations
-disableLovableAI: (reason: string) => void;
-enableLovableAI: () => void;
-setAutoSwitchEnabled: (enabled: boolean) => void;
-setBudgetSwitchThreshold: (pct: number) => void;
-```
+- `AIArchitectureDiagram` - Provider visualization (already exists)
+- `AtlasSphere` - Mini sphere for hero section
+- `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` - Navigation
+- Motion animations from framer-motion
 
-#### 3.2 Create `src/components/atlas-health/LovableAIControlPanel.tsx`
+---
 
-Prominent control panel for Lovable AI:
+### Part 4: Visual Design
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│ 🔌 Lovable AI Control                                               │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│ ┌─────────────────────────────────────────────────────────────────┐ │
-│ │  ⚡ Lovable AI                                    [████ ON ████] │ │
-│ │                                                                 │ │
-│ │  Master switch for all Lovable AI operations.                   │ │
-│ │  Disabling this stops ALL credit usage immediately.             │ │
-│ └─────────────────────────────────────────────────────────────────┘ │
-│                                                                     │
-│ Status: Active (gemini-2.5-flash)                                   │
-│ Today's Usage: $2.45 / $5.00 (49%)                                  │
-│                                                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│ 🔄 Auto Budget Protection                              [ON]         │
-│                                                                     │
-│ ┌─────────────────────────────────────────────────────────────────┐ │
-│ │  Switch to cheaper models at:  [====●========] 70%              │ │
-│ │  Auto-disable at budget limit:  [●] Enabled                     │ │
-│ └─────────────────────────────────────────────────────────────────┘ │
-│                                                                     │
-│ Current Mode: ● Normal Operation                                    │
-│               ○ Budget Saving (cheaper models)                      │
-│               ○ Minimal (essential only)                            │
-│               ○ Disabled (no AI calls)                              │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
+#### 4.1 Design Patterns
 
-Features:
-- Large, prominent toggle for Lovable AI (hard to miss)
-- Clear warning when disabling ("Atlas will have limited functionality")
-- Status indicator showing current routing mode
-- Auto-switch threshold slider (50-90%)
-- Visual indicator of current cost tier in use
-
-#### 3.3 Update `src/components/atlas-health/LearningControlPanel.tsx`
-
-Add Lovable AI status banner at top:
+Following existing glassmorphic design:
 
 ```tsx
-{!lovableAIEnabled && (
-  <div className="p-3 rounded-lg bg-red-500/20 border border-red-500/30 mb-4">
-    <div className="flex items-center gap-2">
-      <PowerOff className="w-4 h-4 text-red-400" />
-      <span className="text-sm font-medium text-red-400">
-        Lovable AI is disabled - Learning is unavailable
-      </span>
-    </div>
-  </div>
-)}
-```
-
-#### 3.4 Update `src/components/atlas-health/BudgetSettingsPanel.tsx`
-
-Add quick-disable button:
-
-```tsx
-<Button
-  variant="destructive"
-  size="sm"
-  onClick={() => disableLovableAI('manual')}
-  className="gap-2"
+// Card pattern
+<motion.div
+  className="backdrop-blur-xl bg-background/30 border border-border/30 rounded-2xl p-6"
+  whileHover={{ borderColor: 'hsl(var(--primary) / 0.5)' }}
 >
-  <PowerOff className="w-4 h-4" />
-  Emergency Stop
-</Button>
 ```
+
+#### 4.2 Color Coding by Section
+
+| Section | Accent Color |
+|---------|--------------|
+| Overview | Primary (purple) |
+| AI Providers | Secondary (blue) |
+| Memory | Emerald |
+| Learning | Amber |
+| Sphere | Cyan |
+
+#### 4.3 Interactive Elements
+
+- Hoverable concept cards with expanded details
+- Clickable Mermaid diagrams with zoom
+- Animated state transitions in Sphere section
+- Code blocks with copy buttons
 
 ---
 
-### Part 4: Auto-Switching Algorithm
+### Part 5: Content Details
 
-#### 4.1 Budget-Based Routing
+#### 5.1 Overview Section Content
 
-```
-Daily Budget: $5.00
-Current Spend: $X.XX
-
-ROUTING LOGIC:
-────────────────────────────────────────────────────────
- 0%────────50%────────70%────────90%────────100%
- │         │          │          │           │
- │  NORMAL │  NORMAL  │ BUDGET   │ MINIMAL   │ DISABLED
- │         │          │ SAVING   │           │
-────────────────────────────────────────────────────────
-                      ↓          ↓           ↓
-                      Switch to  Only        Auto-disable
-                      gemini-    essential   learning
-                      flash-lite calls
+**System Overview Diagram (Mermaid):**
+```text
+graph TB
+    User --> Frontend
+    Frontend --> EdgeFunctions
+    EdgeFunctions --> AIProviders
+    EdgeFunctions --> Database
+    AIProviders --> LovableAI
+    AIProviders --> Claude
+    AIProviders --> Perplexity
 ```
 
-#### 4.2 Provider Health Fallback Chain
+**Core Concepts Cards:**
 
+1. **Voice-First Interaction**
+   - Real-time STT via ElevenLabs Scribe
+   - Wake word detection
+   - Streaming TTS responses
+
+2. **Persistent Memory**
+   - 4-tier memory architecture
+   - Semantic embeddings
+   - Cross-session continuity
+
+3. **Proactive Intelligence**
+   - Background research
+   - News monitoring
+   - Knowledge gap detection
+
+4. **3D Visualization**
+   - GPU-accelerated particles
+   - State-aware rendering
+   - Audio reactivity
+
+#### 5.2 AI Providers Section Content
+
+**Provider Cards:**
+
+| Provider | Tier | Models | Use Cases |
+|----------|------|--------|-----------|
+| Lovable AI | 1 & 2 | GPT-5, Gemini Flash | Planning, Execution |
+| Claude | Memory Core | Opus 4.5, Sonnet 4.5 | Synthesis, Creative |
+| Perplexity | 3 | Sonar, Sonar-Pro | Research, Search |
+| Jina | Utility | Reader API | Web scraping |
+
+**Routing Logic Diagram:**
+```text
+Task Type → Model Selection
+───────────────────────────────
+Planning → GPT-5
+Execution → Gemini Flash
+Research → Sonar-Pro
+Memory → Claude Opus
+Creative → Claude Sonnet
 ```
-Primary Request (e.g., planning task):
-  1. Check if Lovable AI enabled → If NO, skip to step 4
-  2. Check budget tier → Select appropriate model
-  3. Check provider health → If unhealthy, try next
-  4. Fallback chain:
-     - Lovable AI (gemini-flash) → failed
-     - Lovable AI (gemini-flash-lite) → failed  
-     - Perplexity (sonar) → failed
-     - Return error / cached response
+
+#### 5.3 Memory Section Content
+
+**Memory Tiers Visual:**
+```text
+┌─────────────────────────────────────────┐
+│  Semantic Core (Synthesized Themes)     │ ← Claude Opus
+├─────────────────────────────────────────┤
+│  Long-Term Memory (ai_memory + vectors) │ ← Persistent
+├─────────────────────────────────────────┤
+│  Short-Term Memory (important items)    │ ← Session promoted
+├─────────────────────────────────────────┤
+│  Working Memory (session_context)       │ ← 30 min expiry
+└─────────────────────────────────────────┘
 ```
 
-#### 4.3 Task-Based Routing Adjustments
+**Validation Pipeline:**
+- Claude Opus: Reasoning/Context
+- Gemini Pro: Fact-checking
+- Perplexity: Source verification
+- Consensus: 2+ models must agree
 
-| Task Type | Normal Mode | Budget Saving | Minimal |
-|-----------|-------------|---------------|---------|
-| Chat | gemini-flash | gemini-flash-lite | gemini-flash-lite |
-| Planning | gpt-5 | gemini-flash | gemini-flash-lite |
-| Research | sonar-pro | sonar | BLOCKED |
-| Knowledge | gemini-flash | BLOCKED | BLOCKED |
-| Memory | claude-sonnet | gemini-flash | BLOCKED |
+#### 5.4 Learning Section Content
+
+**Scheduled Jobs Timeline:**
+```text
+TIME          JOB
+────────────────────────────────
+Every 15 min  News Pulse
+Every 30 min  Brain Orchestrator
+Every 1 hour  Topic Discovery
+Every 2 hours Batch Validation
+Every 6 hours Memory Consolidation
+Daily 2 AM    Full Synthesis
+```
+
+**Learning Flow:**
+```text
+News/Topics → Research Queue → Parallel Processing → Validation → Knowledge Store
+```
+
+#### 5.5 Sphere Section Content
+
+**State Visualization:**
+
+| State | Color | Behavior |
+|-------|-------|----------|
+| Dormant | Blue-gray | Minimal motion |
+| Passive | Soft blue | Gentle breathing |
+| Activated | Purple | Bright pulse |
+| Listening | Cyan | Audio-reactive |
+| Thinking | Violet | Swirling motion |
+| Speaking | Lavender | Rhythmic pulse |
 
 ---
 
-### Part 5: Integration Points
+### Part 6: Routing Integration
 
-#### 5.1 Dashboard Integration
+#### 6.1 Add Route to App.tsx
 
-Update `AtlasCoreDashboard.tsx`:
-- Add `LovableAIControlPanel` in a prominent position
-- Show routing mode in header status
-- Add emergency stop button in sidebar
+```tsx
+// In src/App.tsx
+const AtlasArchitecture = lazy(() => import("./pages/AtlasArchitecture"));
 
-#### 5.2 Real-time Status Updates
+<Route 
+  path="/atlas-architecture" 
+  element={
+    <Suspense fallback={<PageLoader />}>
+      <AtlasArchitecture />
+    </Suspense>
+  } 
+/>
+```
 
-When Lovable AI is disabled:
-- All dependent panels show disabled state
-- Learning panel shows "Lovable AI Required"
-- Research panel shows "Paused - Enable Lovable AI to continue"
-- Chat responses use cached/local mode messaging
+#### 6.2 Navigation Links
 
-#### 5.3 Notification System
-
-Toast notifications for:
-- "Switching to budget-saving mode (70% of daily budget used)"
-- "Lovable AI disabled - All AI operations paused"
-- "Lovable AI re-enabled"
-- "Auto-switched to gemini-flash-lite due to rate limiting"
+Add link from:
+- Dashboard header menu
+- Atlas Core page sidebar
+- Settings panel
 
 ---
 
-### Files to Create
+### Part 7: Files to Create
 
 | File | Purpose |
 |------|---------|
-| `supabase/migrations/xxx_provider_routing.sql` | Schema updates |
-| `supabase/functions/_shared/providerRouting.ts` | Routing logic |
-| `src/components/atlas-health/LovableAIControlPanel.tsx` | Kill switch UI |
+| `src/pages/AtlasArchitecture.tsx` | Main page |
+| `src/components/architecture/index.ts` | Barrel export |
+| `src/components/architecture/ArchitectureOverview.tsx` | Overview section |
+| `src/components/architecture/AIProvidersSection.tsx` | Providers section |
+| `src/components/architecture/MemoryArchitectureSection.tsx` | Memory section |
+| `src/components/architecture/LearningPipelineSection.tsx` | Learning section |
+| `src/components/architecture/SphereDocumentation.tsx` | Sphere section |
+| `src/components/architecture/ConceptCard.tsx` | Reusable card |
+| `src/components/architecture/TechStackTable.tsx` | Technology table |
 
-### Files to Modify
+### Part 8: Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/hooks/useAtlasProviderStatus.ts` | Add Lovable AI control state |
-| `src/hooks/useSpendingAlerts.ts` | Add routing mode awareness |
-| `supabase/functions/chat-with-memory/index.ts` | Check kill switch, use routing |
-| `supabase/functions/agent-run/index.ts` | Budget-aware model selection |
-| `supabase/functions/atlas-research/index.ts` | Respect kill switch |
-| `supabase/functions/atlas-knowledge/index.ts` | Respect kill switch |
-| `supabase/functions/atlas-control/index.ts` | Add Lovable AI control endpoints |
-| `src/components/atlas-health/LearningControlPanel.tsx` | Show disabled state |
-| `src/components/atlas-health/BudgetSettingsPanel.tsx` | Add emergency stop |
-| `src/components/atlas-health/AtlasCoreDashboard.tsx` | Integrate new panel |
+| `src/App.tsx` | Add lazy route for `/atlas-architecture` |
+| `src/components/dashboard/DashboardHeader.tsx` | Add navigation link (if exists) |
 
 ---
 
-### User Experience Flow
+### Implementation Priority
 
-**Scenario: User tops up credits and Atlas consumes them quickly**
-
-1. User tops up $10 in Lovable AI credits
-2. Atlas starts learning/researching (consumes credits)
-3. User sees spending alerts at 70% and 90%
-4. User can:
-   - **Option A**: Click "Emergency Stop" to immediately disable Lovable AI
-   - **Option B**: Rely on auto-disable at 100% of daily budget
-   - **Option C**: Lower daily budget to $2 to preserve credits
-5. When disabled, Atlas shows clear messaging:
-   - "Lovable AI is paused. I can still help with basic tasks using cached knowledge."
-6. User can re-enable when ready to use more credits
-
-**Scenario: Budget protection prevents credit drain**
-
-1. User sets daily budget to $3
-2. Auto-switch threshold at 70%
-3. At $2.10 spent (70%), system switches to cheaper models
-4. At $2.85 spent (95%), system shows critical warning
-5. At $3.00 spent (100%), learning auto-disables
-6. Basic chat continues but with cheaper models
-7. Next day, budget resets and full functionality resumes
+1. Create main page structure with tabs
+2. Implement Overview section with diagrams
+3. Add AI Providers section
+4. Add Memory section
+5. Add Learning section
+6. Add Sphere section
+7. Add routing and navigation
+8. Polish animations and interactivity
 
 ---
 
 ### Technical Notes
 
-1. **Kill Switch Priority**: The `lovable_ai_enabled` check happens FIRST in every edge function, before any API calls
-2. **Graceful Degradation**: When Lovable AI is disabled, functions return informative errors, not crashes
-3. **State Persistence**: Disable state persists across sessions and page reloads
-4. **Realtime Updates**: UI updates immediately when settings change via Supabase realtime
-5. **No Hidden Consumption**: All AI calls are blocked when disabled - no background tasks
-
+1. **Mermaid Integration**: Use the same pattern as `AIArchitectureDiagram.tsx` for rendering Mermaid diagrams
+2. **Performance**: Lazy load heavy sections to keep initial bundle small
+3. **Mobile Responsiveness**: All sections should work on mobile with horizontal scroll for diagrams
+4. **Accessibility**: Proper headings, alt text for diagrams, keyboard navigation
+5. **Content Source**: Pull content from existing `docs/API.md`, `docs/ATLAS-SPHERE.md`, and `README.md`
