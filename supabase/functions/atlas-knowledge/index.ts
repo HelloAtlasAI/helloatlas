@@ -7,6 +7,7 @@ import {
   recordSuccess, 
   recordError
 } from "../_shared/providerStatus.ts";
+import { isLovableAIEnabled } from "../_shared/providerStatus.ts";
 
 interface KnowledgeExtraction {
   topic: string;
@@ -129,7 +130,21 @@ serve(async (req) => {
 
   try {
     const { conversation, userId, source = "conversation", learningTopic, maxTopics } = await req.json();
-    
+
+    const supabase = getSupabaseClient();
+
+    // Check if Lovable AI is enabled (master kill switch)
+    const lovableAIStatus = await isLovableAIEnabled(supabase);
+    if (!lovableAIStatus.enabled) {
+      console.log("[atlas-knowledge] Lovable AI is disabled, skipping extraction");
+      return jsonResponse({ 
+        success: false, 
+        extracted: 0, 
+        reason: "lovable_ai_disabled",
+        message: "Lovable AI is currently disabled"
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
@@ -139,8 +154,6 @@ serve(async (req) => {
     if (!conversation || !Array.isArray(conversation)) {
       return errorResponse("Invalid conversation data", 400);
     }
-
-    const supabase = getSupabaseClient();
 
     // Check if learning is enabled
     const learningSettings = await isLearningEnabled(supabase);

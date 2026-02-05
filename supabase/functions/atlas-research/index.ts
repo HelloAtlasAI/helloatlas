@@ -8,6 +8,7 @@ import {
   recordError,
   updateLearningSession
 } from "../_shared/providerStatus.ts";
+import { isLovableAIEnabled } from "../_shared/providerStatus.ts";
 
 // Declare EdgeRuntime for background tasks
 declare const EdgeRuntime: {
@@ -460,6 +461,20 @@ serve(async (req) => {
     }
 
     const supabase = getSupabaseClient();
+
+    // Check if Lovable AI is enabled (master kill switch)
+    const lovableAIStatus = await isLovableAIEnabled(supabase);
+    if (!lovableAIStatus.enabled) {
+      console.log("[atlas-research] Lovable AI is disabled, aborting research");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Lovable AI is disabled",
+          reason: "lovable_ai_disabled"
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Check if learning is enabled before proceeding
     const learningSettings = await isLearningEnabled(supabase);
