@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, handleCors, jsonResponse, errorResponse } from "../_shared/cors.ts";
 import { getSupabaseClient, getSupabaseUrl } from "../_shared/supabase.ts";
+import { isLovableAIEnabled } from "../_shared/providerStatus.ts";
 
 interface AgentRunRequest {
   agent_id: string;
@@ -274,6 +275,23 @@ serve(async (req) => {
 
     const supabaseUrl = getSupabaseUrl();
     const supabase = getSupabaseClient();
+
+    // Check if Lovable AI is enabled (master kill switch)
+    const lovableAIStatus = await isLovableAIEnabled(supabase);
+    if (!lovableAIStatus.enabled) {
+      console.log("[agent-run] Lovable AI is disabled, aborting run");
+      return new Response(
+        JSON.stringify({ 
+          error: "Lovable AI is currently disabled",
+          reason: "lovable_ai_disabled",
+          message: lovableAIStatus.reason || "AI features have been disabled to conserve credits"
+        }),
+        { 
+          status: 503, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
 
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);

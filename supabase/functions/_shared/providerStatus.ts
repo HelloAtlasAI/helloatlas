@@ -340,3 +340,30 @@ export async function updateLearningSession(
     console.error('[providerStatus] Failed to update learning session:', e);
   }
 }
+
+// Check if Lovable AI is enabled (master kill switch)
+export async function isLovableAIEnabled(supabase: SupabaseClient): Promise<{
+  enabled: boolean;
+  reason?: string;
+  disabledAt?: string;
+}> {
+  try {
+    const { data } = await supabase
+      .from('atlas_system_settings')
+      .select('lovable_ai_enabled, disable_reason, disabled_at')
+      .limit(1)
+      .single();
+
+    if (!data) {
+      return { enabled: true }; // Default to enabled if no settings
+    }
+
+    return {
+      enabled: data.lovable_ai_enabled !== false, // Default true
+      reason: data.disable_reason || undefined,
+      disabledAt: data.disabled_at || undefined,
+    };
+  } catch {
+    return { enabled: true }; // Default to enabled on error
+  }
+}

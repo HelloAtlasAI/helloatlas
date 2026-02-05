@@ -10,6 +10,7 @@ import {
   updateLearningSession,
   isProviderHealthy
 } from "../_shared/providerStatus.ts";
+import { isLovableAIEnabled } from "../_shared/providerStatus.ts";
 
 interface Memory {
   key: string;
@@ -619,6 +620,23 @@ serve(async (req) => {
 
     // Initialize Supabase client
     const supabase = getSupabaseClient();
+
+    // Check if Lovable AI is enabled (master kill switch)
+    const lovableAIStatus = await isLovableAIEnabled(supabase);
+    if (!lovableAIStatus.enabled) {
+      console.log("[chat-with-memory] Lovable AI is disabled");
+      return new Response(
+        JSON.stringify({ 
+          error: "Lovable AI is currently disabled",
+          reason: "lovable_ai_disabled",
+          message: lovableAIStatus.reason || "AI features have been disabled to conserve credits"
+        }),
+        { 
+          status: 503, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
 
     // Generate a session ID for working memory (use existing or create new)
     const sessionId = req.headers.get("x-session-id") || `session_${Date.now()}`;
