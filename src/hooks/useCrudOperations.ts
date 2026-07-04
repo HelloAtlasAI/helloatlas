@@ -122,7 +122,7 @@ export function useCrudOperations<T extends { id: string }>(
       async () => {
         const { data: result, error } = await supabase
           .from(table as any)
-          .update(updates)
+          .update(updates as any)
           .eq('id', id)
           .select()
           .single();

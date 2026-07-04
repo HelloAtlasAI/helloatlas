@@ -90,6 +90,13 @@
     --dashboard-success: 142 71% 45%;
     --dashboard-warning: 38 92% 50%;
     --dashboard-danger: 0 84% 60%;
+
+    /* Landing page - Midnight Indigo palette */
+    --landing-bg: 240 28% 7%;
+    --landing-surface: 240 33% 13%;
+    --landing-navy: 240 50% 23%;
+    --landing-indigo: 243 75% 58%;
+    --landing-indigo-glow: 243 75% 58%;
   }
 
   .dark {
