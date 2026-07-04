@@ -46,14 +46,22 @@ const App = () => (
             </Suspense>
             } 
           />
-           <Route 
-             path="/atlas-architecture" 
-             element={
-               <Suspense fallback={<PageLoader />}>
-                 <AtlasArchitecture />
-               </Suspense>
-             } 
-           />
+          <Route 
+            path="/atlas-architecture" 
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <AtlasArchitecture />
+              </Suspense>
+            } 
+          />
+          <Route 
+            path="/coming-soon" 
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <ComingSoon />
+              </Suspense>
+            } 
+          />
           <Route 
             path="/atlas-teach" 
             element={
