@@ -13,7 +13,8 @@ const LegacyIndex = lazy(() => import("./pages/Index"));
 const AtlasDemo = lazy(() => import("./pages/AtlasDemo"));
 const AtlasCore = lazy(() => import("./pages/AtlasCore"));
 const AtlasTeach = lazy(() => import("./pages/AtlasTeach"));
- const AtlasArchitecture = lazy(() => import("./pages/AtlasArchitecture"));
+const AtlasArchitecture = lazy(() => import("./pages/AtlasArchitecture"));
+const ComingSoon = lazy(() => import("./pages/ComingSoon"));
 
 const queryClient = new QueryClient();
 
