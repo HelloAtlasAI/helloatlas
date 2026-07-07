@@ -333,14 +333,15 @@ const ComingSoon = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="relative flex items-center justify-center"
+            className="relative flex items-center justify-center min-h-[420px] lg:min-h-[520px] overflow-visible"
           >
             <div
-              className="absolute w-[280px] h-[280px] rounded-full opacity-30 blur-3xl"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full opacity-30 blur-3xl pointer-events-none"
               style={{ background: 'radial-gradient(circle, hsl(var(--landing-indigo) / 0.4) 0%, transparent 65%)' }}
             />
-            <div className="relative z-10 w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] lg:w-[320px] lg:h-[320px]">
-              <AtlasSphere state="thinking" audioLevel={0.3} context="dashboard" />
+            {/* Larger canvas so bloom/glow isn't clipped; sphere itself is scaled down via camera (mini context = further zoom) */}
+            <div className="relative z-10 w-[420px] h-[420px] sm:w-[480px] sm:h-[480px] lg:w-[560px] lg:h-[560px] overflow-visible">
+              <AtlasSphere state="thinking" audioLevel={0.3} context="mini" cameraZ={7} />
             </div>
           </motion.div>
         </div>
