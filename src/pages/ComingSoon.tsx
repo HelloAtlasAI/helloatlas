@@ -330,8 +330,8 @@ const ComingSoon = () => {
 
           {/* Right: sphere */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
             className="relative flex items-center justify-center min-h-[420px] lg:min-h-[560px] overflow-visible"
           >
