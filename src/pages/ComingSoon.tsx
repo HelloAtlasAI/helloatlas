@@ -1,6 +1,22 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Mic, Brain, Sparkles, Orbit, ArrowRight, Mail, Cpu, ChevronRight } from 'lucide-react';
+import {
+  Mic,
+  Brain,
+  Sparkles,
+  Orbit,
+  ArrowRight,
+  Mail,
+  Cpu,
+  ChevronRight,
+  Layers,
+  Database,
+  Network,
+  Radio,
+  Zap,
+  Shield,
+  Eye,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
@@ -10,7 +26,8 @@ const featureCards = [
   {
     icon: Mic,
     title: 'Voice-First',
-    description: 'Real-time speech recognition, wake-word activation, and streaming speech synthesis — speak naturally and Atlas responds.',
+    description:
+      'Real-time speech recognition, wake-word activation, and streaming speech synthesis — speak naturally and Atlas responds.',
     accent: 'text-cyan-400',
     bg: 'bg-cyan-500/10',
     border: 'border-cyan-500/20 hover:border-cyan-500/40',
@@ -18,7 +35,8 @@ const featureCards = [
   {
     icon: Brain,
     title: 'Persistent Memory',
-    description: 'Atlas remembers preferences, facts, and context across sessions with a multi-tier memory architecture.',
+    description:
+      'Atlas remembers preferences, facts, and context across sessions with a multi-tier memory architecture.',
     accent: 'text-indigo-400',
     bg: 'bg-indigo-500/10',
     border: 'border-indigo-500/20 hover:border-indigo-500/40',
@@ -26,7 +44,8 @@ const featureCards = [
   {
     icon: Sparkles,
     title: 'Proactive Intelligence',
-    description: 'On-demand learning and research pipeline that surfaces relevant knowledge when you need it.',
+    description:
+      'On-demand learning and research pipeline that surfaces relevant knowledge when you need it.',
     accent: 'text-violet-400',
     bg: 'bg-violet-500/10',
     border: 'border-violet-500/20 hover:border-violet-500/40',
@@ -34,10 +53,92 @@ const featureCards = [
   {
     icon: Orbit,
     title: 'Immersive Sphere',
-    description: 'A GPU-accelerated 3D visualization that reacts to AI state and audio, giving Atlas a tangible presence.',
+    description:
+      'A GPU-accelerated 3D visualization that reacts to AI state and audio, giving Atlas a tangible presence.',
     accent: 'text-fuchsia-400',
     bg: 'bg-fuchsia-500/10',
     border: 'border-fuchsia-500/20 hover:border-fuchsia-500/40',
+  },
+];
+
+const coreLayers = [
+  {
+    icon: Radio,
+    title: 'Sensory Layer',
+    description:
+      'Continuous audio capture, wake-word detection, and streaming transcription form the always-on sensory input.',
+  },
+  {
+    icon: Brain,
+    title: 'Cognitive Core',
+    description:
+      'Multi-model routing across Gemini, Claude, and Perplexity — matched to task type, latency, and budget.',
+  },
+  {
+    icon: Database,
+    title: 'Memory Fabric',
+    description:
+      'Four tiers — working, short-term, long-term, and semantic core — synthesised into a persistent identity.',
+  },
+  {
+    icon: Orbit,
+    title: 'Expression Layer',
+    description:
+      'The 3D sphere and streaming TTS translate cognitive state into visible, audible presence in real time.',
+  },
+];
+
+const architectureBlocks = [
+  {
+    icon: Layers,
+    title: 'Frontend',
+    stack: 'React 18 · Vite · Three.js · Tailwind',
+    description: 'Reactive UI with a GPU-driven sphere that mirrors every cognitive state.',
+  },
+  {
+    icon: Network,
+    title: 'Edge Runtime',
+    stack: 'Supabase Functions · Deno',
+    description: 'Low-latency orchestration for chat, memory, research, and voice pipelines.',
+  },
+  {
+    icon: Cpu,
+    title: 'AI Gateway',
+    stack: 'Gemini · Claude · Perplexity',
+    description: 'Budget-aware model routing with graceful fallback and cost governance.',
+  },
+  {
+    icon: Database,
+    title: 'Storage',
+    stack: 'Postgres · pgvector · Realtime',
+    description: 'Structured data, semantic embeddings, and live subscriptions in one place.',
+  },
+];
+
+const uniqueFeatures = [
+  {
+    icon: Eye,
+    title: 'Cognitive Sphere',
+    description:
+      'Six distinct visual states — dormant, listening, thinking, speaking, learning, dreaming — rendered via custom GLSL shaders.',
+  },
+  {
+    icon: Shield,
+    title: 'Budget Guardrails',
+    description:
+      'Spend-aware routing kicks in at 70%, 90%, and 100% thresholds, automatically switching to lighter models.',
+  },
+  {
+    icon: Zap,
+    title: 'On-Demand Learning',
+    description:
+      'Research is triggered by intent, not by cron — no wasted compute, no stale summaries.',
+  },
+  {
+    icon: Brain,
+    title: 'Semantic Core',
+    description:
+      'Claude periodically synthesises long-term memory into a compact identity layer that grounds every response.',
   },
 ];
 
@@ -45,10 +146,7 @@ const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.12,
-      delayChildren: 0.2,
-    },
+    transition: { staggerChildren: 0.12, delayChildren: 0.2 },
   },
 };
 
@@ -61,7 +159,7 @@ const itemVariants = {
   },
 };
 
-const ComingSoon = () => {
+const WaitlistForm = ({ compact = false }: { compact?: boolean }) => {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
@@ -73,6 +171,41 @@ const ComingSoon = () => {
     }
   };
 
+  return (
+    <div className={compact ? 'max-w-md mx-auto' : 'max-w-md'}>
+      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="pl-10 h-12 rounded-full bg-[hsl(var(--landing-surface)/0.5)] border-[hsl(var(--landing-indigo)/0.25)] focus:border-[hsl(var(--landing-indigo))] focus:ring-[hsl(var(--landing-indigo)/0.3)] placeholder:text-muted-foreground"
+          />
+        </div>
+        <Button
+          type="submit"
+          className="h-12 rounded-full bg-[hsl(var(--landing-indigo))] hover:bg-[hsl(var(--landing-indigo)/0.85)] text-white px-6 font-medium"
+        >
+          {submitted ? 'You are on the list' : 'Join waitlist'}
+          <ArrowRight className="w-4 h-4 ml-2" />
+        </Button>
+      </form>
+      {submitted && (
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-3 text-sm text-[hsl(var(--landing-indigo))]"
+        >
+          Thanks — we'll notify you when Atlas launches.
+        </motion.p>
+      )}
+    </div>
+  );
+};
+
+const ComingSoon = () => {
   return (
     <div className="min-h-screen relative overflow-hidden bg-[hsl(var(--landing-bg))] text-foreground font-manrope">
       {/* Ambient background gradients */}
@@ -89,7 +222,6 @@ const ComingSoon = () => {
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] rounded-full opacity-10 blur-3xl"
           style={{ background: 'radial-gradient(circle, hsl(var(--landing-indigo) / 0.2) 0%, transparent 60%)' }}
         />
-        {/* Grid pattern */}
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -119,39 +251,33 @@ const ComingSoon = () => {
           <span className="text-xl font-semibold font-sora tracking-tight">Atlas</span>
         </div>
         <div className="flex items-center gap-4">
-          <Link
-            to="/atlas-architecture"
+          <a
+            href="#core"
+            className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Core
+            <ChevronRight className="w-4 h-4" />
+          </a>
+          <a
+            href="#architecture"
             className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Architecture
-            <ChevronRight className="w-4 h-4" />
-          </Link>
-          <Link
-            to="/dashboard"
+          </a>
+          <a
+            href="#waitlist"
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            Dashboard
-          </Link>
-          <Button
-            asChild
-            size="sm"
-            className="rounded-full bg-[hsl(var(--landing-indigo))] hover:bg-[hsl(var(--landing-indigo)/0.85)] text-white px-5"
-          >
-            <Link to="/dashboard">Enter Atlas</Link>
-          </Button>
+            Waitlist
+          </a>
         </div>
       </motion.nav>
 
-      {/* Hero section */}
+      {/* Hero */}
       <section className="relative z-10 container mx-auto px-6 pt-12 pb-24 lg:pt-20 lg:pb-32">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
+        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-8 items-center">
           {/* Left: text */}
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="max-w-2xl"
-          >
+          <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-2xl">
             <motion.div
               variants={itemVariants}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[hsl(var(--landing-indigo)/0.3)] bg-[hsl(var(--landing-surface)/0.5)] backdrop-blur-md text-sm mb-8"
@@ -186,44 +312,11 @@ const ComingSoon = () => {
               thinks ahead — so you don't have to.
             </motion.p>
 
-            <motion.form
-              variants={itemVariants}
-              onSubmit={handleSubmit}
-              className="flex flex-col sm:flex-row gap-3 max-w-md"
-            >
-              <div className="relative flex-1">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 h-12 rounded-full bg-[hsl(var(--landing-surface)/0.5)] border-[hsl(var(--landing-indigo)/0.25)] focus:border-[hsl(var(--landing-indigo))] focus:ring-[hsl(var(--landing-indigo)/0.3)] placeholder:text-muted-foreground"
-                />
-              </div>
-              <Button
-                type="submit"
-                className="h-12 rounded-full bg-[hsl(var(--landing-indigo))] hover:bg-[hsl(var(--landing-indigo)/0.85)] text-white px-6 font-medium"
-              >
-                {submitted ? 'You are on the list' : 'Join waitlist'}
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </motion.form>
+            <motion.div variants={itemVariants}>
+              <WaitlistForm />
+            </motion.div>
 
-            {submitted && (
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-3 text-sm text-[hsl(var(--landing-indigo))]"
-              >
-                Thanks — we'll notify you when Atlas launches.
-              </motion.p>
-            )}
-
-            <motion.div
-              variants={itemVariants}
-              className="mt-10 flex items-center gap-6 text-sm text-muted-foreground"
-            >
+            <motion.div variants={itemVariants} className="mt-10 flex items-center gap-6 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Cpu className="w-4 h-4" />
                 <span>Multi-model routing</span>
@@ -235,25 +328,25 @@ const ComingSoon = () => {
             </motion.div>
           </motion.div>
 
-          {/* Right: sphere */}
+          {/* Right: sphere (smaller) */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="relative h-[360px] sm:h-[440px] lg:h-[520px]"
+            className="relative flex items-center justify-center"
           >
             <div
-              className="absolute inset-0 rounded-full opacity-30 blur-3xl"
+              className="absolute w-[280px] h-[280px] rounded-full opacity-30 blur-3xl"
               style={{ background: 'radial-gradient(circle, hsl(var(--landing-indigo) / 0.4) 0%, transparent 65%)' }}
             />
-            <div className="relative z-10 w-full h-full">
-              <AtlasSphere state="thinking" audioLevel={0.3} context="mini" />
+            <div className="relative z-10 w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] lg:w-[320px] lg:h-[320px]">
+              <AtlasSphere state="thinking" audioLevel={0.3} context="dashboard" />
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Feature cards */}
+      {/* What Atlas is building */}
       <section className="relative z-10 container mx-auto px-6 pb-24 lg:pb-32">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -275,7 +368,7 @@ const ComingSoon = () => {
           viewport={{ once: true, margin: '-100px' }}
           className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5"
         >
-          {featureCards.map((card, index) => (
+          {featureCards.map((card) => (
             <motion.div
               key={card.title}
               variants={itemVariants}
@@ -286,17 +379,148 @@ const ComingSoon = () => {
               </div>
               <h3 className="text-lg font-semibold font-sora mb-2">{card.title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{card.description}</p>
-              <div
-                className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                style={{ boxShadow: 'inset 0 1px 0 hsl(var(--foreground) / 0.06)' }}
-              />
             </motion.div>
           ))}
         </motion.div>
       </section>
 
-      {/* CTA section */}
-      <section className="relative z-10 container mx-auto px-6 pb-24">
+      {/* Core */}
+      <section id="core" className="relative z-10 container mx-auto px-6 pb-24 lg:pb-32 scroll-mt-24">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={{ duration: 0.6 }}
+          className="max-w-2xl mb-14"
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[hsl(var(--landing-indigo)/0.3)] bg-[hsl(var(--landing-surface)/0.4)] text-xs uppercase tracking-widest text-muted-foreground mb-5">
+            The Core
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold font-sora mb-4">Four layers, one presence.</h2>
+          <p className="text-muted-foreground">
+            Atlas is built as concentric layers of intelligence — from raw sensory input to expressive output — with memory binding them together.
+          </p>
+        </motion.div>
+
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+          className="grid md:grid-cols-2 gap-5"
+        >
+          {coreLayers.map((layer, i) => (
+            <motion.div
+              key={layer.title}
+              variants={itemVariants}
+              className="relative p-6 rounded-2xl border border-[hsl(var(--landing-indigo)/0.15)] hover:border-[hsl(var(--landing-indigo)/0.35)] bg-[hsl(var(--landing-surface)/0.35)] backdrop-blur-xl transition-all"
+            >
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-[hsl(var(--landing-indigo)/0.15)] border border-[hsl(var(--landing-indigo)/0.25)] flex items-center justify-center">
+                  <layer.icon className="w-5 h-5 text-[hsl(var(--landing-indigo))]" />
+                </div>
+                <div>
+                  <div className="text-xs font-mono text-muted-foreground mb-1">0{i + 1}</div>
+                  <h3 className="text-lg font-semibold font-sora mb-2">{layer.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{layer.description}</p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* Architecture */}
+      <section id="architecture" className="relative z-10 container mx-auto px-6 pb-24 lg:pb-32 scroll-mt-24">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={{ duration: 0.6 }}
+          className="max-w-2xl mb-14"
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[hsl(var(--landing-indigo)/0.3)] bg-[hsl(var(--landing-surface)/0.4)] text-xs uppercase tracking-widest text-muted-foreground mb-5">
+            General Architecture
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold font-sora mb-4">Built for realtime, designed for scale.</h2>
+          <p className="text-muted-foreground">
+            A composable stack across frontend, edge, AI, and storage — every layer swappable, every call observable.
+          </p>
+        </motion.div>
+
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+          className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5"
+        >
+          {architectureBlocks.map((block) => (
+            <motion.div
+              key={block.title}
+              variants={itemVariants}
+              className="relative p-6 rounded-2xl border border-[hsl(var(--landing-indigo)/0.15)] hover:border-[hsl(var(--landing-indigo)/0.35)] bg-[hsl(var(--landing-surface)/0.35)] backdrop-blur-xl transition-all"
+            >
+              <block.icon className="w-6 h-6 text-[hsl(var(--landing-indigo))] mb-4" />
+              <h3 className="text-lg font-semibold font-sora mb-1">{block.title}</h3>
+              <div className="text-xs font-mono text-[hsl(var(--landing-indigo))] mb-3">{block.stack}</div>
+              <p className="text-sm text-muted-foreground leading-relaxed">{block.description}</p>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* Unique features */}
+      <section className="relative z-10 container mx-auto px-6 pb-24 lg:pb-32">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={{ duration: 0.6 }}
+          className="max-w-2xl mb-14"
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[hsl(var(--landing-indigo)/0.3)] bg-[hsl(var(--landing-surface)/0.4)] text-xs uppercase tracking-widest text-muted-foreground mb-5">
+            What Makes Atlas Different
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold font-sora mb-4">The features you won't find elsewhere.</h2>
+          <p className="text-muted-foreground">
+            Atlas is opinionated where it matters — presence, memory, and cost — so it feels alive without going broke.
+          </p>
+        </motion.div>
+
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+          className="grid md:grid-cols-2 gap-5"
+        >
+          {uniqueFeatures.map((f) => (
+            <motion.div
+              key={f.title}
+              variants={itemVariants}
+              className="group relative p-6 rounded-2xl border border-[hsl(var(--landing-indigo)/0.15)] hover:border-[hsl(var(--landing-indigo)/0.35)] bg-[hsl(var(--landing-surface)/0.35)] backdrop-blur-xl transition-all overflow-hidden"
+            >
+              <div
+                className="absolute -top-16 -right-16 w-40 h-40 rounded-full opacity-0 group-hover:opacity-30 blur-3xl transition-opacity"
+                style={{ background: 'radial-gradient(circle, hsl(var(--landing-indigo)) 0%, transparent 70%)' }}
+              />
+              <div className="relative flex items-start gap-4">
+                <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-[hsl(var(--landing-indigo)/0.15)] border border-[hsl(var(--landing-indigo)/0.25)] flex items-center justify-center">
+                  <f.icon className="w-5 h-5 text-[hsl(var(--landing-indigo))]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold font-sora mb-2">{f.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{f.description}</p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* Waitlist CTA */}
+      <section id="waitlist" className="relative z-10 container mx-auto px-6 pb-24 scroll-mt-24">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -306,32 +530,14 @@ const ComingSoon = () => {
         >
           <div
             className="absolute inset-0 opacity-20"
-            style={{
-              background: 'radial-gradient(circle at 50% 0%, hsl(var(--landing-indigo) / 0.4), transparent 60%)',
-            }}
+            style={{ background: 'radial-gradient(circle at 50% 0%, hsl(var(--landing-indigo) / 0.4), transparent 60%)' }}
           />
           <div className="relative z-10 max-w-2xl mx-auto">
-            <h2 className="text-3xl sm:text-4xl font-bold font-sora mb-4">Ready to meet Atlas?</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold font-sora mb-4">Be the first to meet Atlas.</h2>
             <p className="text-muted-foreground mb-8">
-              The dashboard is already live. Preview the architecture, explore the health center, or enter Atlas now.
+              Join the waitlist and get early access when Atlas opens its doors.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button
-                asChild
-                size="lg"
-                className="rounded-full bg-[hsl(var(--landing-indigo))] hover:bg-[hsl(var(--landing-indigo)/0.85)] text-white px-8 h-12"
-              >
-                <Link to="/dashboard">Enter Atlas</Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="rounded-full border-[hsl(var(--landing-indigo)/0.35)] bg-transparent hover:bg-[hsl(var(--landing-indigo)/0.1)] px-8 h-12"
-              >
-                <Link to="/atlas-architecture">Explore Architecture</Link>
-              </Button>
-            </div>
+            <WaitlistForm compact />
           </div>
         </motion.div>
       </section>
@@ -342,21 +548,17 @@ const ComingSoon = () => {
           <div className="flex items-center gap-3">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{
-                background: 'linear-gradient(135deg, hsl(var(--landing-indigo) / 0.3), hsl(var(--landing-navy) / 0.3))',
-              }}
+              style={{ background: 'linear-gradient(135deg, hsl(var(--landing-indigo) / 0.3), hsl(var(--landing-navy) / 0.3))' }}
             >
               <span className="text-sm font-bold text-foreground font-sora">A</span>
             </div>
             <span className="text-sm font-semibold font-sora">Atlas</span>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Ambient intelligence, coming soon.
-          </p>
+          <p className="text-sm text-muted-foreground">Ambient intelligence, coming soon.</p>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <Link to="/atlas-architecture" className="hover:text-foreground transition-colors">Architecture</Link>
-            <Link to="/atlas-core" className="hover:text-foreground transition-colors">Health</Link>
-            <Link to="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link>
+            <a href="#core" className="hover:text-foreground transition-colors">Core</a>
+            <a href="#architecture" className="hover:text-foreground transition-colors">Architecture</a>
+            <a href="#waitlist" className="hover:text-foreground transition-colors">Waitlist</a>
           </div>
         </div>
       </footer>
